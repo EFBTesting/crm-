@@ -72,6 +72,28 @@ function el(html) {
   return t.content.firstElementChild;
 }
 
+/** Capitalizes the first letter of the string and of every word after a
+ *  space — never touches letters mid-word, so "McDonald" typed as-is stays
+ *  "McDonald" rather than being forced to "Mcdonald". */
+function capitalizeWords(str) {
+  return str.replace(/(^|\s)([a-z])/g, (m, sep, letter) => sep + letter.toUpperCase());
+}
+
+/** Wires an input to auto-capitalize the first letter of each word as the
+ *  person types, preserving cursor position (since the transform never
+ *  changes the string's length, restoring the same offset is always safe). */
+function bindAutoCapitalize(input) {
+  if (!input) return;
+  input.addEventListener('input', () => {
+    const pos = input.selectionStart;
+    const transformed = capitalizeWords(input.value);
+    if (transformed !== input.value) {
+      input.value = transformed;
+      input.setSelectionRange(pos, pos);
+    }
+  });
+}
+
 /** Debounce a function by `ms` milliseconds. */
 function debounce(fn, ms = 250) {
   let t;

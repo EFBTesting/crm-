@@ -116,7 +116,12 @@ function openContactForm(existing = null, onSaved = null) {
       </form>`,
   });
 
-  handleAsyncSubmit(qs('#contact-form'), {
+  const contactForm = qs('#contact-form');
+  bindAutoCapitalize(qs('input[name="firstName"]', contactForm));
+  bindAutoCapitalize(qs('input[name="lastName"]', contactForm));
+  bindAutoCapitalize(qs('input[name="title"]', contactForm));
+
+  handleAsyncSubmit(contactForm, {
     onSubmit: async fd => {
       const data = Object.fromEntries(fd.entries());
       if (!data.firstName.trim() || !data.lastName.trim()) return;
@@ -163,7 +168,10 @@ function openCompanyForm(existing = null, onSaved = null) {
       </form>`,
   });
 
-  handleAsyncSubmit(qs('#company-form'), {
+  const companyForm = qs('#company-form');
+  bindAutoCapitalize(qs('input[name="name"]', companyForm));
+
+  handleAsyncSubmit(companyForm, {
     onSubmit: async fd => {
       const data = Object.fromEntries(fd.entries());
       if (!data.name.trim()) return;
@@ -193,6 +201,9 @@ function contactFieldsHtml(prefix, contact) {
     </label>
     <label class="field"><span>Best time to contact</span>
       <select name="${prefix}BestTime">${optionList(BEST_TIME_OPTIONS, contact?.bestTimeToContact, { blank: '— Unspecified —' })}</select>
+    </label>
+    <label class="field field--full"><span>Address</span>
+      <input name="${prefix}Address" value="${esc(contact?.address)}" placeholder="Street, City, State">
     </label>`;
 }
 
@@ -279,23 +290,29 @@ function openLeadForm(existing = null, defaults = {}, onSaved = null) {
     qsa('input, select', secondBlock).forEach(el => { el.value = ''; });
   });
 
+  bindAutoCapitalize(qs('input[name="contact1Name"]', form));
+  bindAutoCapitalize(qs('input[name="contact2Name"]', form));
+
   handleAsyncSubmit(form, {
     onSubmit: async fd => {
       const title = (fd.get('title') || '').trim();
       if (!title) return;
+      const source = fd.get('source');
 
       const contact1Id = await Contacts.upsertFromFields(contact1ExistingId, {
         name: fd.get('contact1Name'), phone: fd.get('contact1Phone'), email: fd.get('contact1Email'),
+        address: fd.get('contact1Address'), leadSource: source,
         bestTimeToContact: fd.get('contact1BestTime'), noteIfNew: `Linked lead: ${title}`,
       });
       const contact2Id = secondBlock.hidden ? null : await Contacts.upsertFromFields(contact2ExistingId, {
         name: fd.get('contact2Name'), phone: fd.get('contact2Phone'), email: fd.get('contact2Email'),
+        address: fd.get('contact2Address'), leadSource: source,
         bestTimeToContact: fd.get('contact2BestTime'), noteIfNew: `Linked lead: ${title}`,
       });
 
       const data = {
         title, stage: fd.get('stage'), value: fd.get('value'), revenuePercent: fd.get('revenuePercent'),
-        projectType: fd.get('projectType'), source: fd.get('source'), notes: fd.get('notes'),
+        projectType: fd.get('projectType'), source, notes: fd.get('notes'),
         contactId: contact1Id, secondaryContactId: contact2Id,
       };
       const saved = existing ? await Leads.update(existing.id, data) : await Leads.create(data);

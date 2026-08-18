@@ -189,7 +189,7 @@ const Contacts = {
    *  fields — this is how leads avoid making you re-enter contact info that
    *  belongs on a Contact record. Returns the contact id, or null if no
    *  name was given (the fields were left blank). */
-  async upsertFromFields(existingId, { name, phone, email, bestTimeToContact, noteIfNew }) {
+  async upsertFromFields(existingId, { name, phone, email, address, leadSource, bestTimeToContact, noteIfNew }) {
     const trimmedName = (name || '').trim();
     if (!trimmedName && !existingId) return null;
     if (!trimmedName && existingId) {
@@ -200,10 +200,10 @@ const Contacts = {
     const lastName = rest.join(' ');
     if (existingId) {
       const existing = this.get(existingId);
-      const saved = await this.update(existingId, { ...existing, firstName, lastName, phone, email, bestTimeToContact });
+      const saved = await this.update(existingId, { ...existing, firstName, lastName, phone, email, address, leadSource, bestTimeToContact });
       return saved.id;
     }
-    const saved = await this.create({ firstName, lastName, phone, email, bestTimeToContact, notes: noteIfNew || '' });
+    const saved = await this.create({ firstName, lastName, phone, email, address, leadSource, bestTimeToContact, notes: noteIfNew || '' });
     return saved.id;
   },
 };
