@@ -22,6 +22,11 @@
   font-size: 15px;
 }
 
+/* The [hidden] attribute must always win over any display rule below —
+   otherwise elements we JS-toggle with .hidden = true/false (login screen,
+   config error, app shell) can render simultaneously, stacked in the page. */
+[hidden] { display: none !important; }
+
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
 body {
