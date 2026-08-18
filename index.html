@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Erwin Forest Builders — CRM</title>
+  <meta name="description" content="Lead pipeline, contacts, company profiles, and analytics for Erwin Forest Builders.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%232b3a55%22/><text x=%2250%22 y=%2266%22 font-size=%2255%22 text-anchor=%22middle%22 fill=%22%23e07a2c%22 font-family=%22Arial%22 font-weight=%22bold%22>E</text></svg>">
+  <link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+
+  <div class="app-shell">
+    <button id="nav-toggle" aria-label="Toggle navigation">☰</button>
+
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="brand__mark">EFB</span>
+        <span class="brand__text"><strong>Erwin Forest Builders</strong><span>CRM</span></span>
+      </div>
+
+      <nav>
+        <div class="nav-group">
+          <div class="nav-group__label">Overview</div>
+          <a class="nav-link" href="#/dashboard" data-section="/dashboard"><span class="nav-icon">📊</span> Analytics</a>
+        </div>
+        <div class="nav-group">
+          <div class="nav-group__label">Sales</div>
+          <a class="nav-link" href="#/pipeline" data-section="/pipeline"><span class="nav-icon">🧭</span> Lead Pipeline</a>
+        </div>
+        <div class="nav-group">
+          <div class="nav-group__label">Relationships</div>
+          <a class="nav-link" href="#/contacts" data-section="/contacts"><span class="nav-icon">👤</span> Contacts</a>
+          <a class="nav-link" href="#/companies" data-section="/companies"><span class="nav-icon">🏢</span> Companies</a>
+        </div>
+      </nav>
+
+      <div class="sidebar-footer">© <span id="footer-year"></span> Erwin Forest Builders<br>Data is stored privately in this browser.</div>
+    </aside>
+
+    <main class="main" id="app-root"></main>
+  </div>
+
+  <div id="modal-root"></div>
+  <div id="toast-host"></div>
+
+  <!-- Chart.js (CDN) — dashboard degrades gracefully if this fails to load offline -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+
+  <script src="assets/js/utils.js"></script>
+  <script src="assets/js/data.js"></script>
+  <script src="assets/js/charts.js"></script>
+  <script src="assets/js/router.js"></script>
+  <script src="assets/js/components/modal.js"></script>
+  <script src="assets/js/views/dashboard.js"></script>
+  <script src="assets/js/views/contacts.js"></script>
+  <script src="assets/js/views/contactDetail.js"></script>
+  <script src="assets/js/views/companies.js"></script>
+  <script src="assets/js/views/companyDetail.js"></script>
+  <script src="assets/js/views/pipeline.js"></script>
+  <script src="assets/js/views/leadDetail.js"></script>
+  <script src="assets/js/app.js"></script>
+</body>
+</html>
