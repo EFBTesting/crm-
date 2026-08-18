@@ -185,6 +185,36 @@ const Contacts = {
   leadsFor(contactId) {
     return cache.leads.filter(l => l.contactId === contactId || l.secondaryContactId === contactId);
   },
+  /** A contact's overall status, derived live from their linked leads —
+   *  never stored, so it's always correct the moment a lead changes:
+   *  - 'open' if any linked lead is currently active
+   *  - otherwise 'previous' (their most recently updated lead's outcome,
+   *    won or lost) — once a lead is reopened it becomes active again,
+   *    which flips this straight back to 'open'
+   *  - 'none' if they have no leads at all */
+  statusFor(contactId) {
+    const leads = this.leadsFor(contactId);
+    if (!leads.length) return { kind: 'none' };
+    const active = leads.filter(l => l.status === 'active');
+    if (active.length) return { kind: 'open', count: active.length };
+    const mostRecent = [...leads].sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))[0];
+    return { kind: 'previous', outcome: mostRecent.status };
+  },
+  /** Best-match search for duplicate detection — used by the "did you mean
+   *  this existing contact?" autocomplete on the lead and contact forms. */
+  search(nameQuery, phoneQuery, { excludeIds = [] } = {}) {
+    const name = (nameQuery || '').trim().toLowerCase();
+    const phone = (phoneQuery || '').replace(/\D/g, '');
+    if (name.length < 2 && phone.length < 3) return [];
+    return this.all()
+      .filter(c => !excludeIds.includes(c.id))
+      .filter(c => {
+        const nameMatch = name.length >= 2 && fullName(c).toLowerCase().includes(name);
+        const phoneMatch = phone.length >= 3 && (c.phone || '').replace(/\D/g, '').includes(phone);
+        return nameMatch || phoneMatch;
+      })
+      .slice(0, 6);
+  },
   /** Create or update a contact from a lead form's inline name/phone/email
    *  fields — this is how leads avoid making you re-enter contact info that
    *  belongs on a Contact record. Returns the contact id, or null if no

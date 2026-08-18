@@ -94,6 +94,15 @@ function bindAutoCapitalize(input) {
   });
 }
 
+/** Renders a contact's live-computed status (see Contacts.statusFor) as a pill. */
+function contactStatusPillHtml(contactId) {
+  const info = Contacts.statusFor(contactId);
+  if (info.kind === 'none') return `<span class="pill pill--muted">No projects yet</span>`;
+  if (info.kind === 'open') return `<span class="pill pill--navy">Open${info.count > 1 ? ` (${info.count})` : ''}</span>`;
+  if (info.outcome === 'won') return `<span class="pill pill--green">Previous Project · Won</span>`;
+  return `<span class="pill pill--red">Previous Project · Lost</span>`;
+}
+
 /** Debounce a function by `ms` milliseconds. */
 function debounce(fn, ms = 250) {
   let t;

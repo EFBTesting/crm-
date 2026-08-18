@@ -64,6 +64,49 @@ function handleAsyncSubmit(form, { onSubmit, busyLabel = 'Saving…' }) {
   });
 }
 
+/** Duplicate-contact detection: as the person types a name or phone number,
+ *  shows a dropdown of matching existing contacts underneath `anchorEl`;
+ *  clicking one calls `fill(contact)` to autofill the form and `onPick(contact)`
+ *  so the caller can bind the form to that contact's id (so saving updates
+ *  them instead of creating a duplicate). `onClear()` fires whenever the
+ *  name is emptied back out, so the caller can unbind. */
+function wireContactAutocomplete({ anchorEl, nameGetter, phoneInput, excludeIds = [], triggerInputs, fill, onPick, onClear }) {
+  const dropdown = el('<div class="autocomplete-dropdown" hidden></div>');
+  anchorEl.appendChild(dropdown);
+
+  function search() {
+    const nameVal = nameGetter().trim();
+    if (!nameVal && onClear) onClear();
+    const phoneVal = phoneInput ? phoneInput.value : '';
+    const matches = Contacts.search(nameVal, phoneVal, { excludeIds });
+    if (!matches.length) { dropdown.hidden = true; dropdown.innerHTML = ''; return; }
+    dropdown.innerHTML = matches.map(c => `
+      <div class="autocomplete-item" data-id="${esc(c.id)}">
+        <strong>${esc(fullName(c))}</strong>
+        <span>${esc(c.phone) || esc(c.email) || ''}</span>
+      </div>`).join('');
+    dropdown.hidden = false;
+    qsa('.autocomplete-item', dropdown).forEach(item => {
+      // mousedown (not click) fires before the input's blur, so the value
+      // we're about to set doesn't get clobbered by a stray blur handler.
+      item.addEventListener('mousedown', e => {
+        e.preventDefault();
+        const contact = Contacts.get(item.dataset.id);
+        if (!contact) return;
+        fill(contact);
+        dropdown.hidden = true;
+        if (onPick) onPick(contact);
+      });
+    });
+  }
+
+  const debouncedSearch = debounce(search, 150);
+  triggerInputs.filter(Boolean).forEach(inp => inp.addEventListener('input', debouncedSearch));
+  document.addEventListener('mousedown', e => {
+    if (!anchorEl.contains(e.target)) dropdown.hidden = true;
+  });
+}
+
 function optionList(items, selected, { valueKey = null, labelKey = null, blank = '— None —' } = {}) {
   const opts = blank ? [`<option value="">${esc(blank)}</option>`] : [];
   items.forEach(item => {
@@ -88,6 +131,7 @@ function openContactForm(existing = null, onSaved = null) {
         <label class="field"><span>Last name *</span>
           <input name="lastName" required value="${esc(existing?.lastName)}" placeholder="Blake">
         </label>
+        <div id="contact-match-banner" class="autocomplete-banner" hidden></div>
         <label class="field"><span>Email</span>
           <input type="email" name="email" value="${esc(existing?.email)}" placeholder="jordan@email.com">
         </label>
@@ -117,17 +161,57 @@ function openContactForm(existing = null, onSaved = null) {
   });
 
   const contactForm = qs('#contact-form');
-  bindAutoCapitalize(qs('input[name="firstName"]', contactForm));
-  bindAutoCapitalize(qs('input[name="lastName"]', contactForm));
+  const firstNameInput = qs('input[name="firstName"]', contactForm);
+  const lastNameInput = qs('input[name="lastName"]', contactForm);
+  const phoneInputEl = qs('input[name="phone"]', contactForm);
+  const submitBtn = qs('button[type="submit"]', contactForm);
+  bindAutoCapitalize(firstNameInput);
+  bindAutoCapitalize(lastNameInput);
   bindAutoCapitalize(qs('input[name="title"]', contactForm));
+
+  let matchedContactId = existing?.id ?? null;
+  const matchBanner = qs('#contact-match-banner', contactForm);
+
+  function fillContactFields(contact) {
+    firstNameInput.value = contact.firstName || '';
+    lastNameInput.value = contact.lastName || '';
+    qs('input[name="email"]', contactForm).value = contact.email || '';
+    phoneInputEl.value = contact.phone || '';
+    qs('input[name="title"]', contactForm).value = contact.title || '';
+    qs('select[name="companyId"]', contactForm).value = contact.companyId || '';
+    qs('input[name="address"]', contactForm).value = contact.address || '';
+    qs('select[name="leadSource"]', contactForm).value = contact.leadSource || '';
+    qs('textarea[name="notes"]', contactForm).value = contact.notes || '';
+  }
+  function showMatchBanner(contact) {
+    matchBanner.hidden = false;
+    matchBanner.innerHTML = `<span>Matched existing contact: ${esc(fullName(contact))} — saving will update them, not create a duplicate.</span> <button type="button" id="undo-match-btn">Undo</button>`;
+    qs('#undo-match-btn', matchBanner).addEventListener('click', () => {
+      matchedContactId = existing?.id ?? null;
+      matchBanner.hidden = true;
+      submitBtn.textContent = existing ? 'Save changes' : 'Create contact';
+    });
+    submitBtn.textContent = 'Save changes to existing contact';
+  }
+
+  wireContactAutocomplete({
+    anchorEl: lastNameInput.closest('label.field'),
+    nameGetter: () => `${firstNameInput.value} ${lastNameInput.value}`,
+    phoneInput: phoneInputEl,
+    excludeIds: existing ? [existing.id] : [],
+    triggerInputs: [firstNameInput, lastNameInput, phoneInputEl],
+    fill: fillContactFields,
+    onPick: contact => { matchedContactId = contact.id; showMatchBanner(contact); },
+    onClear: () => { matchedContactId = existing?.id ?? null; matchBanner.hidden = true; submitBtn.textContent = existing ? 'Save changes' : 'Create contact'; },
+  });
 
   handleAsyncSubmit(contactForm, {
     onSubmit: async fd => {
       const data = Object.fromEntries(fd.entries());
       if (!data.firstName.trim() || !data.lastName.trim()) return;
-      const saved = existing ? await Contacts.update(existing.id, data) : await Contacts.create(data);
+      const saved = matchedContactId ? await Contacts.update(matchedContactId, data) : await Contacts.create(data);
       Modal.close();
-      toast(existing ? 'Contact updated' : 'Contact created');
+      toast(matchedContactId ? 'Contact updated' : 'Contact created');
       if (onSaved) onSaved(saved);
     },
   });
@@ -208,8 +292,8 @@ function contactFieldsHtml(prefix, contact) {
 }
 
 function openLeadForm(existing = null, defaults = {}, onSaved = null) {
-  const contact1ExistingId = existing?.contactId ?? defaults.contactId ?? null;
-  const contact2ExistingId = existing?.secondaryContactId ?? null;
+  let contact1ExistingId = existing?.contactId ?? defaults.contactId ?? null;
+  let contact2ExistingId = existing?.secondaryContactId ?? null;
   const primaryContact = Contacts.get(contact1ExistingId);
   const secondaryContact = Contacts.get(contact2ExistingId);
   const hasSecondContact = !!secondaryContact;
@@ -288,10 +372,37 @@ function openLeadForm(existing = null, defaults = {}, onSaved = null) {
     secondBlock.hidden = true;
     toggleSecondBtn.hidden = false;
     qsa('input, select', secondBlock).forEach(el => { el.value = ''; });
+    contact2ExistingId = null;
   });
 
   bindAutoCapitalize(qs('input[name="contact1Name"]', form));
   bindAutoCapitalize(qs('input[name="contact2Name"]', form));
+
+  function wireLeadContactAutocomplete(prefix, getExistingId, setExistingId) {
+    const nameInput = qs(`input[name="${prefix}Name"]`, form);
+    const phoneInputEl = qs(`input[name="${prefix}Phone"]`, form);
+    const emailInputEl = qs(`input[name="${prefix}Email"]`, form);
+    const addressInputEl = qs(`input[name="${prefix}Address"]`, form);
+    const bestTimeSelect = qs(`select[name="${prefix}BestTime"]`, form);
+    wireContactAutocomplete({
+      anchorEl: nameInput.closest('label.field'),
+      nameGetter: () => nameInput.value,
+      phoneInput: phoneInputEl,
+      excludeIds: [getExistingId()].filter(Boolean),
+      triggerInputs: [nameInput, phoneInputEl],
+      fill: contact => {
+        nameInput.value = fullName(contact);
+        phoneInputEl.value = contact.phone || '';
+        emailInputEl.value = contact.email || '';
+        addressInputEl.value = contact.address || '';
+        bestTimeSelect.value = contact.bestTimeToContact || '';
+      },
+      onPick: contact => { setExistingId(contact.id); toast(`Linked to existing contact: ${fullName(contact)}`); },
+      onClear: () => setExistingId(null),
+    });
+  }
+  wireLeadContactAutocomplete('contact1', () => contact1ExistingId, v => { contact1ExistingId = v; });
+  wireLeadContactAutocomplete('contact2', () => contact2ExistingId, v => { contact2ExistingId = v; });
 
   handleAsyncSubmit(form, {
     onSubmit: async fd => {

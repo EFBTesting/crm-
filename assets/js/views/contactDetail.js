@@ -17,7 +17,8 @@ function renderContactDetail(root, { id }) {
     const leads = Contacts.leadsFor(c.id).sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
     const activeLeads = leads.filter(l => l.status === 'active');
     const wonLeads = leads.filter(l => l.status === 'won');
-    const totalValue = leads.reduce((s, l) => s + (Number(l.value) || 0), 0);
+    const lostLeads = leads.filter(l => l.status === 'lost');
+    const totalWonValue = wonLeads.reduce((s, l) => s + (Number(l.value) || 0), 0);
 
     root.innerHTML = `
       <div class="breadcrumb"><a href="#/contacts">Contacts</a> / ${esc(fullName(c))}</div>
@@ -25,6 +26,7 @@ function renderContactDetail(root, { id }) {
       <div class="profile-head">
         <span class="avatar avatar--lg">${esc(initials(c.firstName, c.lastName))}</span>
         <div class="profile-head__info">
+          <div class="lead-status-row">${contactStatusPillHtml(c.id)}</div>
           <h1>${esc(fullName(c))}</h1>
           <p class="view-sub">${esc(c.title || 'Contact')}${company ? ` · <a href="#/companies/${company.id}">${esc(company.name)}</a>` : ''}</p>
         </div>
@@ -42,6 +44,7 @@ function renderContactDetail(root, { id }) {
             <div><dt>Email</dt><dd>${c.email ? `<a href="mailto:${esc(c.email)}">${esc(c.email)}</a>` : '—'}</dd></div>
             <div><dt>Phone</dt><dd>${c.phone ? `<a href="tel:${esc(c.phone)}">${esc(c.phone)}</a>` : '—'}</dd></div>
             <div><dt>Address</dt><dd>${esc(c.address) || '—'}</dd></div>
+            <div><dt>Best time to contact</dt><dd>${esc(c.bestTimeToContact) || '—'}</dd></div>
             <div><dt>Lead source</dt><dd>${esc(c.leadSource) || '—'}</dd></div>
             <div><dt>Company</dt><dd>${company ? `<a href="#/companies/${company.id}">${esc(company.name)}</a>` : '—'}</dd></div>
             <div><dt>Added</dt><dd>${fmtDate(c.createdAt)}</dd></div>
@@ -50,25 +53,31 @@ function renderContactDetail(root, { id }) {
         </div>
 
         <div class="panel panel--wide">
-          <div class="panel__head-row"><h3>Leads (${leads.length})</h3></div>
-          <div class="kpi-inline">
+          <div class="panel__head-row"><h3>Projects</h3></div>
+          <div class="kpi-inline kpi-inline--wrap">
+            <div><span class="kpi-inline__num">${leads.length}</span><span class="kpi-inline__label">Total Projects</span></div>
             <div><span class="kpi-inline__num">${activeLeads.length}</span><span class="kpi-inline__label">Active</span></div>
             <div><span class="kpi-inline__num">${wonLeads.length}</span><span class="kpi-inline__label">Won</span></div>
-            <div><span class="kpi-inline__num">${fmtMoney(totalValue)}</span><span class="kpi-inline__label">Total Value</span></div>
+            <div><span class="kpi-inline__num">${lostLeads.length}</span><span class="kpi-inline__label">Lost</span></div>
+            <div><span class="kpi-inline__num">${fmtMoney(totalWonValue)}</span><span class="kpi-inline__label">Total Won $</span></div>
           </div>
           ${leads.length ? `
-            <table class="mini-table">
-              <thead><tr><th>Lead</th><th>Stage</th><th>Value</th><th>Updated</th></tr></thead>
-              <tbody>
-                ${leads.map(l => `
-                  <tr class="row-link" data-nav="/leads/${l.id}">
-                    <td>${esc(l.title)}</td>
-                    <td>${statusPill(l)}</td>
-                    <td>${fmtMoney(l.value)}</td>
-                    <td class="muted">${timeAgo(l.updatedAt)}</td>
-                  </tr>`).join('')}
-              </tbody>
-            </table>` : `<p class="empty-inline">No leads linked to this contact yet.</p>`}
+            <button type="button" id="toggle-projects-btn" class="link-btn-inline">▸ View all ${leads.length} project${leads.length === 1 ? '' : 's'}</button>
+            <div id="projects-table-wrap" hidden>
+              <table class="mini-table">
+                <thead><tr><th>Project</th><th>Type</th><th>Status</th><th>Value</th><th>Updated</th></tr></thead>
+                <tbody>
+                  ${leads.map(l => `
+                    <tr class="row-link" data-nav="/leads/${l.id}">
+                      <td>${esc(l.title)}</td>
+                      <td>${esc(l.projectType) || '—'}</td>
+                      <td>${statusPill(l)}</td>
+                      <td>${fmtMoney(l.value)}</td>
+                      <td class="muted">${timeAgo(l.updatedAt)}</td>
+                    </tr>`).join('')}
+                </tbody>
+              </table>
+            </div>` : `<p class="empty-inline">No projects linked to this contact yet.</p>`}
         </div>
       </div>
     `;
@@ -83,6 +92,16 @@ function renderContactDetail(root, { id }) {
         Router.navigate('/contacts');
       });
     });
+
+    const toggleProjectsBtn = qs('#toggle-projects-btn', root);
+    if (toggleProjectsBtn) {
+      toggleProjectsBtn.addEventListener('click', () => {
+        const wrap = qs('#projects-table-wrap', root);
+        const isHidden = wrap.hidden;
+        wrap.hidden = !isHidden;
+        toggleProjectsBtn.textContent = `${isHidden ? '▾ Hide' : '▸ View all'} ${leads.length} project${leads.length === 1 ? '' : 's'}`;
+      });
+    }
   }
 
   draw();

@@ -30,12 +30,11 @@ function renderContacts(root) {
         <div class="table-wrap">
           <table class="data-table">
             <thead>
-              <tr><th>Name</th><th>Company</th><th>Email</th><th>Phone</th><th>Open Leads</th><th>Added</th></tr>
+              <tr><th>Name</th><th>Company</th><th>Email</th><th>Phone</th><th>Status</th><th>Added</th></tr>
             </thead>
             <tbody>
               ${filtered.map(c => {
                 const company = Companies.get(c.companyId);
-                const openLeads = Contacts.leadsFor(c.id).filter(l => l.status === 'active').length;
                 return `
                 <tr class="row-link" data-nav="/contacts/${c.id}">
                   <td>
@@ -50,7 +49,7 @@ function renderContacts(root) {
                   <td>${company ? esc(company.name) : '<span class="muted">—</span>'}</td>
                   <td>${c.email ? `<a href="mailto:${esc(c.email)}" onclick="event.stopPropagation()">${esc(c.email)}</a>` : '<span class="muted">—</span>'}</td>
                   <td>${c.phone ? esc(c.phone) : '<span class="muted">—</span>'}</td>
-                  <td>${openLeads ? `<span class="pill pill--navy">${openLeads}</span>` : '<span class="muted">0</span>'}</td>
+                  <td>${contactStatusPillHtml(c.id)}</td>
                   <td class="muted">${fmtDate(c.createdAt)}</td>
                 </tr>`;
               }).join('')}
