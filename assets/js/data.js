@@ -308,10 +308,24 @@ const Leads = {
     const history = [...l.history, { at: new Date().toISOString(), event: 'note', detail: note }];
     return this._patch(id, { history });
   },
+  /** Deleting a lead means "we're fully done with them" — so it also
+   *  removes the linked contact(s) from the Contacts section entirely,
+   *  unless a contact is still tied to some other lead (then it's left
+   *  alone). Marking a lead Lost is a completely separate, non-destructive
+   *  path — it never touches the contact or lead data, so a lost lead can
+   *  always be reopened later with everything still in place. */
   async remove(id) {
+    const lead = this.get(id);
+    const linkedContactIds = lead ? [...new Set([lead.contactId, lead.secondaryContactId].filter(Boolean))] : [];
     const { error } = await mustClient().from('leads').delete().eq('id', id);
     if (error) throw error;
     cache.leads = cache.leads.filter(l => l.id !== id);
+    for (const contactId of linkedContactIds) {
+      const stillNeeded = cache.leads.some(l => l.contactId === contactId || l.secondaryContactId === contactId);
+      if (!stillNeeded) {
+        await Contacts.remove(contactId);
+      }
+    }
   },
   /** Internal: merge partial fields onto the existing lead and save. */
   async _patch(id, partial) {

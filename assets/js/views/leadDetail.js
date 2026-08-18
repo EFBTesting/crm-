@@ -92,9 +92,12 @@ function renderLeadDetail(root, { id }) {
 
     qs('#edit-lead-btn', root).addEventListener('click', () => openLeadForm(l, {}, () => draw()));
     qs('#delete-lead-btn', root).addEventListener('click', () => {
-      openConfirm({ title: 'Delete lead', message: `Delete "${l.title}"? This cannot be undone.` }, async () => {
+      openConfirm({
+        title: 'Delete lead',
+        message: `Delete "${l.title}"? Their linked contact will also be deleted (unless tied to another lead). If you might reopen this later, use "Mark Lost" instead — this cannot be undone.`,
+      }, async () => {
         await Leads.remove(l.id);
-        toast('Lead deleted');
+        toast('Lead and contact deleted');
         Router.navigate('/pipeline');
       });
     });
