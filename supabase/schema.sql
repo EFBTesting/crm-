@@ -21,7 +21,8 @@ create table if not exists companies (
   phone text,
   website text,
   address text,
-  primary_contact_id uuid,
+  primary_contact_id uuid,        -- deprecated: superseded by primary_contact_name (free text)
+  primary_contact_name text,
   notes text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -40,6 +41,7 @@ create table if not exists contacts (
   company_id uuid references companies(id) on delete set null,
   address text,
   lead_source text,
+  best_time_to_contact text,      -- Morning | Evening | Night | Whenever
   notes text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -60,13 +62,15 @@ create table if not exists leads (
   id uuid primary key default gen_random_uuid(),
   title text not null,
   contact_id uuid references contacts(id) on delete set null,
+  secondary_contact_id uuid references contacts(id) on delete set null,
   company_id uuid references companies(id) on delete set null,
   stage text not null default 'new_lead',
   status text not null default 'active',       -- active | won | lost
-  value numeric not null default 0,
+  value numeric not null default 0,            -- "Budget" in the UI
+  revenue_percent numeric,                     -- % of budget expected as revenue
   project_type text,
   source text,
-  expected_close_date date,
+  expected_close_date date,                    -- deprecated, no longer set from the UI
   notes text,
   lost_reason text,
   history jsonb not null default '[]',          -- activity timeline, same shape as before
@@ -75,6 +79,17 @@ create table if not exists leads (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- ---------------------------------------------------------------------
+-- Additive migration (safe to re-run) — patches a table created before
+-- these columns existed. New installs get them from the CREATE TABLE
+-- statements above already; these are here so re-running this whole
+-- file always brings an existing project up to date too.
+-- ---------------------------------------------------------------------
+alter table companies add column if not exists primary_contact_name text;
+alter table contacts add column if not exists best_time_to_contact text;
+alter table leads add column if not exists secondary_contact_id uuid references contacts(id) on delete set null;
+alter table leads add column if not exists revenue_percent numeric;
 
 -- ---------------------------------------------------------------------
 -- Keep updated_at fresh automatically

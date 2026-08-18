@@ -66,8 +66,8 @@ p { margin: 0; }
   top: 0;
   height: 100vh;
 }
-.brand { display: flex; align-items: center; padding: 6px 8px 22px; }
-.brand__logo { height: 34px; width: auto; display: block; }
+.brand { display: flex; align-items: center; padding: 8px 4px 26px; }
+.brand__logo { height: 58px; width: auto; display: block; max-width: 100%; }
 .brand--center { justify-content: center; padding: 0 0 4px 0; }
 
 .nav-group { margin-bottom: 18px; }
@@ -307,6 +307,23 @@ body.modal-open { overflow: hidden; }
 .form-actions { grid-column: span 2; display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
 .confirm-text { font-size: 0.9rem; color: var(--ink-soft); margin-bottom: 4px; }
 
+.revenue-row { display: flex; align-items: center; gap: 8px; }
+.revenue-row input { flex: 1; min-width: 0; }
+.revenue-readout { font-size: 0.86rem; font-weight: 700; color: var(--brand); white-space: nowrap; }
+
+.subform { background: #f7f5f0; border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+.subform__head {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 0.78rem; font-weight: 700; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.03em;
+  margin-bottom: 10px;
+}
+.subform-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.link-btn-inline {
+  background: none; border: none; color: var(--brand); font-weight: 700; font-size: 0.84rem;
+  cursor: pointer; padding: 0; text-decoration: underline;
+}
+.link-btn-inline--danger { color: var(--red); font-size: 0.76rem; text-transform: none; letter-spacing: 0; font-weight: 600; }
+
 /* ---------------------------- Login screen ---------------------------- */
 
 .login-screen {
@@ -319,7 +336,7 @@ body.modal-open { overflow: hidden; }
 }
 .login-card h1 { font-size: 1.3rem; margin-top: 8px; }
 .login-card .field { gap: 6px; }
-.login-card .brand__logo { height: 44px; }
+.login-card .brand__logo { height: 72px; }
 .login-error {
   background: #fdecea; border: 1px solid #f0c2bb; color: #7a2e23; border-radius: 8px;
   padding: 8px 12px; font-size: 0.82rem;
@@ -361,5 +378,6 @@ body.modal-open { overflow: hidden; }
   .kpi-grid { grid-template-columns: repeat(2, 1fr); }
   .form-grid { grid-template-columns: 1fr; }
   .field--full, .form-actions { grid-column: span 1; }
+  .subform-grid { grid-template-columns: 1fr; }
   .detail-list > div { grid-template-columns: 100px 1fr; }
 }

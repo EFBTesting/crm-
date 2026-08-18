@@ -131,7 +131,6 @@ function openContactForm(existing = null, onSaved = null) {
 /* --------------------------- Company form --------------------------- */
 
 function openCompanyForm(existing = null, onSaved = null) {
-  const contacts = Contacts.all();
   Modal.open({
     title: existing ? 'Edit Company' : 'New Company',
     bodyHtml: `
@@ -149,7 +148,7 @@ function openCompanyForm(existing = null, onSaved = null) {
           <input name="website" value="${esc(existing?.website)}" placeholder="www.example.com">
         </label>
         <label class="field"><span>Primary contact</span>
-          <select name="primaryContactId">${optionList(contacts.map(c => ({ id: c.id, name: fullName(c) })), existing?.primaryContactId, { valueKey: 'id', labelKey: 'name' })}</select>
+          <input name="primaryContactName" value="${esc(existing?.primaryContactName)}" placeholder="Name of main point of contact">
         </label>
         <label class="field field--full"><span>Address</span>
           <input name="address" value="${esc(existing?.address)}" placeholder="Street, City, State">
@@ -178,9 +177,32 @@ function openCompanyForm(existing = null, onSaved = null) {
 
 /* --------------------------- Lead form --------------------------- */
 
+/** One contact sub-block's fields (Name / Phone / Email / Best time to
+ *  contact), reused for both the primary and the optional second contact. */
+function contactFieldsHtml(prefix, contact) {
+  const name = contact ? fullName(contact).replace(/^Unnamed Contact$/, '') : '';
+  return `
+    <label class="field"><span>Name</span>
+      <input name="${prefix}Name" value="${esc(name)}" placeholder="Full name">
+    </label>
+    <label class="field"><span>Phone</span>
+      <input type="tel" name="${prefix}Phone" value="${esc(contact?.phone)}" placeholder="(555) 555-0100">
+    </label>
+    <label class="field"><span>Email</span>
+      <input type="email" name="${prefix}Email" value="${esc(contact?.email)}" placeholder="name@email.com">
+    </label>
+    <label class="field"><span>Best time to contact</span>
+      <select name="${prefix}BestTime">${optionList(BEST_TIME_OPTIONS, contact?.bestTimeToContact, { blank: '— Unspecified —' })}</select>
+    </label>`;
+}
+
 function openLeadForm(existing = null, defaults = {}, onSaved = null) {
-  const contacts = Contacts.all();
-  const companies = Companies.all();
+  const contact1ExistingId = existing?.contactId ?? defaults.contactId ?? null;
+  const contact2ExistingId = existing?.secondaryContactId ?? null;
+  const primaryContact = Contacts.get(contact1ExistingId);
+  const secondaryContact = Contacts.get(contact2ExistingId);
+  const hasSecondContact = !!secondaryContact;
+
   Modal.open({
     title: existing ? 'Edit Lead' : 'New Lead',
     wide: true,
@@ -189,30 +211,42 @@ function openLeadForm(existing = null, defaults = {}, onSaved = null) {
         <label class="field field--full"><span>Lead title *</span>
           <input name="title" required value="${esc(existing?.title)}" placeholder="e.g. Kitchen Remodel — Smith Residence">
         </label>
-        <label class="field"><span>Contact</span>
-          <select name="contactId">${optionList(contacts.map(c => ({ id: c.id, name: fullName(c) })), existing?.contactId ?? defaults.contactId, { valueKey: 'id', labelKey: 'name' })}</select>
-        </label>
-        <label class="field"><span>Company (if applicable)</span>
-          <select name="companyId">${optionList(companies, existing?.companyId ?? defaults.companyId, { valueKey: 'id', labelKey: 'name' })}</select>
-        </label>
         <label class="field"><span>Stage</span>
           <select name="stage">${optionList(STAGES, existing?.stage ?? defaults.stage ?? STAGES[0].id, { valueKey: 'id', labelKey: 'label', blank: null })}</select>
         </label>
-        <label class="field"><span>Estimated value ($)</span>
-          <input type="number" min="0" step="100" name="value" value="${existing?.value ?? ''}" placeholder="25000">
+        <label class="field"><span>Budget ($)</span>
+          <input type="number" min="0" step="100" name="value" id="lead-value-input" value="${existing?.value ?? ''}" placeholder="25000">
+        </label>
+        <label class="field"><span>Estimated Revenue (%)</span>
+          <div class="revenue-row">
+            <input type="number" min="0" max="100" step="0.1" name="revenuePercent" id="lead-revenue-input" value="${existing?.revenuePercent ?? ''}" placeholder="5">
+            <span class="revenue-readout" id="revenue-readout">${fmtMoney(revenueAmount(existing) || 0)}</span>
+          </div>
         </label>
         <label class="field"><span>Project type</span>
           <select name="projectType">${optionList(PROJECT_TYPES, existing?.projectType, { blank: '— Unspecified —' })}</select>
         </label>
-        <label class="field"><span>Lead source</span>
+        <label class="field field--full"><span>Lead source</span>
           <select name="source">${optionList(LEAD_SOURCES, existing?.source, { blank: '— Unspecified —' })}</select>
-        </label>
-        <label class="field"><span>Expected close date</span>
-          <input type="date" name="expectedCloseDate" value="${esc(existing?.expectedCloseDate)}">
         </label>
         <label class="field field--full"><span>Notes</span>
           <textarea name="notes" rows="3" placeholder="Scope, budget signals, next steps...">${esc(existing?.notes)}</textarea>
         </label>
+
+        <div class="field field--full subform">
+          <div class="subform__head"><span>Contact</span></div>
+          <div class="subform-grid">${contactFieldsHtml('contact1', primaryContact)}</div>
+        </div>
+
+        <div class="field field--full">
+          <button type="button" id="toggle-second-contact-btn" class="link-btn-inline" ${hasSecondContact ? 'hidden' : ''}>+ Add another contact</button>
+        </div>
+
+        <div class="field field--full subform" id="second-contact-block" ${hasSecondContact ? '' : 'hidden'}>
+          <div class="subform__head"><span>Second contact</span> <button type="button" id="remove-second-contact-btn" class="link-btn-inline link-btn-inline--danger">✕ Remove</button></div>
+          <div class="subform-grid">${contactFieldsHtml('contact2', secondaryContact)}</div>
+        </div>
+
         <div class="form-actions">
           <button type="button" class="btn btn--ghost" data-close="1">Cancel</button>
           <button type="submit" class="btn btn--primary">${existing ? 'Save changes' : 'Create lead'}</button>
@@ -220,10 +254,50 @@ function openLeadForm(existing = null, defaults = {}, onSaved = null) {
       </form>`,
   });
 
-  handleAsyncSubmit(qs('#lead-form'), {
+  const form = qs('#lead-form');
+  const valueInput = qs('#lead-value-input', form);
+  const revenueInput = qs('#lead-revenue-input', form);
+  const revenueReadout = qs('#revenue-readout', form);
+  const updateRevenueReadout = () => {
+    const budget = Number(valueInput.value) || 0;
+    const pct = Number(revenueInput.value) || 0;
+    revenueReadout.textContent = fmtMoney(budget * pct / 100);
+  };
+  valueInput.addEventListener('input', updateRevenueReadout);
+  revenueInput.addEventListener('input', updateRevenueReadout);
+
+  const secondBlock = qs('#second-contact-block', form);
+  const toggleSecondBtn = qs('#toggle-second-contact-btn', form);
+  const removeSecondBtn = qs('#remove-second-contact-btn', form);
+  toggleSecondBtn.addEventListener('click', () => {
+    secondBlock.hidden = false;
+    toggleSecondBtn.hidden = true;
+  });
+  removeSecondBtn.addEventListener('click', () => {
+    secondBlock.hidden = true;
+    toggleSecondBtn.hidden = false;
+    qsa('input, select', secondBlock).forEach(el => { el.value = ''; });
+  });
+
+  handleAsyncSubmit(form, {
     onSubmit: async fd => {
-      const data = Object.fromEntries(fd.entries());
-      if (!data.title.trim()) return;
+      const title = (fd.get('title') || '').trim();
+      if (!title) return;
+
+      const contact1Id = await Contacts.upsertFromFields(contact1ExistingId, {
+        name: fd.get('contact1Name'), phone: fd.get('contact1Phone'), email: fd.get('contact1Email'),
+        bestTimeToContact: fd.get('contact1BestTime'), noteIfNew: `Linked lead: ${title}`,
+      });
+      const contact2Id = secondBlock.hidden ? null : await Contacts.upsertFromFields(contact2ExistingId, {
+        name: fd.get('contact2Name'), phone: fd.get('contact2Phone'), email: fd.get('contact2Email'),
+        bestTimeToContact: fd.get('contact2BestTime'), noteIfNew: `Linked lead: ${title}`,
+      });
+
+      const data = {
+        title, stage: fd.get('stage'), value: fd.get('value'), revenuePercent: fd.get('revenuePercent'),
+        projectType: fd.get('projectType'), source: fd.get('source'), notes: fd.get('notes'),
+        contactId: contact1Id, secondaryContactId: contact2Id,
+      };
       const saved = existing ? await Leads.update(existing.id, data) : await Leads.create(data);
       Modal.close();
       toast(existing ? 'Lead updated' : 'Lead created');

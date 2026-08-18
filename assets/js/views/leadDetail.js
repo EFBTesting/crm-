@@ -14,7 +14,9 @@ function renderLeadDetail(root, { id }) {
     const l = Leads.get(id);
     if (!l) { Router.navigate('/pipeline'); return; }
     const contact = Contacts.get(l.contactId);
+    const secondaryContact = Contacts.get(l.secondaryContactId);
     const company = Companies.get(l.companyId);
+    const revenue = revenueAmount(l);
     const history = [...l.history].sort((a, b) => new Date(b.at) - new Date(a.at));
 
     root.innerHTML = `
@@ -24,7 +26,7 @@ function renderLeadDetail(root, { id }) {
         <div class="profile-head__info">
           <div class="lead-status-row">${statusPill(l)} ${l.status === 'active' ? `<span class="pill pill--muted">${STAGES.findIndex(s => s.id === l.stage) + 1} of ${STAGES.length}</span>` : ''}</div>
           <h1>${esc(l.title)}</h1>
-          <p class="view-sub">${fmtMoney(l.value)}${l.projectType ? ` · ${esc(l.projectType)}` : ''}${l.expectedCloseDate ? ` · Expected close ${fmtDate(l.expectedCloseDate)}` : ''}</p>
+          <p class="view-sub">${fmtMoney(l.value)} budget${l.projectType ? ` · ${esc(l.projectType)}` : ''}${revenue !== null ? ` · ${fmtMoney(revenue)} est. revenue` : ''}</p>
         </div>
         <div class="view-head__actions">
           <button class="btn btn--ghost" id="edit-lead-btn">Edit</button>
@@ -56,11 +58,12 @@ function renderLeadDetail(root, { id }) {
           <h3>Details</h3>
           <dl class="detail-list">
             <div><dt>Contact</dt><dd>${contact ? `<a href="#/contacts/${contact.id}">${esc(fullName(contact))}</a>` : '—'}</dd></div>
-            <div><dt>Company</dt><dd>${company ? `<a href="#/companies/${company.id}">${esc(company.name)}</a>` : '—'}</dd></div>
-            <div><dt>Estimated value</dt><dd>${fmtMoney(l.value)}</dd></div>
+            ${secondaryContact ? `<div><dt>2nd contact</dt><dd><a href="#/contacts/${secondaryContact.id}">${esc(fullName(secondaryContact))}</a></dd></div>` : ''}
+            ${company ? `<div><dt>Company</dt><dd><a href="#/companies/${company.id}">${esc(company.name)}</a></dd></div>` : ''}
+            <div><dt>Budget</dt><dd>${fmtMoney(l.value)}</dd></div>
+            <div><dt>Est. revenue</dt><dd>${revenue !== null ? `${fmtMoney(revenue)} <span class="muted">(${l.revenuePercent}%)</span>` : '—'}</dd></div>
             <div><dt>Project type</dt><dd>${esc(l.projectType) || '—'}</dd></div>
             <div><dt>Lead source</dt><dd>${esc(l.source) || '—'}</dd></div>
-            <div><dt>Expected close</dt><dd>${l.expectedCloseDate ? fmtDate(l.expectedCloseDate) : '—'}</dd></div>
             <div><dt>Created</dt><dd>${fmtDate(l.createdAt)}</dd></div>
             <div><dt>Last updated</dt><dd>${timeAgo(l.updatedAt)}</dd></div>
           </dl>

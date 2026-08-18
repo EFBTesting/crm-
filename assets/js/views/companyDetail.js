@@ -14,7 +14,6 @@ function renderCompanyDetail(root, { id }) {
     const co = Companies.get(id);
     if (!co) { Router.navigate('/companies'); return; }
     const contacts = Companies.contactsFor(co.id);
-    const primary = Contacts.get(co.primaryContactId);
     const leads = Companies.leadsFor(co.id).sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
     const activeLeads = leads.filter(l => l.status === 'active');
     const wonLeads = leads.filter(l => l.status === 'won');
@@ -45,7 +44,7 @@ function renderCompanyDetail(root, { id }) {
             <div><dt>Phone</dt><dd>${co.phone ? `<a href="tel:${esc(co.phone)}">${esc(co.phone)}</a>` : '—'}</dd></div>
             <div><dt>Website</dt><dd>${esc(co.website) || '—'}</dd></div>
             <div><dt>Address</dt><dd>${esc(co.address) || '—'}</dd></div>
-            <div><dt>Primary contact</dt><dd>${primary ? `<a href="#/contacts/${primary.id}">${esc(fullName(primary))}</a>` : '—'}</dd></div>
+            <div><dt>Primary contact</dt><dd>${esc(co.primaryContactName) || '—'}</dd></div>
             <div><dt>Added</dt><dd>${fmtDate(co.createdAt)}</dd></div>
           </dl>
           ${co.notes ? `<h3 class="mt">Notes</h3><p class="notes-block">${esc(co.notes)}</p>` : ''}

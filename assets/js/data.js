@@ -21,6 +21,7 @@ const LEAD_SOURCES = ['Referral', 'Website', 'Google Search', 'Angi / HomeAdviso
 const PROJECT_TYPES = ['Kitchen Remodel', 'Bathroom Remodel', 'Home Addition', 'New Custom Build', 'Deck / Outdoor Living', 'Roofing', 'Whole-Home Renovation', 'Commercial Build-Out', 'Other'];
 const COMPANY_TYPES = ['Property Management', 'Developer', 'Architect / Design Partner', 'General Contractor Partner', 'Commercial Client', 'Supplier / Vendor', 'Other'];
 const LOST_REASONS = ['Price too high', 'Chose another contractor', 'Timeline mismatch', 'Project postponed', 'Went unresponsive', 'Scope changed / no longer needed', 'Other'];
+const BEST_TIME_OPTIONS = ['Morning', 'Evening', 'Night', 'Whenever'];
 
 function stageLabel(stageId) {
   const s = STAGES.find(s => s.id === stageId);
@@ -46,44 +47,48 @@ function contactFromRow(r) {
   return {
     id: r.id, firstName: r.first_name || '', lastName: r.last_name || '', email: r.email || '',
     phone: r.phone || '', title: r.title || '', companyId: r.company_id, address: r.address || '',
-    leadSource: r.lead_source || '', notes: r.notes || '', createdAt: r.created_at, updatedAt: r.updated_at,
+    leadSource: r.lead_source || '', bestTimeToContact: r.best_time_to_contact || '', notes: r.notes || '',
+    createdAt: r.created_at, updatedAt: r.updated_at,
   };
 }
 function contactToRow(d) {
   return {
     first_name: (d.firstName || '').trim(), last_name: (d.lastName || '').trim(), email: (d.email || '').trim(),
     phone: (d.phone || '').trim(), title: (d.title || '').trim(), company_id: d.companyId || null,
-    address: (d.address || '').trim(), lead_source: d.leadSource || '', notes: (d.notes || '').trim(),
+    address: (d.address || '').trim(), lead_source: d.leadSource || '', best_time_to_contact: d.bestTimeToContact || '',
+    notes: (d.notes || '').trim(),
   };
 }
 
 function companyFromRow(r) {
   return {
     id: r.id, name: r.name || '', type: r.type || '', phone: r.phone || '', website: r.website || '',
-    address: r.address || '', primaryContactId: r.primary_contact_id, notes: r.notes || '',
+    address: r.address || '', primaryContactName: r.primary_contact_name || '', notes: r.notes || '',
     createdAt: r.created_at, updatedAt: r.updated_at,
   };
 }
 function companyToRow(d) {
   return {
     name: (d.name || '').trim(), type: d.type || '', phone: (d.phone || '').trim(), website: (d.website || '').trim(),
-    address: (d.address || '').trim(), primary_contact_id: d.primaryContactId || null, notes: (d.notes || '').trim(),
+    address: (d.address || '').trim(), primary_contact_name: (d.primaryContactName || '').trim(), notes: (d.notes || '').trim(),
   };
 }
 
 function leadFromRow(r) {
   return {
-    id: r.id, title: r.title || '', contactId: r.contact_id, companyId: r.company_id, stage: r.stage,
-    status: r.status, value: Number(r.value) || 0, projectType: r.project_type || '', source: r.source || '',
-    expectedCloseDate: r.expected_close_date || '', notes: r.notes || '', lostReason: r.lost_reason || '',
+    id: r.id, title: r.title || '', contactId: r.contact_id, secondaryContactId: r.secondary_contact_id,
+    companyId: r.company_id, stage: r.stage, status: r.status, value: Number(r.value) || 0,
+    revenuePercent: r.revenue_percent === null || r.revenue_percent === undefined ? '' : Number(r.revenue_percent),
+    projectType: r.project_type || '', source: r.source || '', notes: r.notes || '', lostReason: r.lost_reason || '',
     history: r.history || [], wonAt: r.won_at, lostAt: r.lost_at, createdAt: r.created_at, updatedAt: r.updated_at,
   };
 }
 function leadToRow(d) {
   const row = {
-    title: (d.title || '').trim(), contact_id: d.contactId || null, company_id: d.companyId || null,
-    value: Number(d.value) || 0, project_type: d.projectType || '', source: d.source || '',
-    expected_close_date: d.expectedCloseDate || null, notes: (d.notes || '').trim(),
+    title: (d.title || '').trim(), contact_id: d.contactId || null, secondary_contact_id: d.secondaryContactId || null,
+    company_id: d.companyId || null, value: Number(d.value) || 0,
+    revenue_percent: d.revenuePercent === '' || d.revenuePercent === undefined || d.revenuePercent === null ? null : Number(d.revenuePercent),
+    project_type: d.projectType || '', source: d.source || '', notes: (d.notes || '').trim(),
   };
   if (d.stage !== undefined) row.stage = d.stage;
   if (d.status !== undefined) row.status = d.status;
@@ -92,6 +97,13 @@ function leadToRow(d) {
   if (d.wonAt !== undefined) row.won_at = d.wonAt;
   if (d.lostAt !== undefined) row.lost_at = d.lostAt;
   return row;
+}
+
+/** Revenue dollar amount derived live from budget × revenue%. Not stored
+ *  separately — recomputed on the fly so it never drifts from the budget. */
+function revenueAmount(lead) {
+  if (!lead || lead.revenuePercent === '' || lead.revenuePercent === null || lead.revenuePercent === undefined) return null;
+  return (Number(lead.value) || 0) * (Number(lead.revenuePercent) || 0) / 100;
 }
 
 /* =========================== Cache boot + realtime =========================== */
@@ -165,11 +177,34 @@ const Contacts = {
     const { error } = await mustClient().from('contacts').delete().eq('id', id);
     if (error) throw error;
     cache.contacts = cache.contacts.filter(c => c.id !== id);
-    cache.leads.forEach(l => { if (l.contactId === id) l.contactId = null; });
-    cache.companies.forEach(co => { if (co.primaryContactId === id) co.primaryContactId = null; });
+    cache.leads.forEach(l => {
+      if (l.contactId === id) l.contactId = null;
+      if (l.secondaryContactId === id) l.secondaryContactId = null;
+    });
   },
   leadsFor(contactId) {
-    return cache.leads.filter(l => l.contactId === contactId);
+    return cache.leads.filter(l => l.contactId === contactId || l.secondaryContactId === contactId);
+  },
+  /** Create or update a contact from a lead form's inline name/phone/email
+   *  fields — this is how leads avoid making you re-enter contact info that
+   *  belongs on a Contact record. Returns the contact id, or null if no
+   *  name was given (the fields were left blank). */
+  async upsertFromFields(existingId, { name, phone, email, bestTimeToContact, noteIfNew }) {
+    const trimmedName = (name || '').trim();
+    if (!trimmedName && !existingId) return null;
+    if (!trimmedName && existingId) {
+      // Name was cleared out — leave the existing contact record alone.
+      return existingId;
+    }
+    const [firstName, ...rest] = trimmedName.split(/\s+/);
+    const lastName = rest.join(' ');
+    if (existingId) {
+      const existing = this.get(existingId);
+      const saved = await this.update(existingId, { ...existing, firstName, lastName, phone, email, bestTimeToContact });
+      return saved.id;
+    }
+    const saved = await this.create({ firstName, lastName, phone, email, bestTimeToContact, notes: noteIfNew || '' });
+    return saved.id;
   },
 };
 
