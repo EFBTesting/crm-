@@ -35,6 +35,8 @@ const Charts = (() => {
 
 const PALETTE = {
   ink: '#1f2933',
+  brand: '#166232',
+  brandSoft: 'rgba(22, 98, 50, 0.16)',
   amber: '#e07a2c',
   amberSoft: 'rgba(224, 122, 44, 0.16)',
   navy: '#2b3a55',
@@ -45,5 +47,6 @@ const PALETTE = {
   redSoft: 'rgba(193, 73, 59, 0.16)',
   slate: '#6b7686',
   grid: 'rgba(120, 130, 145, 0.16)',
-  stageColors: ['#8a97ab', '#4f7cac', '#e0a12c', '#e07a2c', '#3f8f5f'],
+  // Stage progression colors — the final "Won" stage uses the exact brand green.
+  stageColors: ['#8a97ab', '#4f7cac', '#e0a12c', '#e07a2c', '#166232'],
 };

@@ -1,6 +1,8 @@
 /* ==========================================================================
    Erwin Forest Builders CRM — styles
-   Palette: charcoal/navy ink + warm timber amber accent + off-white paper.
+   Palette: Erwin Forest brand green (from the logo, #166232) for chrome and
+   primary actions, warm timber amber as a secondary accent, charcoal/slate
+   navy for neutral "in progress" tones, off-white paper for content.
    ========================================================================== */
 
 :root {
@@ -10,6 +12,8 @@
   --line: #e4e2dc;
   --paper: #faf8f4;
   --card: #ffffff;
+  --brand: #166232;
+  --brand-dark: #0d3f20;
   --navy: #2b3a55;
   --navy-dark: #202b40;
   --amber: #e07a2c;
@@ -35,7 +39,7 @@ body {
   color: var(--ink);
   line-height: 1.45;
 }
-a { color: var(--navy); text-decoration: none; }
+a { color: var(--brand); text-decoration: none; }
 a:hover { text-decoration: underline; }
 h1, h2, h3 { font-family: inherit; margin: 0; color: var(--ink); }
 h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.01em; }
@@ -53,7 +57,7 @@ p { margin: 0; }
 .sidebar {
   width: var(--sidebar-w);
   flex-shrink: 0;
-  background: linear-gradient(180deg, var(--navy-dark), var(--navy));
+  background: linear-gradient(180deg, var(--brand-dark), var(--brand));
   color: #e9ecf1;
   padding: 20px 14px;
   display: flex;
@@ -62,15 +66,9 @@ p { margin: 0; }
   top: 0;
   height: 100vh;
 }
-.brand { display: flex; align-items: center; gap: 10px; padding: 6px 8px 22px; }
-.brand__mark {
-  width: 36px; height: 36px; border-radius: 8px;
-  background: var(--amber); color: #1f2933; font-weight: 800;
-  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-  font-size: 1rem;
-}
-.brand__text strong { display: block; font-size: 0.92rem; line-height: 1.2; }
-.brand__text span { display: block; font-size: 0.7rem; color: #aab4c4; letter-spacing: 0.04em; text-transform: uppercase; }
+.brand { display: flex; align-items: center; padding: 6px 8px 22px; }
+.brand__logo { height: 34px; width: auto; display: block; }
+.brand--center { justify-content: center; padding: 0 0 4px 0; }
 
 .nav-group { margin-bottom: 18px; }
 .nav-group__label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; color: #7d8aa1; padding: 6px 10px; }
@@ -88,7 +86,7 @@ p { margin: 0; }
 #nav-toggle {
   display: none;
   position: fixed; top: 14px; left: 14px; z-index: 40;
-  background: var(--navy); color: #fff; border: none; border-radius: 8px;
+  background: var(--brand); color: #fff; border: none; border-radius: 8px;
   width: 38px; height: 38px; font-size: 1.1rem;
 }
 
@@ -114,8 +112,8 @@ p { margin: 0; }
   white-space: nowrap;
 }
 .btn:hover { filter: brightness(0.96); }
-.btn--primary { background: var(--amber); color: #fff; }
-.btn--primary:hover { background: var(--amber-dark); }
+.btn--primary { background: var(--brand); color: #fff; }
+.btn--primary:hover { background: var(--brand-dark); }
 .btn--ghost { background: #fff; color: var(--ink); border-color: var(--line); }
 .btn--success { background: var(--green); color: #fff; }
 .btn--danger { background: var(--red); color: #fff; }
@@ -194,7 +192,7 @@ p { margin: 0; }
 .cell-sub { font-size: 0.78rem; color: var(--muted); }
 
 .avatar {
-  width: 34px; height: 34px; border-radius: 50%; background: var(--navy); color: #fff;
+  width: 34px; height: 34px; border-radius: 50%; background: var(--brand); color: #fff;
   display: flex; align-items: center; justify-content: center; font-size: 0.78rem; font-weight: 700; flex-shrink: 0;
 }
 .avatar--square { border-radius: 8px; background: var(--amber); }
@@ -313,7 +311,7 @@ body.modal-open { overflow: hidden; }
 
 .login-screen {
   min-height: 100vh; display: flex; align-items: center; justify-content: center;
-  background: linear-gradient(180deg, var(--navy-dark), var(--navy)); padding: 24px;
+  background: linear-gradient(180deg, var(--brand-dark), var(--brand)); padding: 24px;
 }
 .login-card {
   background: #fff; border-radius: 14px; padding: 32px; width: 100%; max-width: 380px;
@@ -321,8 +319,7 @@ body.modal-open { overflow: hidden; }
 }
 .login-card h1 { font-size: 1.3rem; margin-top: 8px; }
 .login-card .field { gap: 6px; }
-.brand--center { justify-content: center; padding: 0 0 4px; }
-.brand--center .brand__text { text-align: left; }
+.login-card .brand__logo { height: 44px; }
 .login-error {
   background: #fdecea; border: 1px solid #f0c2bb; color: #7a2e23; border-radius: 8px;
   padding: 8px 12px; font-size: 0.82rem;
