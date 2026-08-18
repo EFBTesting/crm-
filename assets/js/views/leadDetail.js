@@ -89,33 +89,41 @@ function renderLeadDetail(root, { id }) {
 
     qs('#edit-lead-btn', root).addEventListener('click', () => openLeadForm(l, {}, () => draw()));
     qs('#delete-lead-btn', root).addEventListener('click', () => {
-      openConfirm({ title: 'Delete lead', message: `Delete "${l.title}"? This cannot be undone.` }, () => {
-        Leads.remove(l.id);
+      openConfirm({ title: 'Delete lead', message: `Delete "${l.title}"? This cannot be undone.` }, async () => {
+        await Leads.remove(l.id);
         toast('Lead deleted');
         Router.navigate('/pipeline');
       });
     });
 
     if (l.status === 'active') {
-      qs('#won-btn', root).addEventListener('click', () => { Leads.markWon(l.id); toast('🎉 Lead marked as won'); draw(); });
+      qs('#won-btn', root).addEventListener('click', async () => {
+        try { await Leads.markWon(l.id); toast('🎉 Lead marked as won'); draw(); }
+        catch (err) { toast(err.message || 'Could not update the lead', 'warn'); }
+      });
       qs('#lost-btn', root).addEventListener('click', () => openLostReasonPrompt(l, () => draw()));
-      qsa('[data-set-stage]', root).forEach(btn => btn.addEventListener('click', () => {
-        Leads.moveStage(l.id, btn.dataset.setStage);
-        draw();
+      qsa('[data-set-stage]', root).forEach(btn => btn.addEventListener('click', async () => {
+        try { await Leads.moveStage(l.id, btn.dataset.setStage); draw(); }
+        catch (err) { toast(err.message || 'Could not update the lead', 'warn'); }
       }));
     }
     if (l.status === 'lost') {
-      qs('#reopen-btn', root).addEventListener('click', () => { Leads.reopen(l.id); toast('Lead reopened'); draw(); });
+      qs('#reopen-btn', root).addEventListener('click', async () => {
+        try { await Leads.reopen(l.id); toast('Lead reopened'); draw(); }
+        catch (err) { toast(err.message || 'Could not update the lead', 'warn'); }
+      });
     }
 
-    qs('#note-form', root).addEventListener('submit', e => {
+    qs('#note-form', root).addEventListener('submit', async e => {
       e.preventDefault();
       const input = qs('input[name="note"]', e.target);
       const val = input.value.trim();
       if (!val) return;
-      Leads.addNote(l.id, val);
-      input.value = '';
-      draw();
+      try {
+        await Leads.addNote(l.id, val);
+        input.value = '';
+        draw();
+      } catch (err) { toast(err.message || 'Could not add the note', 'warn'); }
     });
   }
 

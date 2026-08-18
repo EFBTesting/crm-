@@ -59,5 +59,11 @@ const Router = (() => {
     resolve();
   }
 
-  return { register, navigate, start };
+  /** Re-run whichever route is currently active — used to redraw the
+   *  screen after a remote (realtime) data change. */
+  function rerender() {
+    resolve();
+  }
+
+  return { register, navigate, start, rerender };
 })();

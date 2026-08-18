@@ -77,8 +77,8 @@ function renderContactDetail(root, { id }) {
     qs('#edit-contact-btn', root).addEventListener('click', () => openContactForm(c, () => draw()));
     qs('#new-lead-btn', root).addEventListener('click', () => openLeadForm(null, { contactId: c.id, companyId: c.companyId }, () => draw()));
     qs('#delete-contact-btn', root).addEventListener('click', () => {
-      openConfirm({ title: 'Delete contact', message: `Delete ${fullName(c)}? Linked leads will be kept but unassigned.` }, () => {
-        Contacts.remove(c.id);
+      openConfirm({ title: 'Delete contact', message: `Delete ${fullName(c)}? Linked leads will be kept but unassigned.` }, async () => {
+        await Contacts.remove(c.id);
         toast('Contact deleted');
         Router.navigate('/contacts');
       });

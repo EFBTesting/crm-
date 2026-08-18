@@ -43,6 +43,27 @@ const Modal = (() => {
   return { open, close };
 })();
 
+/** Wires a form's submit event to an async save function, disabling the
+ *  submit button while it's in flight and surfacing errors (e.g. a dropped
+ *  connection to Supabase) instead of silently failing. */
+function handleAsyncSubmit(form, { onSubmit, busyLabel = 'Saving…' }) {
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = qs('button[type="submit"]', form);
+    const originalLabel = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = busyLabel;
+    try {
+      await onSubmit(new FormData(form));
+    } catch (err) {
+      console.error(err);
+      toast(err.message || 'Something went wrong — please try again.', 'warn');
+      btn.disabled = false;
+      btn.textContent = originalLabel;
+    }
+  });
+}
+
 function optionList(items, selected, { valueKey = null, labelKey = null, blank = '— None —' } = {}) {
   const opts = blank ? [`<option value="">${esc(blank)}</option>`] : [];
   items.forEach(item => {
@@ -95,15 +116,15 @@ function openContactForm(existing = null, onSaved = null) {
       </form>`,
   });
 
-  qs('#contact-form').addEventListener('submit', e => {
-    e.preventDefault();
-    const fd = new FormData(e.target);
-    const data = Object.fromEntries(fd.entries());
-    if (!data.firstName.trim() || !data.lastName.trim()) return;
-    const saved = existing ? Contacts.update(existing.id, data) : Contacts.create(data);
-    Modal.close();
-    toast(existing ? 'Contact updated' : 'Contact created');
-    if (onSaved) onSaved(saved);
+  handleAsyncSubmit(qs('#contact-form'), {
+    onSubmit: async fd => {
+      const data = Object.fromEntries(fd.entries());
+      if (!data.firstName.trim() || !data.lastName.trim()) return;
+      const saved = existing ? await Contacts.update(existing.id, data) : await Contacts.create(data);
+      Modal.close();
+      toast(existing ? 'Contact updated' : 'Contact created');
+      if (onSaved) onSaved(saved);
+    },
   });
 }
 
@@ -143,15 +164,15 @@ function openCompanyForm(existing = null, onSaved = null) {
       </form>`,
   });
 
-  qs('#company-form').addEventListener('submit', e => {
-    e.preventDefault();
-    const fd = new FormData(e.target);
-    const data = Object.fromEntries(fd.entries());
-    if (!data.name.trim()) return;
-    const saved = existing ? Companies.update(existing.id, data) : Companies.create(data);
-    Modal.close();
-    toast(existing ? 'Company updated' : 'Company created');
-    if (onSaved) onSaved(saved);
+  handleAsyncSubmit(qs('#company-form'), {
+    onSubmit: async fd => {
+      const data = Object.fromEntries(fd.entries());
+      if (!data.name.trim()) return;
+      const saved = existing ? await Companies.update(existing.id, data) : await Companies.create(data);
+      Modal.close();
+      toast(existing ? 'Company updated' : 'Company created');
+      if (onSaved) onSaved(saved);
+    },
   });
 }
 
@@ -199,15 +220,15 @@ function openLeadForm(existing = null, defaults = {}, onSaved = null) {
       </form>`,
   });
 
-  qs('#lead-form').addEventListener('submit', e => {
-    e.preventDefault();
-    const fd = new FormData(e.target);
-    const data = Object.fromEntries(fd.entries());
-    if (!data.title.trim()) return;
-    const saved = existing ? Leads.update(existing.id, data) : Leads.create(data);
-    Modal.close();
-    toast(existing ? 'Lead updated' : 'Lead created');
-    if (onSaved) onSaved(saved);
+  handleAsyncSubmit(qs('#lead-form'), {
+    onSubmit: async fd => {
+      const data = Object.fromEntries(fd.entries());
+      if (!data.title.trim()) return;
+      const saved = existing ? await Leads.update(existing.id, data) : await Leads.create(data);
+      Modal.close();
+      toast(existing ? 'Lead updated' : 'Lead created');
+      if (onSaved) onSaved(saved);
+    },
   });
 }
 
@@ -227,13 +248,14 @@ function openLostReasonPrompt(lead, onDone) {
         </div>
       </form>`,
   });
-  qs('#lost-form').addEventListener('submit', e => {
-    e.preventDefault();
-    const reason = new FormData(e.target).get('reason') || 'Other';
-    Leads.markLost(lead.id, reason);
-    Modal.close();
-    toast('Lead marked as lost', 'warn');
-    if (onDone) onDone();
+  handleAsyncSubmit(qs('#lost-form'), {
+    onSubmit: async fd => {
+      const reason = fd.get('reason') || 'Other';
+      await Leads.markLost(lead.id, reason);
+      Modal.close();
+      toast('Lead marked as lost', 'warn');
+      if (onDone) onDone();
+    },
   });
 }
 
@@ -251,6 +273,9 @@ function openConfirm({ title = 'Are you sure?', message = '', confirmLabel = 'De
   });
   qs('#confirm-btn').addEventListener('click', () => {
     Modal.close();
-    onConfirm();
+    Promise.resolve(onConfirm()).catch(err => {
+      console.error(err);
+      toast(err.message || 'Something went wrong — please try again.', 'warn');
+    });
   });
 }

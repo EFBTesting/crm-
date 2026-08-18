@@ -1,9 +1,10 @@
 /* ==========================================================================
    Erwin Forest Builders CRM — Data Layer
-   All data lives in localStorage. No backend, no build step.
+   Backed by Supabase (real Postgres, shared across every device/teammate).
+   Reads stay synchronous (served from an in-memory cache); writes are
+   async and update the cache + Supabase together. A realtime subscription
+   keeps every open tab in sync when teammates make changes elsewhere.
    ========================================================================== */
-
-const DB_KEY = 'efb_crm_v1';
 
 /** The 5 active pipeline stages, in order. "Lost" is tracked separately
  *  (a lead can be marked lost from any stage) so it doesn't eat one of the
@@ -21,90 +22,154 @@ const PROJECT_TYPES = ['Kitchen Remodel', 'Bathroom Remodel', 'Home Addition', '
 const COMPANY_TYPES = ['Property Management', 'Developer', 'Architect / Design Partner', 'General Contractor Partner', 'Commercial Client', 'Supplier / Vendor', 'Other'];
 const LOST_REASONS = ['Price too high', 'Chose another contractor', 'Timeline mismatch', 'Project postponed', 'Went unresponsive', 'Scope changed / no longer needed', 'Other'];
 
-function uid(prefix) {
-  return `${prefix}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+function stageLabel(stageId) {
+  const s = STAGES.find(s => s.id === stageId);
+  return s ? s.label : stageId;
 }
 
-function nowIso() {
-  return new Date().toISOString();
+/* ---- in-memory cache, kept in sync with Supabase ---- */
+const cache = { contacts: [], companies: [], leads: [] };
+
+/** Set by app.js — called whenever a remote change (from another tab or
+ *  teammate) updates the cache, so the current view can redraw. */
+let notifyChange = () => {};
+function onDataChange(fn) { notifyChange = fn; }
+
+function mustClient() {
+  if (!supabaseClient) throw new Error('Supabase is not configured yet (see assets/js/config.js).');
+  return supabaseClient;
 }
 
-function emptyDb() {
-  return { contacts: [], companies: [], leads: [], meta: { createdAt: nowIso(), version: 1 } };
+/* =========================== Row <-> object mapping =========================== */
+
+function contactFromRow(r) {
+  return {
+    id: r.id, firstName: r.first_name || '', lastName: r.last_name || '', email: r.email || '',
+    phone: r.phone || '', title: r.title || '', companyId: r.company_id, address: r.address || '',
+    leadSource: r.lead_source || '', notes: r.notes || '', createdAt: r.created_at, updatedAt: r.updated_at,
+  };
+}
+function contactToRow(d) {
+  return {
+    first_name: (d.firstName || '').trim(), last_name: (d.lastName || '').trim(), email: (d.email || '').trim(),
+    phone: (d.phone || '').trim(), title: (d.title || '').trim(), company_id: d.companyId || null,
+    address: (d.address || '').trim(), lead_source: d.leadSource || '', notes: (d.notes || '').trim(),
+  };
 }
 
-function loadDb() {
+function companyFromRow(r) {
+  return {
+    id: r.id, name: r.name || '', type: r.type || '', phone: r.phone || '', website: r.website || '',
+    address: r.address || '', primaryContactId: r.primary_contact_id, notes: r.notes || '',
+    createdAt: r.created_at, updatedAt: r.updated_at,
+  };
+}
+function companyToRow(d) {
+  return {
+    name: (d.name || '').trim(), type: d.type || '', phone: (d.phone || '').trim(), website: (d.website || '').trim(),
+    address: (d.address || '').trim(), primary_contact_id: d.primaryContactId || null, notes: (d.notes || '').trim(),
+  };
+}
+
+function leadFromRow(r) {
+  return {
+    id: r.id, title: r.title || '', contactId: r.contact_id, companyId: r.company_id, stage: r.stage,
+    status: r.status, value: Number(r.value) || 0, projectType: r.project_type || '', source: r.source || '',
+    expectedCloseDate: r.expected_close_date || '', notes: r.notes || '', lostReason: r.lost_reason || '',
+    history: r.history || [], wonAt: r.won_at, lostAt: r.lost_at, createdAt: r.created_at, updatedAt: r.updated_at,
+  };
+}
+function leadToRow(d) {
+  const row = {
+    title: (d.title || '').trim(), contact_id: d.contactId || null, company_id: d.companyId || null,
+    value: Number(d.value) || 0, project_type: d.projectType || '', source: d.source || '',
+    expected_close_date: d.expectedCloseDate || null, notes: (d.notes || '').trim(),
+  };
+  if (d.stage !== undefined) row.stage = d.stage;
+  if (d.status !== undefined) row.status = d.status;
+  if (d.lostReason !== undefined) row.lost_reason = d.lostReason;
+  if (d.history !== undefined) row.history = d.history;
+  if (d.wonAt !== undefined) row.won_at = d.wonAt;
+  if (d.lostAt !== undefined) row.lost_at = d.lostAt;
+  return row;
+}
+
+/* =========================== Cache boot + realtime =========================== */
+
+async function loadAllData() {
+  const client = mustClient();
+  const [companiesRes, contactsRes, leadsRes] = await Promise.all([
+    client.from('companies').select('*'),
+    client.from('contacts').select('*'),
+    client.from('leads').select('*'),
+  ]);
+  if (companiesRes.error) throw companiesRes.error;
+  if (contactsRes.error) throw contactsRes.error;
+  if (leadsRes.error) throw leadsRes.error;
+  cache.companies = companiesRes.data.map(companyFromRow);
+  cache.contacts = contactsRes.data.map(contactFromRow);
+  cache.leads = leadsRes.data.map(leadFromRow);
+}
+
+const debouncedNotify = debounce(() => notifyChange(), 250);
+
+function subscribeRealtime() {
+  const client = mustClient();
+  client
+    .channel('crm-changes')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'companies' }, () => refreshTableThen('companies'))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'contacts' }, () => refreshTableThen('contacts'))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, () => refreshTableThen('leads'))
+    .subscribe();
+}
+
+async function refreshTableThen(table) {
   try {
-    const raw = localStorage.getItem(DB_KEY);
-    if (!raw) return emptyDb();
-    const parsed = JSON.parse(raw);
-    return {
-      contacts: parsed.contacts || [],
-      companies: parsed.companies || [],
-      leads: parsed.leads || [],
-      meta: parsed.meta || { createdAt: nowIso(), version: 1 },
-    };
+    const client = mustClient();
+    const { data, error } = await client.from(table).select('*');
+    if (error) throw error;
+    if (table === 'companies') cache.companies = data.map(companyFromRow);
+    if (table === 'contacts') cache.contacts = data.map(contactFromRow);
+    if (table === 'leads') cache.leads = data.map(leadFromRow);
+    debouncedNotify();
   } catch (e) {
-    console.error('Failed to load CRM data, starting fresh.', e);
-    return emptyDb();
+    console.error('Realtime refresh failed for', table, e);
   }
-}
-
-function saveDb(db) {
-  localStorage.setItem(DB_KEY, JSON.stringify(db));
-}
-
-/* ---- in-memory db, persisted on every mutation ---- */
-let db = loadDb();
-
-function persist() {
-  saveDb(db);
 }
 
 /* =========================== Contacts =========================== */
 
 const Contacts = {
   all() {
-    return [...db.contacts].sort((a, b) => `${a.lastName}${a.firstName}`.localeCompare(`${b.lastName}${b.firstName}`));
+    return [...cache.contacts].sort((a, b) => `${a.lastName}${a.firstName}`.localeCompare(`${b.lastName}${b.firstName}`));
   },
   get(id) {
-    return db.contacts.find(c => c.id === id) || null;
+    return cache.contacts.find(c => c.id === id) || null;
   },
-  create(data) {
-    const contact = {
-      id: uid('con'),
-      firstName: data.firstName?.trim() || '',
-      lastName: data.lastName?.trim() || '',
-      email: data.email?.trim() || '',
-      phone: data.phone?.trim() || '',
-      title: data.title?.trim() || '',
-      companyId: data.companyId || null,
-      address: data.address?.trim() || '',
-      leadSource: data.leadSource || '',
-      notes: data.notes?.trim() || '',
-      createdAt: nowIso(),
-      updatedAt: nowIso(),
-    };
-    db.contacts.push(contact);
-    persist();
+  async create(data) {
+    const { data: row, error } = await mustClient().from('contacts').insert(contactToRow(data)).select().single();
+    if (error) throw error;
+    const contact = contactFromRow(row);
+    cache.contacts.push(contact);
     return contact;
   },
-  update(id, data) {
-    const c = this.get(id);
-    if (!c) return null;
-    Object.assign(c, data, { updatedAt: nowIso() });
-    persist();
-    return c;
+  async update(id, data) {
+    const { data: row, error } = await mustClient().from('contacts').update(contactToRow(data)).eq('id', id).select().single();
+    if (error) throw error;
+    const contact = contactFromRow(row);
+    const i = cache.contacts.findIndex(c => c.id === id);
+    if (i !== -1) cache.contacts[i] = contact;
+    return contact;
   },
-  remove(id) {
-    db.contacts = db.contacts.filter(c => c.id !== id);
-    // detach from leads/companies referencing this contact
-    db.leads.forEach(l => { if (l.contactId === id) l.contactId = null; });
-    db.companies.forEach(co => { if (co.primaryContactId === id) co.primaryContactId = null; });
-    persist();
+  async remove(id) {
+    const { error } = await mustClient().from('contacts').delete().eq('id', id);
+    if (error) throw error;
+    cache.contacts = cache.contacts.filter(c => c.id !== id);
+    cache.leads.forEach(l => { if (l.contactId === id) l.contactId = null; });
+    cache.companies.forEach(co => { if (co.primaryContactId === id) co.primaryContactId = null; });
   },
   leadsFor(contactId) {
-    return db.leads.filter(l => l.contactId === contactId);
+    return cache.leads.filter(l => l.contactId === contactId);
   },
 };
 
@@ -112,46 +177,38 @@ const Contacts = {
 
 const Companies = {
   all() {
-    return [...db.companies].sort((a, b) => a.name.localeCompare(b.name));
+    return [...cache.companies].sort((a, b) => a.name.localeCompare(b.name));
   },
   get(id) {
-    return db.companies.find(c => c.id === id) || null;
+    return cache.companies.find(c => c.id === id) || null;
   },
-  create(data) {
-    const company = {
-      id: uid('cmp'),
-      name: data.name?.trim() || '',
-      type: data.type || '',
-      phone: data.phone?.trim() || '',
-      website: data.website?.trim() || '',
-      address: data.address?.trim() || '',
-      primaryContactId: data.primaryContactId || null,
-      notes: data.notes?.trim() || '',
-      createdAt: nowIso(),
-      updatedAt: nowIso(),
-    };
-    db.companies.push(company);
-    persist();
+  async create(data) {
+    const { data: row, error } = await mustClient().from('companies').insert(companyToRow(data)).select().single();
+    if (error) throw error;
+    const company = companyFromRow(row);
+    cache.companies.push(company);
     return company;
   },
-  update(id, data) {
-    const c = this.get(id);
-    if (!c) return null;
-    Object.assign(c, data, { updatedAt: nowIso() });
-    persist();
-    return c;
+  async update(id, data) {
+    const { data: row, error } = await mustClient().from('companies').update(companyToRow(data)).eq('id', id).select().single();
+    if (error) throw error;
+    const company = companyFromRow(row);
+    const i = cache.companies.findIndex(c => c.id === id);
+    if (i !== -1) cache.companies[i] = company;
+    return company;
   },
-  remove(id) {
-    db.companies = db.companies.filter(c => c.id !== id);
-    db.contacts.forEach(ct => { if (ct.companyId === id) ct.companyId = null; });
-    db.leads.forEach(l => { if (l.companyId === id) l.companyId = null; });
-    persist();
+  async remove(id) {
+    const { error } = await mustClient().from('companies').delete().eq('id', id);
+    if (error) throw error;
+    cache.companies = cache.companies.filter(c => c.id !== id);
+    cache.contacts.forEach(ct => { if (ct.companyId === id) ct.companyId = null; });
+    cache.leads.forEach(l => { if (l.companyId === id) l.companyId = null; });
   },
   contactsFor(companyId) {
-    return db.contacts.filter(c => c.companyId === companyId);
+    return cache.contacts.filter(c => c.companyId === companyId);
   },
   leadsFor(companyId) {
-    return db.leads.filter(l => l.companyId === companyId);
+    return cache.leads.filter(l => l.companyId === companyId);
   },
 };
 
@@ -159,126 +216,78 @@ const Companies = {
 
 const Leads = {
   all() {
-    return [...db.leads].sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+    return [...cache.leads].sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
   },
   get(id) {
-    return db.leads.find(l => l.id === id) || null;
+    return cache.leads.find(l => l.id === id) || null;
   },
   byStage(stageId) {
-    return db.leads.filter(l => l.stage === stageId && l.status === 'active');
+    return cache.leads.filter(l => l.stage === stageId && l.status === 'active');
   },
   active() {
-    return db.leads.filter(l => l.status === 'active');
+    return cache.leads.filter(l => l.status === 'active');
   },
-  create(data) {
-    const lead = {
-      id: uid('lead'),
-      title: data.title?.trim() || 'Untitled Lead',
-      contactId: data.contactId || null,
-      companyId: data.companyId || null,
-      stage: data.stage || STAGES[0].id,
-      status: 'active', // active | won | lost
-      value: Number(data.value) || 0,
-      projectType: data.projectType || '',
-      source: data.source || '',
-      expectedCloseDate: data.expectedCloseDate || '',
-      notes: data.notes?.trim() || '',
-      lostReason: '',
-      createdAt: nowIso(),
-      updatedAt: nowIso(),
-      history: [{ at: nowIso(), event: 'created', detail: `Lead created in stage "${stageLabel(data.stage || STAGES[0].id)}"` }],
-    };
-    db.leads.push(lead);
-    persist();
+  async create(data) {
+    const stage = data.stage || STAGES[0].id;
+    const history = [{ at: new Date().toISOString(), event: 'created', detail: `Lead created in stage "${stageLabel(stage)}"` }];
+    const row = leadToRow({ ...data, stage, status: 'active', history });
+    const { data: saved, error } = await mustClient().from('leads').insert(row).select().single();
+    if (error) throw error;
+    const lead = leadFromRow(saved);
+    cache.leads.push(lead);
     return lead;
   },
-  update(id, data) {
+  async update(id, data) {
+    return this._patch(id, data);
+  },
+  async moveStage(id, stageId) {
     const l = this.get(id);
     if (!l) return null;
-    Object.assign(l, data, { updatedAt: nowIso() });
-    persist();
-    return l;
+    const history = [...l.history, { at: new Date().toISOString(), event: 'stage_change', detail: `Moved from "${stageLabel(l.stage)}" to "${stageLabel(stageId)}"` }];
+    return this._patch(id, { stage: stageId, status: 'active', history });
   },
-  moveStage(id, stageId) {
+  async markWon(id) {
     const l = this.get(id);
     if (!l) return null;
-    const prev = l.stage;
-    l.stage = stageId;
-    l.status = 'active';
-    l.updatedAt = nowIso();
-    l.history.push({ at: nowIso(), event: 'stage_change', detail: `Moved from "${stageLabel(prev)}" to "${stageLabel(stageId)}"` });
-    persist();
-    return l;
+    const now = new Date().toISOString();
+    const history = [...l.history, { at: now, event: 'won', detail: 'Marked as Won – contract signed' }];
+    return this._patch(id, { status: 'won', stage: 'won', wonAt: now, history });
   },
-  markWon(id) {
+  async markLost(id, reason) {
     const l = this.get(id);
     if (!l) return null;
-    l.status = 'won';
-    l.stage = 'won';
-    l.updatedAt = nowIso();
-    l.wonAt = nowIso();
-    l.history.push({ at: nowIso(), event: 'won', detail: 'Marked as Won – contract signed' });
-    persist();
-    return l;
+    const now = new Date().toISOString();
+    const lostReason = reason || 'Other';
+    const history = [...l.history, { at: now, event: 'lost', detail: `Marked as Lost (${lostReason})` }];
+    return this._patch(id, { status: 'lost', lostReason, lostAt: now, history });
   },
-  markLost(id, reason) {
+  async reopen(id) {
     const l = this.get(id);
     if (!l) return null;
-    l.status = 'lost';
-    l.lostReason = reason || 'Other';
-    l.updatedAt = nowIso();
-    l.lostAt = nowIso();
-    l.history.push({ at: nowIso(), event: 'lost', detail: `Marked as Lost (${l.lostReason})` });
-    persist();
-    return l;
+    const history = [...l.history, { at: new Date().toISOString(), event: 'reopened', detail: 'Lead reopened' }];
+    return this._patch(id, { status: 'active', lostReason: '', history });
   },
-  reopen(id) {
+  async addNote(id, note) {
     const l = this.get(id);
     if (!l) return null;
-    l.status = 'active';
-    l.lostReason = '';
-    l.updatedAt = nowIso();
-    l.history.push({ at: nowIso(), event: 'reopened', detail: 'Lead reopened' });
-    persist();
-    return l;
+    const history = [...l.history, { at: new Date().toISOString(), event: 'note', detail: note }];
+    return this._patch(id, { history });
   },
-  addNote(id, note) {
-    const l = this.get(id);
-    if (!l) return null;
-    l.history.push({ at: nowIso(), event: 'note', detail: note });
-    l.updatedAt = nowIso();
-    persist();
-    return l;
+  async remove(id) {
+    const { error } = await mustClient().from('leads').delete().eq('id', id);
+    if (error) throw error;
+    cache.leads = cache.leads.filter(l => l.id !== id);
   },
-  remove(id) {
-    db.leads = db.leads.filter(l => l.id !== id);
-    persist();
-  },
-};
-
-function stageLabel(stageId) {
-  const s = STAGES.find(s => s.id === stageId);
-  return s ? s.label : stageId;
-}
-
-/* =========================== Reset / seed helpers =========================== */
-
-const DataAdmin = {
-  wipeAll() {
-    db = emptyDb();
-    persist();
-  },
-  exportJson() {
-    return JSON.stringify(db, null, 2);
-  },
-  importJson(json) {
-    const parsed = JSON.parse(json);
-    db = {
-      contacts: parsed.contacts || [],
-      companies: parsed.companies || [],
-      leads: parsed.leads || [],
-      meta: parsed.meta || { createdAt: nowIso(), version: 1 },
-    };
-    persist();
+  /** Internal: merge partial fields onto the existing lead and save. */
+  async _patch(id, partial) {
+    const existing = this.get(id);
+    if (!existing) return null;
+    const merged = { ...existing, ...partial };
+    const { data: row, error } = await mustClient().from('leads').update(leadToRow(merged)).eq('id', id).select().single();
+    if (error) throw error;
+    const lead = leadFromRow(row);
+    const i = cache.leads.findIndex(l => l.id === id);
+    if (i !== -1) cache.leads[i] = lead;
+    return lead;
   },
 };

@@ -96,8 +96,8 @@ function renderCompanyDetail(root, { id }) {
     qs('#edit-company-btn', root).addEventListener('click', () => openCompanyForm(co, () => draw()));
     qs('#new-lead-btn', root).addEventListener('click', () => openLeadForm(null, { companyId: co.id }, () => draw()));
     qs('#delete-company-btn', root).addEventListener('click', () => {
-      openConfirm({ title: 'Delete company', message: `Delete ${co.name}? Linked contacts and leads will be kept but unassigned.` }, () => {
-        Companies.remove(co.id);
+      openConfirm({ title: 'Delete company', message: `Delete ${co.name}? Linked contacts and leads will be kept but unassigned.` }, async () => {
+        await Companies.remove(co.id);
         toast('Company deleted');
         Router.navigate('/companies');
       });

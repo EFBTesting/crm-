@@ -98,21 +98,25 @@ function renderPipeline(root) {
     qs('#new-lead-btn', root).addEventListener('click', () => openLeadForm(null, {}, () => draw()));
     qs('#toggle-lost-btn', root).addEventListener('click', () => { showLost = !showLost; draw(); });
 
-    qsa('[data-won]', root).forEach(btn => btn.addEventListener('click', e => {
+    qsa('[data-won]', root).forEach(btn => btn.addEventListener('click', async e => {
       e.stopPropagation();
-      Leads.markWon(btn.dataset.won);
-      toast('🎉 Lead marked as won');
-      draw();
+      try {
+        await Leads.markWon(btn.dataset.won);
+        toast('🎉 Lead marked as won');
+        draw();
+      } catch (err) { toast(err.message || 'Could not update the lead', 'warn'); }
     }));
     qsa('[data-lost]', root).forEach(btn => btn.addEventListener('click', e => {
       e.stopPropagation();
       openLostReasonPrompt(Leads.get(btn.dataset.lost), () => draw());
     }));
-    qsa('[data-reopen]', root).forEach(btn => btn.addEventListener('click', e => {
+    qsa('[data-reopen]', root).forEach(btn => btn.addEventListener('click', async e => {
       e.stopPropagation();
-      Leads.reopen(btn.dataset.reopen);
-      toast('Lead reopened');
-      draw();
+      try {
+        await Leads.reopen(btn.dataset.reopen);
+        toast('Lead reopened');
+        draw();
+      } catch (err) { toast(err.message || 'Could not update the lead', 'warn'); }
     }));
 
     // Drag & drop
@@ -130,23 +134,27 @@ function renderPipeline(root) {
         zone.classList.add('is-dragover');
       });
       zone.addEventListener('dragleave', () => zone.classList.remove('is-dragover'));
-      zone.addEventListener('drop', e => {
+      zone.addEventListener('drop', async e => {
         e.preventDefault();
         zone.classList.remove('is-dragover');
         if (!draggedId) return;
         const targetStage = zone.dataset.dropzone;
         const lead = Leads.get(draggedId);
-        if (lead && (lead.stage !== targetStage || lead.status !== 'active')) {
+        const movingId = draggedId;
+        draggedId = null;
+        if (!lead || (lead.stage === targetStage && lead.status === 'active')) return;
+        try {
           if (targetStage === 'won') {
-            Leads.markWon(draggedId);
+            await Leads.markWon(movingId);
             toast('🎉 Lead marked as won');
           } else {
-            Leads.moveStage(draggedId, targetStage);
+            await Leads.moveStage(movingId, targetStage);
             toast(`Moved to “${stageLabel(targetStage)}”`);
           }
           draw();
+        } catch (err) {
+          toast(err.message || 'Could not move the lead', 'warn');
         }
-        draggedId = null;
       });
     });
   }

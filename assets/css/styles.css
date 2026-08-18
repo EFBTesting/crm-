@@ -304,6 +304,31 @@ body.modal-open { overflow: hidden; }
 .form-actions { grid-column: span 2; display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
 .confirm-text { font-size: 0.9rem; color: var(--ink-soft); margin-bottom: 4px; }
 
+/* ---------------------------- Login screen ---------------------------- */
+
+.login-screen {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(180deg, var(--navy-dark), var(--navy)); padding: 24px;
+}
+.login-card {
+  background: #fff; border-radius: 14px; padding: 32px; width: 100%; max-width: 380px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.35); display: flex; flex-direction: column; gap: 14px;
+}
+.login-card h1 { font-size: 1.3rem; margin-top: 8px; }
+.login-card .field { gap: 6px; }
+.brand--center { justify-content: center; padding: 0 0 4px; }
+.brand--center .brand__text { text-align: left; }
+.login-error {
+  background: #fdecea; border: 1px solid #f0c2bb; color: #7a2e23; border-radius: 8px;
+  padding: 8px 12px; font-size: 0.82rem;
+}
+.btn--block { width: 100%; padding: 11px; font-size: 0.9rem; }
+.link-btn {
+  background: none; border: none; color: #aab4c4; text-decoration: underline; cursor: pointer;
+  font-size: 0.72rem; padding: 6px 0 0; display: block;
+}
+.link-btn:hover { color: #fff; }
+
 /* ---------------------------- Toasts ---------------------------- */
 
 #toast-host { position: fixed; bottom: 20px; right: 20px; z-index: 200; display: flex; flex-direction: column; gap: 8px; }

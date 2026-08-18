@@ -10,7 +10,39 @@
 </head>
 <body>
 
-  <div class="app-shell">
+  <!-- Shown if assets/js/config.js still has placeholder values -->
+  <div id="config-error" class="login-screen" hidden>
+    <div class="login-card">
+      <div class="brand brand--center">
+        <span class="brand__mark">EFB</span>
+        <span class="brand__text"><strong>Erwin Forest Builders</strong><span>CRM</span></span>
+      </div>
+      <h1>Backend not connected yet</h1>
+      <p class="muted">Add your Supabase Project URL and anon key to <code>assets/js/config.js</code>, run <code>supabase/schema.sql</code> in the Supabase SQL editor, then reload this page.</p>
+    </div>
+  </div>
+
+  <!-- Sign-in gate -->
+  <div id="login-screen" class="login-screen" hidden>
+    <form id="login-form" class="login-card">
+      <div class="brand brand--center">
+        <span class="brand__mark">EFB</span>
+        <span class="brand__text"><strong>Erwin Forest Builders</strong><span>CRM</span></span>
+      </div>
+      <h1>Sign in</h1>
+      <p class="muted">Use the shared team login to access the CRM.</p>
+      <p id="login-error" class="login-error" hidden></p>
+      <label class="field"><span>Email</span>
+        <input type="email" name="email" required autocomplete="username">
+      </label>
+      <label class="field"><span>Password</span>
+        <input type="password" name="password" required autocomplete="current-password">
+      </label>
+      <button type="submit" class="btn btn--primary btn--block">Sign in</button>
+    </form>
+  </div>
+
+  <div class="app-shell" id="app-shell" hidden>
     <button id="nav-toggle" aria-label="Toggle navigation">☰</button>
 
     <aside class="sidebar">
@@ -35,7 +67,10 @@
         </div>
       </nav>
 
-      <div class="sidebar-footer">© <span id="footer-year"></span> Erwin Forest Builders<br>Data is stored privately in this browser.</div>
+      <div class="sidebar-footer">
+        © <span id="footer-year"></span> Erwin Forest Builders<br>Shared team data — synced live.
+        <button id="sign-out-btn" class="link-btn">Sign out</button>
+      </div>
     </aside>
 
     <main class="main" id="app-root"></main>
@@ -46,9 +81,13 @@
 
   <!-- Chart.js (CDN) — dashboard degrades gracefully if this fails to load offline -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <!-- Supabase client (CDN) — the real backend: database + auth + realtime -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 
+  <script src="assets/js/config.js"></script>
   <script src="assets/js/utils.js"></script>
   <script src="assets/js/data.js"></script>
+  <script src="assets/js/auth.js"></script>
   <script src="assets/js/charts.js"></script>
   <script src="assets/js/router.js"></script>
   <script src="assets/js/components/modal.js"></script>
