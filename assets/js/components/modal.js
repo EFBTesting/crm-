@@ -434,6 +434,43 @@ function openLeadForm(existing = null, defaults = {}, onSaved = null) {
   });
 }
 
+/* --------------------------- Permit & Status form --------------------------- */
+
+/** Only meaningful once a lead is won — shown from a Project Tracking
+ *  card's badges or the lead detail page's Permit & Status panel. */
+function openProjectMetaForm(lead, onSaved) {
+  Modal.open({
+    title: 'Permit & Status',
+    bodyHtml: `
+      <form id="project-meta-form" class="form-grid">
+        <label class="field"><span>Status</span>
+          <select name="projectStatus">${optionList(PROJECT_STATUS_OPTIONS, lead.projectStatus || 'on_track', { valueKey: 'id', labelKey: 'label', blank: null })}</select>
+        </label>
+        <label class="field"><span>Permit</span>
+          <select name="permitStatus">${optionList(PERMIT_STATUS_OPTIONS, lead.permitStatus || 'not_submitted', { valueKey: 'id', labelKey: 'label', blank: null })}</select>
+        </label>
+        <label class="field field--full"><span>Permit township</span>
+          <input name="permitTownship" value="${esc(lead.permitTownship)}" placeholder="e.g. Springfield Township">
+        </label>
+        <div class="form-actions">
+          <button type="button" class="btn btn--ghost" data-close="1">Cancel</button>
+          <button type="submit" class="btn btn--primary">Save</button>
+        </div>
+      </form>`,
+  });
+
+  handleAsyncSubmit(qs('#project-meta-form'), {
+    onSubmit: async fd => {
+      const saved = await Leads.updateProjectMeta(lead.id, {
+        projectStatus: fd.get('projectStatus'), permitStatus: fd.get('permitStatus'), permitTownship: fd.get('permitTownship'),
+      });
+      Modal.close();
+      toast('Permit & status updated');
+      if (onSaved) onSaved(saved);
+    },
+  });
+}
+
 /* --------------------------- Lost reason prompt --------------------------- */
 
 function openLostReasonPrompt(lead, onDone) {

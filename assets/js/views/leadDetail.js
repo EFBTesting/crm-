@@ -59,6 +59,11 @@ function renderLeadDetail(root, { id }) {
               <span class="stage-step__dot"></span>${esc(s.label)}
             </button>`).join('')}
         </div>
+        <div class="permit-status-box mb-md">
+          <div class="permit-status-box__pills">${projectStatusPillHtml(l)} ${permitStatusPillHtml(l)}</div>
+          <div class="permit-status-box__township">${l.permitTownship ? `Township: ${esc(l.permitTownship)}` : 'No township on file'}</div>
+          <button type="button" class="btn btn--ghost btn--sm" id="edit-permit-btn">Edit</button>
+        </div>
       `}
 
       <div class="detail-grid">
@@ -132,6 +137,7 @@ function renderLeadDetail(root, { id }) {
         try { await Leads.moveProjectStage(l.id, btn.dataset.setProjectStage); draw(); }
         catch (err) { toast(err.message || 'Could not update the project', 'warn'); }
       }));
+      qs('#edit-permit-btn', root).addEventListener('click', () => openProjectMetaForm(l, () => draw()));
     }
 
     qs('#note-form', root).addEventListener('submit', async e => {

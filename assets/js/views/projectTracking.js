@@ -61,6 +61,10 @@ function renderProjectTracking(root) {
           <span class="lead-card__title row-link" data-nav="/leads/${l.id}">${esc(l.title)}</span>
         </div>
         <div class="lead-card__who">${esc(who)}</div>
+        <div class="lead-card__badges">
+          <button type="button" class="pill-btn" data-edit-meta="${l.id}" title="Edit status">${projectStatusPillHtml(l)}</button>
+          <button type="button" class="pill-btn" data-edit-meta="${l.id}" title="Edit permit">${permitStatusPillHtml(l)}</button>
+        </div>
         <div class="lead-card__meta">
           <span class="lead-card__value">${fmtMoney(l.value)}</span>
           ${l.projectType ? `<span class="pill pill--muted">${esc(l.projectType)}</span>` : ''}
@@ -82,6 +86,11 @@ function renderProjectTracking(root) {
         toast('🏁 Project marked completed');
         draw();
       } catch (err) { toast(err.message || 'Could not update the project', 'warn'); }
+    }));
+
+    qsa('[data-edit-meta]', root).forEach(btn => btn.addEventListener('click', e => {
+      e.stopPropagation();
+      openProjectMetaForm(Leads.get(btn.dataset.editMeta), () => draw());
     }));
 
     // Drag & drop

@@ -32,6 +32,19 @@ const PROJECT_STAGES = [
   { id: 'completed', label: 'Completed', description: 'Job finished and closed out.' },
 ];
 
+/** Overall health of a project — separate from what stage it's in. */
+const PROJECT_STATUS_OPTIONS = [
+  { id: 'on_track', label: 'On Track' },
+  { id: 'delayed', label: 'Delayed' },
+];
+
+/** Where a project's permit stands — only meaningful once it's a project. */
+const PERMIT_STATUS_OPTIONS = [
+  { id: 'not_submitted', label: 'Not Submitted' },
+  { id: 'submitted', label: 'Submitted' },
+  { id: 'approved', label: 'Approved' },
+];
+
 function stageLabel(stageId) {
   const s = STAGES.find(s => s.id === stageId);
   return s ? s.label : stageId;
@@ -39,6 +52,14 @@ function stageLabel(stageId) {
 function projectStageLabel(stageId) {
   const s = PROJECT_STAGES.find(s => s.id === stageId);
   return s ? s.label : stageId;
+}
+function projectStatusLabel(id) {
+  const s = PROJECT_STATUS_OPTIONS.find(s => s.id === id);
+  return s ? s.label : (id || 'On Track');
+}
+function permitStatusLabel(id) {
+  const s = PERMIT_STATUS_OPTIONS.find(s => s.id === id);
+  return s ? s.label : (id || 'Not Submitted');
 }
 
 /* ---- in-memory cache, kept in sync with Supabase ---- */
@@ -94,6 +115,7 @@ function leadFromRow(r) {
     revenuePercent: r.revenue_percent === null || r.revenue_percent === undefined ? '' : Number(r.revenue_percent),
     projectType: r.project_type || '', source: r.source || '', notes: r.notes || '', lostReason: r.lost_reason || '',
     history: r.history || [], projectStage: r.project_stage || null,
+    projectStatus: r.project_status || null, permitStatus: r.permit_status || null, permitTownship: r.permit_township || '',
     wonAt: r.won_at, lostAt: r.lost_at, createdAt: r.created_at, updatedAt: r.updated_at,
   };
 }
@@ -109,6 +131,9 @@ function leadToRow(d) {
   if (d.lostReason !== undefined) row.lost_reason = d.lostReason;
   if (d.history !== undefined) row.history = d.history;
   if (d.projectStage !== undefined) row.project_stage = d.projectStage;
+  if (d.projectStatus !== undefined) row.project_status = d.projectStatus;
+  if (d.permitStatus !== undefined) row.permit_status = d.permitStatus;
+  if (d.permitTownship !== undefined) row.permit_township = (d.permitTownship || '').trim();
   if (d.wonAt !== undefined) row.won_at = d.wonAt;
   if (d.lostAt !== undefined) row.lost_at = d.lostAt;
   return row;
@@ -341,7 +366,9 @@ const Leads = {
     // Preserve project progress if this lead was won before and got reopened —
     // only default it to the first stage the first time it's ever won.
     const projectStage = l.projectStage || PROJECT_STAGES[0].id;
-    return this._patch(id, { status: 'won', stage: 'won', wonAt: now, projectStage, history });
+    const projectStatus = l.projectStatus || PROJECT_STATUS_OPTIONS[0].id;
+    const permitStatus = l.permitStatus || PERMIT_STATUS_OPTIONS[0].id;
+    return this._patch(id, { status: 'won', stage: 'won', wonAt: now, projectStage, projectStatus, permitStatus, history });
   },
   async moveProjectStage(id, stageId) {
     const l = this.get(id);
@@ -349,6 +376,20 @@ const Leads = {
     const from = l.projectStage || PROJECT_STAGES[0].id;
     const history = [...l.history, { at: new Date().toISOString(), event: 'project_stage_change', detail: `Project moved from "${projectStageLabel(from)}" to "${projectStageLabel(stageId)}"` }];
     return this._patch(id, { projectStage: stageId, history });
+  },
+  /** Updates a project's health status and/or permit info together — the
+   *  "Permit & Status" box shown once a lead is won. Only logs a history
+   *  line for whichever of the three fields actually changed. */
+  async updateProjectMeta(id, { projectStatus, permitStatus, permitTownship }) {
+    const l = this.get(id);
+    if (!l) return null;
+    const changes = [];
+    if (projectStatus !== undefined && projectStatus !== l.projectStatus) changes.push(`Status set to "${projectStatusLabel(projectStatus)}"`);
+    if (permitStatus !== undefined && permitStatus !== l.permitStatus) changes.push(`Permit set to "${permitStatusLabel(permitStatus)}"`);
+    if (permitTownship !== undefined && (permitTownship || '').trim() !== (l.permitTownship || '').trim()) changes.push(`Permit township set to "${permitTownship || '—'}"`);
+    if (!changes.length) return l;
+    const history = [...l.history, { at: new Date().toISOString(), event: 'project_meta_change', detail: changes.join('; ') }];
+    return this._patch(id, { projectStatus, permitStatus, permitTownship, history });
   },
   async markLost(id, reason) {
     const l = this.get(id);

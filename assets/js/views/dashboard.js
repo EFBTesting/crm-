@@ -78,10 +78,19 @@ function computeProjectAnalytics() {
 
   const inProductionSorted = [...inProduction].sort((a, b) => (b.value || 0) - (a.value || 0)).slice(0, 8);
 
+  const delayed = projects.filter(l => l.projectStatus === 'delayed').length;
+  const onTrack = projects.length - delayed;
+  const permitCounts = {
+    not_submitted: projects.filter(l => (l.permitStatus || 'not_submitted') === 'not_submitted').length,
+    submitted: projects.filter(l => l.permitStatus === 'submitted').length,
+    approved: projects.filter(l => l.permitStatus === 'approved').length,
+  };
+
   return {
     totals: {
       totalProjects: projects.length, inProduction: inProduction.length, completed: completed.length,
       completedThisMonth: completedThisMonth.length, totalValue, completedValue, inProductionValue,
+      onTrack, delayed, permitCounts,
     },
     byStage, months, inProductionSorted,
   };
@@ -252,6 +261,19 @@ function renderProjectsTab(root) {
                 </tr>`).join('')}
             </tbody>
           </table>` : `<p class="empty-inline">Nothing in production right now.</p>`}
+      </div>
+      <div class="panel">
+        <h3>Project Health</h3>
+        <div class="kpi-inline mb-md">
+          <div><span class="kpi-inline__num">${t.onTrack}</span><span class="kpi-inline__label">On Track</span></div>
+          <div><span class="kpi-inline__num">${t.delayed}</span><span class="kpi-inline__label">Delayed</span></div>
+        </div>
+        <h3>Permits</h3>
+        <div class="kpi-inline">
+          <div><span class="kpi-inline__num">${t.permitCounts.not_submitted}</span><span class="kpi-inline__label">Not Submitted</span></div>
+          <div><span class="kpi-inline__num">${t.permitCounts.submitted}</span><span class="kpi-inline__label">Submitted</span></div>
+          <div><span class="kpi-inline__num">${t.permitCounts.approved}</span><span class="kpi-inline__label">Approved</span></div>
+        </div>
       </div>
     </div>
   `;

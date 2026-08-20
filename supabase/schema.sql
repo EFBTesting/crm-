@@ -75,6 +75,9 @@ create table if not exists leads (
   lost_reason text,
   history jsonb not null default '[]',          -- activity timeline, same shape as before
   project_stage text,                          -- design | pre_con | construction | completed (only once won)
+  project_status text,                         -- on_track | delayed (only once won)
+  permit_status text,                          -- not_submitted | submitted | approved (only once won)
+  permit_township text,
   won_at timestamptz,
   lost_at timestamptz,
   created_at timestamptz not null default now(),
@@ -92,6 +95,9 @@ alter table contacts add column if not exists best_time_to_contact text;
 alter table leads add column if not exists secondary_contact_id uuid references contacts(id) on delete set null;
 alter table leads add column if not exists revenue_percent numeric;
 alter table leads add column if not exists project_stage text;
+alter table leads add column if not exists project_status text;
+alter table leads add column if not exists permit_status text;
+alter table leads add column if not exists permit_township text;
 
 -- ---------------------------------------------------------------------
 -- Keep updated_at fresh automatically

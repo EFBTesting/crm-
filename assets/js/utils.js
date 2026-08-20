@@ -103,6 +103,19 @@ function contactStatusPillHtml(contactId) {
   return `<span class="pill pill--red">Previous Project · Lost</span>`;
 }
 
+/** Project health / permit badges — shown on Project Tracking cards, the
+ *  lead detail page, and reused for their color coding in analytics. */
+function projectStatusPillHtml(lead) {
+  const status = lead?.projectStatus || 'on_track';
+  return status === 'delayed' ? `<span class="pill pill--red">Delayed</span>` : `<span class="pill pill--green">On Track</span>`;
+}
+function permitStatusPillHtml(lead) {
+  const status = lead?.permitStatus || 'not_submitted';
+  if (status === 'approved') return `<span class="pill pill--green">Permit: Approved</span>`;
+  if (status === 'submitted') return `<span class="pill pill--stage">Permit: Submitted</span>`;
+  return `<span class="pill pill--muted">Permit: Not Submitted</span>`;
+}
+
 /** Debounce a function by `ms` milliseconds. */
 function debounce(fn, ms = 250) {
   let t;

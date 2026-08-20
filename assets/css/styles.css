@@ -259,6 +259,8 @@ p { margin: 0; }
 .lead-card__title { font-weight: 700; font-size: 0.86rem; cursor: pointer; }
 .lead-card__title:hover { text-decoration: underline; }
 .lead-card__who { font-size: 0.76rem; color: var(--muted); margin: 3px 0 8px; }
+.lead-card__badges { display: flex; flex-wrap: wrap; gap: 5px; justify-content: flex-end; margin-bottom: 8px; }
+.pill-btn { border: none; background: none; padding: 0; cursor: pointer; }
 .lead-card__meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
 .lead-card__value { font-weight: 700; font-size: 0.84rem; color: var(--navy); }
 .lead-card__actions { display: flex; gap: 6px; }
@@ -280,6 +282,14 @@ p { margin: 0; }
 .stage-step.is-done .stage-step__dot { background: var(--green); }
 .stage-step.is-current { background: rgba(224,122,44,0.14); border-color: var(--amber); color: var(--amber-dark); }
 .stage-step.is-current .stage-step__dot { background: var(--amber); }
+
+.permit-status-box {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px;
+}
+.permit-status-box__pills { display: flex; gap: 6px; flex-wrap: wrap; }
+.permit-status-box__township { font-size: 0.82rem; color: var(--muted); flex: 1; }
+.permit-status-box .btn { margin-left: auto; }
 
 /* ---------------------------- Activity feed ---------------------------- */
 
