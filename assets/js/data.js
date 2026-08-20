@@ -23,8 +23,21 @@ const COMPANY_TYPES = ['Property Management', 'Developer', 'Architect / Design P
 const LOST_REASONS = ['Price too high', 'Chose another contractor', 'Timeline mismatch', 'Project postponed', 'Went unresponsive', 'Scope changed / no longer needed', 'Other'];
 const BEST_TIME_OPTIONS = ['Morning', 'Evening', 'Night', 'Whenever'];
 
+/** Project Tracking stages — once a lead is won it becomes a "project" and
+ *  moves through these instead (separate from the sales STAGES above). */
+const PROJECT_STAGES = [
+  { id: 'design', label: 'Design', description: 'Plans, selections, and permitting are being worked out.' },
+  { id: 'pre_con', label: 'Pre-Construction', description: 'Scheduling, ordering materials, prepping the site.' },
+  { id: 'construction', label: 'Construction', description: 'Crews are actively building.' },
+  { id: 'completed', label: 'Completed', description: 'Job finished and closed out.' },
+];
+
 function stageLabel(stageId) {
   const s = STAGES.find(s => s.id === stageId);
+  return s ? s.label : stageId;
+}
+function projectStageLabel(stageId) {
+  const s = PROJECT_STAGES.find(s => s.id === stageId);
   return s ? s.label : stageId;
 }
 
@@ -80,7 +93,8 @@ function leadFromRow(r) {
     companyId: r.company_id, stage: r.stage, status: r.status, value: Number(r.value) || 0,
     revenuePercent: r.revenue_percent === null || r.revenue_percent === undefined ? '' : Number(r.revenue_percent),
     projectType: r.project_type || '', source: r.source || '', notes: r.notes || '', lostReason: r.lost_reason || '',
-    history: r.history || [], wonAt: r.won_at, lostAt: r.lost_at, createdAt: r.created_at, updatedAt: r.updated_at,
+    history: r.history || [], projectStage: r.project_stage || null,
+    wonAt: r.won_at, lostAt: r.lost_at, createdAt: r.created_at, updatedAt: r.updated_at,
   };
 }
 function leadToRow(d) {
@@ -94,6 +108,7 @@ function leadToRow(d) {
   if (d.status !== undefined) row.status = d.status;
   if (d.lostReason !== undefined) row.lost_reason = d.lostReason;
   if (d.history !== undefined) row.history = d.history;
+  if (d.projectStage !== undefined) row.project_stage = d.projectStage;
   if (d.wonAt !== undefined) row.won_at = d.wonAt;
   if (d.lostAt !== undefined) row.lost_at = d.lostAt;
   return row;
@@ -292,6 +307,13 @@ const Leads = {
   active() {
     return cache.leads.filter(l => l.status === 'active');
   },
+  /** Won leads that have become projects — what Project Tracking shows. */
+  projects() {
+    return cache.leads.filter(l => l.status === 'won');
+  },
+  byProjectStage(stageId) {
+    return this.projects().filter(l => (l.projectStage || PROJECT_STAGES[0].id) === stageId);
+  },
   async create(data) {
     const stage = data.stage || STAGES[0].id;
     const history = [{ at: new Date().toISOString(), event: 'created', detail: `Lead created in stage "${stageLabel(stage)}"` }];
@@ -316,7 +338,17 @@ const Leads = {
     if (!l) return null;
     const now = new Date().toISOString();
     const history = [...l.history, { at: now, event: 'won', detail: 'Marked as Won – contract signed' }];
-    return this._patch(id, { status: 'won', stage: 'won', wonAt: now, history });
+    // Preserve project progress if this lead was won before and got reopened —
+    // only default it to the first stage the first time it's ever won.
+    const projectStage = l.projectStage || PROJECT_STAGES[0].id;
+    return this._patch(id, { status: 'won', stage: 'won', wonAt: now, projectStage, history });
+  },
+  async moveProjectStage(id, stageId) {
+    const l = this.get(id);
+    if (!l) return null;
+    const from = l.projectStage || PROJECT_STAGES[0].id;
+    const history = [...l.history, { at: new Date().toISOString(), event: 'project_stage_change', detail: `Project moved from "${projectStageLabel(from)}" to "${projectStageLabel(stageId)}"` }];
+    return this._patch(id, { projectStage: stageId, history });
   },
   async markLost(id, reason) {
     const l = this.get(id);

@@ -19,8 +19,10 @@ function renderLeadDetail(root, { id }) {
     const revenue = revenueAmount(l);
     const history = [...l.history].sort((a, b) => new Date(b.at) - new Date(a.at));
 
+    const projectStage = l.projectStage || PROJECT_STAGES[0].id;
+
     root.innerHTML = `
-      <div class="breadcrumb"><a href="#/pipeline">Pipeline</a> / ${esc(l.title)}</div>
+      <div class="breadcrumb">${l.status === 'won' ? '<a href="#/projects">Project Tracking</a>' : '<a href="#/pipeline">Pipeline</a>'} / ${esc(l.title)}</div>
 
       <div class="profile-head">
         <div class="profile-head__info">
@@ -50,7 +52,13 @@ function renderLeadDetail(root, { id }) {
           <button class="btn btn--ghost btn--sm" id="reopen-btn">Reopen lead</button>
         </div>
       ` : `
-        <div class="empty-banner empty-banner--success">🎉 Won on ${fmtDate(l.wonAt)}. Contract signed.</div>
+        <div class="empty-banner empty-banner--success">🎉 Won on ${fmtDate(l.wonAt)}. Contract signed — now tracked as a project.</div>
+        <div class="stage-tracker">
+          ${PROJECT_STAGES.map((s, i) => `
+            <button class="stage-step ${s.id === projectStage ? 'is-current' : ''} ${PROJECT_STAGES.findIndex(x => x.id === projectStage) > i ? 'is-done' : ''}" data-set-project-stage="${s.id}">
+              <span class="stage-step__dot"></span>${esc(s.label)}
+            </button>`).join('')}
+        </div>
       `}
 
       <div class="detail-grid">
@@ -118,6 +126,12 @@ function renderLeadDetail(root, { id }) {
         try { await Leads.reopen(l.id); toast('Lead reopened'); draw(); }
         catch (err) { toast(err.message || 'Could not update the lead', 'warn'); }
       });
+    }
+    if (l.status === 'won') {
+      qsa('[data-set-project-stage]', root).forEach(btn => btn.addEventListener('click', async () => {
+        try { await Leads.moveProjectStage(l.id, btn.dataset.setProjectStage); draw(); }
+        catch (err) { toast(err.message || 'Could not update the project', 'warn'); }
+      }));
     }
 
     qs('#note-form', root).addEventListener('submit', async e => {

@@ -1,8 +1,12 @@
 /* ==========================================================================
    Analytics dashboard — high-level view of the whole business.
+   Two views sharing one page: Sales (the lead pipeline) and Projects
+   (won leads moving through production), switched with a tab control.
    ========================================================================== */
 
-function computeAnalytics() {
+let dashboardActiveTab = 'sales';
+
+function computeSalesAnalytics() {
   const leads = Leads.all();
   const active = leads.filter(l => l.status === 'active');
   const won = leads.filter(l => l.status === 'won');
@@ -30,24 +34,9 @@ function computeAnalytics() {
     bySource[key] = (bySource[key] || 0) + 1;
   });
 
-  const byLostReason = {};
-  lost.forEach(l => {
-    const key = l.lostReason || 'Other';
-    byLostReason[key] = (byLostReason[key] || 0) + 1;
-  });
-
   // last 6 months, leads created per month
-  const months = [];
-  for (let i = 5; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    months.push({ key: `${d.getFullYear()}-${d.getMonth()}`, label: d.toLocaleDateString('en-US', { month: 'short' }), count: 0 });
-  }
-  leads.forEach(l => {
-    const d = new Date(l.createdAt);
-    const key = `${d.getFullYear()}-${d.getMonth()}`;
-    const bucket = months.find(m => m.key === key);
-    if (bucket) bucket.count += 1;
-  });
+  const months = monthBuckets(now);
+  leads.forEach(l => bumpMonthBucket(months, l.createdAt));
 
   const recentActivity = leads
     .flatMap(l => l.history.map(h => ({ ...h, leadId: l.id, leadTitle: l.title })))
@@ -58,38 +47,95 @@ function computeAnalytics() {
 
   return {
     totals: {
-      totalLeads: leads.length,
-      activeLeads: active.length,
-      won: won.length,
-      wonThisMonth: wonThisMonth.length,
-      lost: lost.length,
-      pipelineValue,
-      wonValue,
-      avgDealSize,
-      winRate,
+      totalLeads: leads.length, activeLeads: active.length, won: won.length,
+      wonThisMonth: wonThisMonth.length, lost: lost.length, pipelineValue, wonValue, avgDealSize, winRate,
     },
-    byStage,
-    bySource,
-    byLostReason,
-    months,
-    recentActivity,
-    topActiveLeads,
+    byStage, bySource, months, recentActivity, topActiveLeads,
   };
 }
 
-function renderDashboard(root) {
-  const a = computeAnalytics();
-  const t = a.totals;
-  const hasAnyLeads = t.totalLeads > 0;
+function computeProjectAnalytics() {
+  const projects = Leads.projects();
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
+  const byStage = PROJECT_STAGES.map(s => {
+    const items = projects.filter(l => (l.projectStage || PROJECT_STAGES[0].id) === s.id);
+    return { stage: s, count: items.length, value: items.reduce((sum, l) => sum + (Number(l.value) || 0), 0) };
+  });
+
+  const completed = projects.filter(l => (l.projectStage || PROJECT_STAGES[0].id) === 'completed');
+  const inProduction = projects.filter(l => (l.projectStage || PROJECT_STAGES[0].id) !== 'completed');
+  const completedThisMonth = completed.filter(l => new Date(l.updatedAt) >= startOfMonth);
+
+  const totalValue = projects.reduce((sum, l) => sum + (Number(l.value) || 0), 0);
+  const completedValue = completed.reduce((sum, l) => sum + (Number(l.value) || 0), 0);
+  const inProductionValue = inProduction.reduce((sum, l) => sum + (Number(l.value) || 0), 0);
+
+  // last 6 months, projects completed per month (approximated by last-updated date)
+  const months = monthBuckets(now);
+  completed.forEach(l => bumpMonthBucket(months, l.updatedAt));
+
+  const inProductionSorted = [...inProduction].sort((a, b) => (b.value || 0) - (a.value || 0)).slice(0, 8);
+
+  return {
+    totals: {
+      totalProjects: projects.length, inProduction: inProduction.length, completed: completed.length,
+      completedThisMonth: completedThisMonth.length, totalValue, completedValue, inProductionValue,
+    },
+    byStage, months, inProductionSorted,
+  };
+}
+
+function monthBuckets(now) {
+  const months = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push({ key: `${d.getFullYear()}-${d.getMonth()}`, label: d.toLocaleDateString('en-US', { month: 'short' }), count: 0 });
+  }
+  return months;
+}
+function bumpMonthBucket(months, iso) {
+  const d = new Date(iso);
+  const key = `${d.getFullYear()}-${d.getMonth()}`;
+  const bucket = months.find(m => m.key === key);
+  if (bucket) bucket.count += 1;
+}
+
+function renderDashboard(root) {
   root.innerHTML = `
     <div class="view-head">
       <div>
         <h1>Business Overview</h1>
         <p class="view-sub">Erwin Forest Builders — everything happening across the CRM, at a glance.</p>
       </div>
+      <div class="view-tabs" id="dashboard-tabs">
+        <button class="view-tabs__btn ${dashboardActiveTab === 'sales' ? 'is-active' : ''}" data-tab="sales">Sales</button>
+        <button class="view-tabs__btn ${dashboardActiveTab === 'projects' ? 'is-active' : ''}" data-tab="projects">Projects</button>
+      </div>
     </div>
+    <div id="dashboard-body"></div>
+  `;
 
+  qsa('[data-tab]', root).forEach(btn => btn.addEventListener('click', () => {
+    dashboardActiveTab = btn.dataset.tab;
+    renderDashboard(root);
+  }));
+
+  const body = qs('#dashboard-body', root);
+  if (dashboardActiveTab === 'projects') {
+    renderProjectsTab(body);
+  } else {
+    renderSalesTab(body);
+  }
+}
+
+function renderSalesTab(root) {
+  const a = computeSalesAnalytics();
+  const t = a.totals;
+  const hasAnyLeads = t.totalLeads > 0;
+
+  root.innerHTML = `
     <div class="kpi-grid">
       ${kpiTile('Active Pipeline', fmtMoney(t.pipelineValue), `${t.activeLeads} open lead${t.activeLeads === 1 ? '' : 's'}`, 'navy')}
       ${kpiTile('Won (All Time)', fmtMoney(t.wonValue), `${t.won} contract${t.won === 1 ? '' : 's'} signed · ${t.wonThisMonth} this month`, 'green')}
@@ -159,8 +205,59 @@ function renderDashboard(root) {
   `;
 
   qsa('[data-nav]', root).forEach(node => node.addEventListener('click', () => Router.navigate(node.dataset.nav)));
+  drawSalesCharts(a);
+}
 
-  drawDashboardCharts(a);
+function renderProjectsTab(root) {
+  const a = computeProjectAnalytics();
+  const t = a.totals;
+  const hasAnyProjects = t.totalProjects > 0;
+
+  root.innerHTML = `
+    <div class="kpi-grid">
+      ${kpiTile('In Production', fmtMoney(t.inProductionValue), `${t.inProduction} project${t.inProduction === 1 ? '' : 's'} underway`, 'navy')}
+      ${kpiTile('Completed (All Time)', fmtMoney(t.completedValue), `${t.completed} project${t.completed === 1 ? '' : 's'} · ${t.completedThisMonth} this month`, 'green')}
+      ${kpiTile('Total Projects', String(t.totalProjects), 'Won leads tracked here', 'amber')}
+      ${kpiTile('Total Project Value', fmtMoney(t.totalValue), 'In production + completed', 'slate')}
+    </div>
+
+    ${!hasAnyProjects ? `
+      <div class="empty-banner">
+        <strong>No projects yet.</strong> Mark a lead <strong>Won</strong> on the Lead Pipeline and it'll show up here, tracked through Design → Pre-Construction → Construction → Completed.
+      </div>` : ''}
+
+    <div class="chart-row">
+      <div class="chart-box chart-box--wide">
+        <h3>Projects by stage</h3>
+        <canvas id="chart-project-stage"></canvas>
+      </div>
+      <div class="chart-box">
+        <h3>Completions, last 6 months</h3>
+        <canvas id="chart-project-trend"></canvas>
+      </div>
+    </div>
+
+    <div class="panel-row">
+      <div class="panel panel--wide">
+        <h3>Projects in production</h3>
+        ${a.inProductionSorted.length ? `
+          <table class="mini-table">
+            <thead><tr><th>Project</th><th>Stage</th><th>Value</th></tr></thead>
+            <tbody>
+              ${a.inProductionSorted.map(l => `
+                <tr class="row-link" data-nav="/leads/${l.id}">
+                  <td>${esc(l.title)}</td>
+                  <td><span class="pill pill--stage">${esc(projectStageLabel(l.projectStage || PROJECT_STAGES[0].id))}</span></td>
+                  <td>${fmtMoney(l.value)}</td>
+                </tr>`).join('')}
+            </tbody>
+          </table>` : `<p class="empty-inline">Nothing in production right now.</p>`}
+      </div>
+    </div>
+  `;
+
+  qsa('[data-nav]', root).forEach(node => node.addEventListener('click', () => Router.navigate(node.dataset.nav)));
+  drawProjectCharts(a);
 }
 
 function kpiTile(label, value, sub, tone) {
@@ -189,7 +286,7 @@ function winRateTile(t) {
     </div>`;
 }
 
-function drawDashboardCharts(a) {
+function drawSalesCharts(a) {
   const t = a.totals;
 
   Charts.render('chart-stage', {
@@ -249,6 +346,48 @@ function drawDashboardCharts(a) {
       datasets: [{ data: [t.activeLeads, t.won, t.lost], backgroundColor: [PALETTE.navy, PALETTE.green, PALETTE.red], borderWidth: 0 }],
     },
     options: baseChartOptions({ cutout: '62%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } } } }, t.totalLeads === 0),
+  });
+}
+
+function drawProjectCharts(a) {
+  Charts.render('chart-project-stage', {
+    type: 'bar',
+    data: {
+      labels: a.byStage.map(s => s.stage.label),
+      datasets: [{
+        label: 'Projects',
+        data: a.byStage.map(s => s.count),
+        backgroundColor: [PALETTE.slate, '#4f7cac', PALETTE.amber, PALETTE.brand],
+        borderRadius: 6,
+        maxBarThickness: 46,
+      }],
+    },
+    options: baseChartOptions({
+      indexAxis: 'y',
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => `${ctx.parsed.x} project(s) · ${fmtMoney(a.byStage[ctx.dataIndex].value)}` } } },
+      scales: { x: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: PALETTE.grid } }, y: { grid: { display: false } } },
+    }, !a.totals.totalProjects),
+  });
+
+  Charts.render('chart-project-trend', {
+    type: 'line',
+    data: {
+      labels: a.months.map(m => m.label),
+      datasets: [{
+        label: 'Completed',
+        data: a.months.map(m => m.count),
+        borderColor: PALETTE.brand,
+        backgroundColor: PALETTE.brandSoft,
+        fill: true,
+        tension: 0.35,
+        pointRadius: 3,
+        pointBackgroundColor: PALETTE.brand,
+      }],
+    },
+    options: baseChartOptions({
+      plugins: { legend: { display: false } },
+      scales: { x: { grid: { display: false } }, y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: PALETTE.grid } } },
+    }),
   });
 }
 
