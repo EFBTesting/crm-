@@ -5,11 +5,28 @@
 
 function renderPipeline(root) {
   let showLost = false;
+  let query = '';
+  let filterProjectType = '';
+  let filterSource = '';
+
+  function matchesFilters(l) {
+    if (filterProjectType && l.projectType !== filterProjectType) return false;
+    if (filterSource && l.source !== filterSource) return false;
+    if (query) {
+      const contact = Contacts.get(l.contactId);
+      const secondary = Contacts.get(l.secondaryContactId);
+      const company = Companies.get(l.companyId);
+      const hay = `${l.title} ${contact ? fullName(contact) : ''} ${secondary ? fullName(secondary) : ''} ${company ? company.name : ''}`.toLowerCase();
+      if (!hay.includes(query.toLowerCase())) return false;
+    }
+    return true;
+  }
 
   function draw() {
-    const active = Leads.active();
-    const lost = Leads.all().filter(l => l.status === 'lost');
+    const active = Leads.active().filter(matchesFilters);
+    const lost = Leads.all().filter(l => l.status === 'lost').filter(matchesFilters);
     const totalActiveValue = active.reduce((s, l) => s + (Number(l.value) || 0), 0);
+    const hasFilters = query || filterProjectType || filterSource;
 
     root.innerHTML = `
       <div class="view-head">
@@ -23,12 +40,19 @@ function renderPipeline(root) {
         </div>
       </div>
 
+      <div class="filter-bar">
+        <input type="search" id="pipeline-search" class="search-input" placeholder="Search leads, contacts, companies..." value="${esc(query)}">
+        <select id="filter-project-type" class="filter-select">${optionList(PROJECT_TYPES, filterProjectType, { blank: 'All project types' })}</select>
+        <select id="filter-source" class="filter-select">${optionList(LEAD_SOURCES, filterSource, { blank: 'All sources' })}</select>
+        ${hasFilters ? `<button type="button" id="clear-filters-btn" class="link-btn-inline">Clear filters</button>` : ''}
+      </div>
+
       <div class="kanban" id="kanban">
         ${STAGES.map(stage => {
           // The Won column is a trophy case: it shows every won deal (status
           // 'won'), not just "active" leads — a lead's status flips away from
           // 'active' the moment it's won, so it'd otherwise vanish from the board.
-          const leads = (stage.id === 'won' ? Leads.all().filter(l => l.status === 'won') : active.filter(l => l.stage === stage.id))
+          const leads = (stage.id === 'won' ? Leads.all().filter(l => l.status === 'won').filter(matchesFilters) : active.filter(l => l.stage === stage.id))
             .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
           const value = leads.reduce((s, l) => s + (Number(l.value) || 0), 0);
           return `
@@ -42,7 +66,7 @@ function renderPipeline(root) {
             </div>
             <div class="kanban-col__value">${fmtMoney(value)}</div>
             <div class="kanban-col__body" data-dropzone="${stage.id}">
-              ${leads.map(l => leadCardHtml(l)).join('') || `<div class="kanban-empty">Drop leads here, or use “+ New Lead”.</div>`}
+              ${leads.map(l => leadCardHtml(l)).join('') || `<div class="kanban-empty">${hasFilters ? 'No matches.' : 'Drop leads here, or use “+ New Lead”.'}</div>`}
             </div>
           </div>`;
         }).join('')}
@@ -97,6 +121,19 @@ function renderPipeline(root) {
     qsa('[data-nav]', root).forEach(node => node.addEventListener('click', e => { e.stopPropagation(); Router.navigate(node.dataset.nav); }));
     qs('#new-lead-btn', root).addEventListener('click', () => openLeadForm(null, {}, () => draw()));
     qs('#toggle-lost-btn', root).addEventListener('click', () => { showLost = !showLost; draw(); });
+
+    const searchInput = qs('#pipeline-search', root);
+    searchInput.addEventListener('input', debounce(e => {
+      query = e.target.value;
+      draw();
+      const el = qs('#pipeline-search', root);
+      el.focus();
+      el.setSelectionRange(el.value.length, el.value.length);
+    }, 200));
+    qs('#filter-project-type', root).addEventListener('change', e => { filterProjectType = e.target.value; draw(); });
+    qs('#filter-source', root).addEventListener('change', e => { filterSource = e.target.value; draw(); });
+    const clearBtn = qs('#clear-filters-btn', root);
+    if (clearBtn) clearBtn.addEventListener('click', () => { query = ''; filterProjectType = ''; filterSource = ''; draw(); });
 
     qsa('[data-won]', root).forEach(btn => btn.addEventListener('click', async e => {
       e.stopPropagation();

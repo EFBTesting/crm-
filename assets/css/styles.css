@@ -133,6 +133,13 @@ p { margin: 0; }
   font-size: 0.86rem; min-width: 220px; background: #fff;
 }
 
+.filter-bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 18px; }
+.filter-select {
+  border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px;
+  font-size: 0.86rem; background: #fff; color: var(--ink-soft); font-family: inherit;
+}
+.filter-bar .search-input { flex: 1; min-width: 200px; max-width: 320px; }
+
 /* ---------------------------- KPI tiles ---------------------------- */
 
 .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }

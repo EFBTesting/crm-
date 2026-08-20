@@ -4,12 +4,14 @@
 
 function renderCompanies(root) {
   let query = '';
+  let filterType = '';
 
   function draw() {
     const all = Companies.all();
-    const filtered = query
-      ? all.filter(c => `${c.name} ${c.type} ${c.website} ${c.phone}`.toLowerCase().includes(query.toLowerCase()))
-      : all;
+    const hasFilters = query || filterType;
+    const filtered = all
+      .filter(c => !filterType || c.type === filterType)
+      .filter(c => !query || `${c.name} ${c.type} ${c.website} ${c.phone}`.toLowerCase().includes(query.toLowerCase()));
 
     root.innerHTML = `
       <div class="view-head">
@@ -21,6 +23,11 @@ function renderCompanies(root) {
           <input id="company-search" class="search-input" type="search" placeholder="Search companies..." value="${esc(query)}">
           <button class="btn btn--primary" id="new-company-btn">+ New Company</button>
         </div>
+      </div>
+
+      <div class="filter-bar">
+        <select id="filter-type" class="filter-select">${optionList(COMPANY_TYPES, filterType, { blank: 'All types' })}</select>
+        ${hasFilters ? `<button type="button" id="clear-filters-btn" class="link-btn-inline">Clear filters</button>` : ''}
       </div>
 
       ${filtered.length ? `
@@ -45,17 +52,26 @@ function renderCompanies(root) {
               </div>
             </div>`;
           }).join('')}
-        </div>` : emptyState(query)}
+        </div>` : emptyState(hasFilters)}
     `;
 
     qsa('[data-nav]', root).forEach(node => node.addEventListener('click', () => Router.navigate(node.dataset.nav)));
     qs('#new-company-btn', root).addEventListener('click', () => openCompanyForm(null, () => draw()));
     const search = qs('#company-search', root);
-    search.addEventListener('input', debounce(e => { query = e.target.value; draw(); qs('#company-search', root).focus(); }, 200));
+    search.addEventListener('input', debounce(e => {
+      query = e.target.value;
+      draw();
+      const el = qs('#company-search', root);
+      el.focus();
+      el.setSelectionRange(el.value.length, el.value.length);
+    }, 200));
+    qs('#filter-type', root).addEventListener('change', e => { filterType = e.target.value; draw(); });
+    const clearBtn = qs('#clear-filters-btn', root);
+    if (clearBtn) clearBtn.addEventListener('click', () => { query = ''; filterType = ''; draw(); });
   }
 
-  function emptyState(q) {
-    if (q) return `<div class="empty-state"><p>No companies match “${esc(q)}”.</p></div>`;
+  function emptyState(hasFilters) {
+    if (hasFilters) return `<div class="empty-state"><p>No companies match your search/filter.</p></div>`;
     return `
       <div class="empty-state">
         <p><strong>No company profiles yet.</strong></p>

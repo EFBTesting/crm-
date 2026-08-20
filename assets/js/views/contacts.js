@@ -2,17 +2,35 @@
    Contacts — list view.
    ========================================================================== */
 
+const CONTACT_STATUS_FILTERS = [
+  { id: 'open', label: 'Open' },
+  { id: 'won', label: 'Previous Project · Won' },
+  { id: 'lost', label: 'Previous Project · Lost' },
+  { id: 'none', label: 'No projects yet' },
+];
+
 function renderContacts(root) {
   let query = '';
+  let filterStatus = '';
+
+  function matchesStatusFilter(c) {
+    if (!filterStatus) return true;
+    const info = Contacts.statusFor(c.id);
+    if (filterStatus === 'open') return info.kind === 'open';
+    if (filterStatus === 'none') return info.kind === 'none';
+    return info.kind === 'previous' && info.outcome === filterStatus;
+  }
 
   function draw() {
     const all = Contacts.all();
-    const filtered = query
-      ? all.filter(c => {
-          const hay = `${fullName(c)} ${c.email} ${c.phone} ${c.title} ${Companies.get(c.companyId)?.name || ''}`.toLowerCase();
-          return hay.includes(query.toLowerCase());
-        })
-      : all;
+    const hasFilters = query || filterStatus;
+    const filtered = all
+      .filter(matchesStatusFilter)
+      .filter(c => {
+        if (!query) return true;
+        const hay = `${fullName(c)} ${c.email} ${c.phone} ${c.title} ${Companies.get(c.companyId)?.name || ''}`.toLowerCase();
+        return hay.includes(query.toLowerCase());
+      });
 
     root.innerHTML = `
       <div class="view-head">
@@ -24,6 +42,11 @@ function renderContacts(root) {
           <input id="contact-search" class="search-input" type="search" placeholder="Search contacts..." value="${esc(query)}">
           <button class="btn btn--primary" id="new-contact-btn">+ New Contact</button>
         </div>
+      </div>
+
+      <div class="filter-bar">
+        <select id="filter-status" class="filter-select">${optionList(CONTACT_STATUS_FILTERS, filterStatus, { valueKey: 'id', labelKey: 'label', blank: 'All statuses' })}</select>
+        ${hasFilters ? `<button type="button" id="clear-filters-btn" class="link-btn-inline">Clear filters</button>` : ''}
       </div>
 
       ${filtered.length ? `
@@ -55,17 +78,26 @@ function renderContacts(root) {
               }).join('')}
             </tbody>
           </table>
-        </div>` : emptyState(query)}
+        </div>` : emptyState(hasFilters)}
     `;
 
     qsa('[data-nav]', root).forEach(node => node.addEventListener('click', () => Router.navigate(node.dataset.nav)));
     qs('#new-contact-btn', root).addEventListener('click', () => openContactForm(null, () => draw()));
     const search = qs('#contact-search', root);
-    search.addEventListener('input', debounce(e => { query = e.target.value; draw(); qs('#contact-search', root).focus(); }, 200));
+    search.addEventListener('input', debounce(e => {
+      query = e.target.value;
+      draw();
+      const el = qs('#contact-search', root);
+      el.focus();
+      el.setSelectionRange(el.value.length, el.value.length);
+    }, 200));
+    qs('#filter-status', root).addEventListener('change', e => { filterStatus = e.target.value; draw(); });
+    const clearBtn = qs('#clear-filters-btn', root);
+    if (clearBtn) clearBtn.addEventListener('click', () => { query = ''; filterStatus = ''; draw(); });
   }
 
-  function emptyState(q) {
-    if (q) return `<div class="empty-state"><p>No contacts match “${esc(q)}”.</p></div>`;
+  function emptyState(hasFilters) {
+    if (hasFilters) return `<div class="empty-state"><p>No contacts match your search/filter.</p></div>`;
     return `
       <div class="empty-state">
         <p><strong>No contacts yet.</strong></p>
