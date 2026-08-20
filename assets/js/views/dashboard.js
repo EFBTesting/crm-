@@ -78,9 +78,13 @@ function computeProjectAnalytics() {
 
   const inProductionSorted = [...inProduction].sort((a, b) => (b.value || 0) - (a.value || 0)).slice(0, 8);
 
-  const delayed = projects.filter(l => l.projectStatus === 'delayed').length;
-  const onTrack = projects.length - delayed;
-  const permits = permitBreakdown(projects);
+  // Status/permit "live feeds" only reflect projects still in progress —
+  // a completed project drops off these the moment it's marked Completed,
+  // and reappears automatically if it's ever moved back to another stage
+  // (both computed fresh from current data, nothing to manually restore).
+  const delayed = inProduction.filter(l => l.projectStatus === 'delayed').length;
+  const onTrack = inProduction.length - delayed;
+  const permits = permitBreakdown(inProduction);
 
   return {
     totals: {

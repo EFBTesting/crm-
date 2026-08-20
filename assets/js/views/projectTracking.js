@@ -49,7 +49,8 @@ function renderProjectTracking(root) {
 
         <div class="permit-summary-panel">
           <h3>Permits Across All Projects</h3>
-          ${renderPermitSummary(permitBreakdown(projects))}
+          <p class="view-sub mb-md">In-progress only — completed projects drop off this live view (their permits are still on file, just click into the project to see them).</p>
+          ${renderPermitSummary(permitBreakdown(projects.filter(l => (l.projectStage || PROJECT_STAGES[0].id) !== 'completed')))}
         </div>
       </div>
     `;
@@ -84,10 +85,14 @@ function renderProjectTracking(root) {
           <span class="lead-card__title row-link" data-nav="/leads/${l.id}">${esc(l.title)}</span>
         </div>
         <div class="lead-card__who">${esc(who)}</div>
+        ${isCompleted ? `
+        <div class="lead-card__badges">
+          <span class="pill pill--muted">🏁 Completed — click to view</span>
+        </div>` : `
         <div class="lead-card__badges">
           <button type="button" class="pill-btn" data-edit-meta="${l.id}" title="Edit status">${projectStatusPillHtml(l)}</button>
           <button type="button" class="pill-btn" data-edit-meta="${l.id}" title="Edit permits">${permitSummaryPillHtml(l)}</button>
-        </div>
+        </div>`}
         <div class="lead-card__meta">
           <span class="lead-card__value">${fmtMoney(l.value)}</span>
           ${l.projectType ? `<span class="pill pill--muted">${esc(l.projectType)}</span>` : ''}
