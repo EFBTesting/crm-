@@ -58,8 +58,6 @@ function computeAnalytics() {
 
   return {
     totals: {
-      contacts: Contacts.all().length,
-      companies: Companies.all().length,
       totalLeads: leads.length,
       activeLeads: active.length,
       won: won.length,
@@ -95,10 +93,8 @@ function renderDashboard(root) {
     <div class="kpi-grid">
       ${kpiTile('Active Pipeline', fmtMoney(t.pipelineValue), `${t.activeLeads} open lead${t.activeLeads === 1 ? '' : 's'}`, 'navy')}
       ${kpiTile('Won (All Time)', fmtMoney(t.wonValue), `${t.won} contract${t.won === 1 ? '' : 's'} signed · ${t.wonThisMonth} this month`, 'green')}
-      ${kpiTile('Win Rate', t.winRate === null ? '—' : `${t.winRate}%`, t.winRate === null ? 'No closed leads yet' : `${t.won} won / ${t.won + t.lost} closed`, 'amber')}
+      ${winRateTile(t)}
       ${kpiTile('Avg. Deal Size', t.won ? fmtMoney(t.avgDealSize) : '—', 'Across won contracts', 'slate')}
-      ${kpiTile('Total Contacts', String(t.contacts), 'People in your CRM', 'navy')}
-      ${kpiTile('Total Companies', String(t.companies), 'Company profiles', 'slate')}
     </div>
 
     ${!hasAnyLeads ? `
@@ -173,6 +169,23 @@ function kpiTile(label, value, sub, tone) {
       <div class="kpi-tile__label">${esc(label)}</div>
       <div class="kpi-tile__value">${value}</div>
       <div class="kpi-tile__sub">${esc(sub)}</div>
+    </div>`;
+}
+
+/** The Win Rate tile spells out the math behind the percentage — Total
+ *  (closed jobs, won + lost, which is what the percentage is out of),
+ *  Won, and Lost — instead of just a bare number that needs explaining. */
+function winRateTile(t) {
+  const closed = t.won + t.lost;
+  return `
+    <div class="kpi-tile kpi-tile--amber">
+      <div class="kpi-tile__label">Win Rate</div>
+      <div class="kpi-tile__value">${t.winRate === null ? '—' : `${t.winRate}%`}</div>
+      <div class="kpi-tile__breakdown">
+        <div><span class="kpi-tile__breakdown-num">${closed}</span><span class="kpi-tile__breakdown-label">Total</span></div>
+        <div><span class="kpi-tile__breakdown-num">${t.won}</span><span class="kpi-tile__breakdown-label">Won</span></div>
+        <div><span class="kpi-tile__breakdown-num">${t.lost}</span><span class="kpi-tile__breakdown-label">Lost</span></div>
+      </div>
     </div>`;
 }
 
