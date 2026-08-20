@@ -60,7 +60,10 @@ function renderLeadDetail(root, { id }) {
             </button>`).join('')}
         </div>
         <div class="permit-status-box mb-md">
-          <div class="permit-status-box__pills">${projectStatusPillHtml(l)} ${permitStatusPillHtml(l)}</div>
+          <div class="permit-status-box__pills">
+            ${projectStatusPillHtml(l)}
+            ${(l.permits || []).map(p => `<span class="pill pill--${p.status === 'approved' ? 'green' : p.status === 'submitted' ? 'stage' : 'muted'}">${esc(p.type)}: ${permitStatusLabel(p.status)}</span>`).join('') || '<span class="pill pill--muted">No permits logged</span>'}
+          </div>
           <div class="permit-status-box__township">${l.permitTownship ? `Township: ${esc(l.permitTownship)}` : 'No township on file'}</div>
           <button type="button" class="btn btn--ghost btn--sm" id="edit-permit-btn">Edit</button>
         </div>

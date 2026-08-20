@@ -25,29 +25,52 @@ function renderProjectTracking(root) {
           <strong>No projects yet.</strong> Once a lead is marked <strong>Won</strong> on the Lead Pipeline, it shows up here automatically to track through production.
         </div>` : ''}
 
-      <div class="kanban kanban--4col" id="project-kanban">
-        ${PROJECT_STAGES.map(stage => {
-          const items = Leads.byProjectStage(stage.id).sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
-          const value = items.reduce((s, l) => s + (Number(l.value) || 0), 0);
-          return `
-          <div class="kanban-col" data-stage="${stage.id}">
-            <div class="kanban-col__head">
-              <div>
-                <h3>${esc(stage.label)}</h3>
-                <p class="kanban-col__desc">${esc(stage.description)}</p>
+      <div class="project-tracking-layout">
+        <div class="kanban kanban--4col" id="project-kanban">
+          ${PROJECT_STAGES.map(stage => {
+            const items = Leads.byProjectStage(stage.id).sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+            const value = items.reduce((s, l) => s + (Number(l.value) || 0), 0);
+            return `
+            <div class="kanban-col" data-stage="${stage.id}">
+              <div class="kanban-col__head">
+                <div>
+                  <h3>${esc(stage.label)}</h3>
+                  <p class="kanban-col__desc">${esc(stage.description)}</p>
+                </div>
+                <span class="pill pill--navy">${items.length}</span>
               </div>
-              <span class="pill pill--navy">${items.length}</span>
-            </div>
-            <div class="kanban-col__value">${fmtMoney(value)}</div>
-            <div class="kanban-col__body" data-dropzone="${stage.id}">
-              ${items.map(l => projectCardHtml(l)).join('') || `<div class="kanban-empty">Drop projects here.</div>`}
-            </div>
-          </div>`;
-        }).join('')}
+              <div class="kanban-col__value">${fmtMoney(value)}</div>
+              <div class="kanban-col__body" data-dropzone="${stage.id}">
+                ${items.map(l => projectCardHtml(l)).join('') || `<div class="kanban-empty">Drop projects here.</div>`}
+              </div>
+            </div>`;
+          }).join('')}
+        </div>
+
+        <div class="permit-summary-panel">
+          <h3>Permits Across All Projects</h3>
+          ${renderPermitSummary(permitBreakdown(projects))}
+        </div>
       </div>
     `;
 
     wire();
+  }
+
+  function renderPermitSummary(breakdown) {
+    if (!breakdown.length) return `<p class="empty-inline">No permits logged yet. Add some from any project card's Permit badge.</p>`;
+    return breakdown.map(section => `
+      <div class="permit-summary-section">
+        <div class="permit-summary-section__title">${esc(section.label)}</div>
+        <div class="permit-summary-group">
+          <span class="pill pill--stage">Submitted (${section.submitted.length})</span>
+          ${section.submitted.length ? `<ul class="permit-summary-list">${section.submitted.map(p => `<li class="row-link" data-nav="/leads/${p.id}">${esc(p.title)}</li>`).join('')}</ul>` : ''}
+        </div>
+        <div class="permit-summary-group">
+          <span class="pill pill--green">Approved (${section.approved.length})</span>
+          ${section.approved.length ? `<ul class="permit-summary-list">${section.approved.map(p => `<li class="row-link" data-nav="/leads/${p.id}">${esc(p.title)}</li>`).join('')}</ul>` : ''}
+        </div>
+      </div>`).join('');
   }
 
   function projectCardHtml(l) {
@@ -63,7 +86,7 @@ function renderProjectTracking(root) {
         <div class="lead-card__who">${esc(who)}</div>
         <div class="lead-card__badges">
           <button type="button" class="pill-btn" data-edit-meta="${l.id}" title="Edit status">${projectStatusPillHtml(l)}</button>
-          <button type="button" class="pill-btn" data-edit-meta="${l.id}" title="Edit permit">${permitStatusPillHtml(l)}</button>
+          <button type="button" class="pill-btn" data-edit-meta="${l.id}" title="Edit permits">${permitSummaryPillHtml(l)}</button>
         </div>
         <div class="lead-card__meta">
           <span class="lead-card__value">${fmtMoney(l.value)}</span>

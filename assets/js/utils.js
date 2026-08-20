@@ -109,11 +109,19 @@ function projectStatusPillHtml(lead) {
   const status = lead?.projectStatus || 'on_track';
   return status === 'delayed' ? `<span class="pill pill--red">Delayed</span>` : `<span class="pill pill--green">On Track</span>`;
 }
-function permitStatusPillHtml(lead) {
-  const status = lead?.permitStatus || 'not_submitted';
-  if (status === 'approved') return `<span class="pill pill--green">Permit: Approved</span>`;
-  if (status === 'submitted') return `<span class="pill pill--stage">Permit: Submitted</span>`;
-  return `<span class="pill pill--muted">Permit: Not Submitted</span>`;
+/** A project can have any number of permits now, so this summarizes the
+ *  whole list into one badge: how many, and the least-done status among
+ *  them (a single "not submitted" permit is worth flagging even if the
+ *  other seven are approved). */
+function permitSummaryPillHtml(lead) {
+  const permits = lead?.permits || [];
+  if (!permits.length) return `<span class="pill pill--muted">No permits</span>`;
+  const notSubmitted = permits.filter(p => p.status === 'not_submitted' || !p.status).length;
+  const submitted = permits.filter(p => p.status === 'submitted').length;
+  const label = `${permits.length} permit${permits.length === 1 ? '' : 's'}`;
+  if (notSubmitted) return `<span class="pill pill--muted">${label} · ${notSubmitted} not submitted</span>`;
+  if (submitted) return `<span class="pill pill--stage">${label} · ${submitted} submitted</span>`;
+  return `<span class="pill pill--green">${label} · all approved</span>`;
 }
 
 /** Debounce a function by `ms` milliseconds. */

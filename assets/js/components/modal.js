@@ -436,22 +436,43 @@ function openLeadForm(existing = null, defaults = {}, onSaved = null) {
 
 /* --------------------------- Permit & Status form --------------------------- */
 
+/** One row in the permits editor: a free-fill Type (Electrical, Building,
+ *  Septic, whatever the job needs) + its own status. Township is shared
+ *  across the whole project below, not per-permit. */
+function permitRowHtml(permit) {
+  return `
+    <div class="permit-row">
+      <input class="permit-row__type" placeholder="Permit type (Electrical, Building, ...)" value="${esc(permit?.type)}">
+      <select class="permit-row__status">${optionList(PERMIT_STATUS_OPTIONS, permit?.status || 'not_submitted', { valueKey: 'id', labelKey: 'label', blank: null })}</select>
+      <button type="button" class="permit-row__remove" title="Remove permit">✕</button>
+    </div>`;
+}
+
 /** Only meaningful once a lead is won — shown from a Project Tracking
- *  card's badges or the lead detail page's Permit & Status panel. */
+ *  card's badges or the lead detail page's Permit & Status panel. A
+ *  project can have as many permits as it needs, added/removed freely. */
 function openProjectMetaForm(lead, onSaved) {
+  const permits = lead.permits && lead.permits.length ? lead.permits : [];
   Modal.open({
     title: 'Permit & Status',
+    wide: true,
     bodyHtml: `
       <form id="project-meta-form" class="form-grid">
         <label class="field"><span>Status</span>
           <select name="projectStatus">${optionList(PROJECT_STATUS_OPTIONS, lead.projectStatus || 'on_track', { valueKey: 'id', labelKey: 'label', blank: null })}</select>
         </label>
-        <label class="field"><span>Permit</span>
-          <select name="permitStatus">${optionList(PERMIT_STATUS_OPTIONS, lead.permitStatus || 'not_submitted', { valueKey: 'id', labelKey: 'label', blank: null })}</select>
-        </label>
-        <label class="field field--full"><span>Permit township</span>
+        <label class="field"><span>Permit township</span>
           <input name="permitTownship" value="${esc(lead.permitTownship)}" placeholder="e.g. Springfield Township">
         </label>
+
+        <div class="field field--full subform">
+          <div class="subform__head"><span>Permits</span></div>
+          <div id="permits-editor" class="permits-editor">
+            ${permits.map(p => permitRowHtml(p)).join('')}
+          </div>
+          <button type="button" id="add-permit-btn" class="link-btn-inline">+ Add another permit</button>
+        </div>
+
         <div class="form-actions">
           <button type="button" class="btn btn--ghost" data-close="1">Cancel</button>
           <button type="submit" class="btn btn--primary">Save</button>
@@ -459,10 +480,29 @@ function openProjectMetaForm(lead, onSaved) {
       </form>`,
   });
 
-  handleAsyncSubmit(qs('#project-meta-form'), {
+  const form = qs('#project-meta-form');
+  const editor = qs('#permits-editor', form);
+
+  function wireRow(row) {
+    bindAutoCapitalize(qs('.permit-row__type', row));
+    qs('.permit-row__remove', row).addEventListener('click', () => row.remove());
+  }
+  qsa('.permit-row', editor).forEach(wireRow);
+
+  qs('#add-permit-btn', form).addEventListener('click', () => {
+    editor.insertAdjacentHTML('beforeend', permitRowHtml(null));
+    const newRow = editor.lastElementChild;
+    wireRow(newRow);
+    qs('.permit-row__type', newRow).focus();
+  });
+
+  handleAsyncSubmit(form, {
     onSubmit: async fd => {
+      const newPermits = qsa('.permit-row', editor)
+        .map(row => ({ type: qs('.permit-row__type', row).value.trim(), status: qs('.permit-row__status', row).value }))
+        .filter(p => p.type);
       const saved = await Leads.updateProjectMeta(lead.id, {
-        projectStatus: fd.get('projectStatus'), permitStatus: fd.get('permitStatus'), permitTownship: fd.get('permitTownship'),
+        projectStatus: fd.get('projectStatus'), permits: newPermits, permitTownship: fd.get('permitTownship'),
       });
       Modal.close();
       toast('Permit & status updated');

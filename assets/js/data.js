@@ -115,7 +115,7 @@ function leadFromRow(r) {
     revenuePercent: r.revenue_percent === null || r.revenue_percent === undefined ? '' : Number(r.revenue_percent),
     projectType: r.project_type || '', source: r.source || '', notes: r.notes || '', lostReason: r.lost_reason || '',
     history: r.history || [], projectStage: r.project_stage || null,
-    projectStatus: r.project_status || null, permitStatus: r.permit_status || null, permitTownship: r.permit_township || '',
+    projectStatus: r.project_status || null, permitTownship: r.permit_township || '', permits: r.permits || [],
     wonAt: r.won_at, lostAt: r.lost_at, createdAt: r.created_at, updatedAt: r.updated_at,
   };
 }
@@ -132,8 +132,8 @@ function leadToRow(d) {
   if (d.history !== undefined) row.history = d.history;
   if (d.projectStage !== undefined) row.project_stage = d.projectStage;
   if (d.projectStatus !== undefined) row.project_status = d.projectStatus;
-  if (d.permitStatus !== undefined) row.permit_status = d.permitStatus;
   if (d.permitTownship !== undefined) row.permit_township = (d.permitTownship || '').trim();
+  if (d.permits !== undefined) row.permits = d.permits;
   if (d.wonAt !== undefined) row.won_at = d.wonAt;
   if (d.lostAt !== undefined) row.lost_at = d.lostAt;
   return row;
@@ -144,6 +144,44 @@ function leadToRow(d) {
 function revenueAmount(lead) {
   if (!lead || lead.revenuePercent === '' || lead.revenuePercent === null || lead.revenuePercent === undefined) return null;
   return (Number(lead.value) || 0) * (Number(lead.revenuePercent) || 0) / 100;
+}
+
+/** Rolls up every permit across a set of projects (won leads), grouped by
+ *  type — case-insensitively, so "electrical" and "Electrical" combine —
+ *  since there's no fixed permit list; whatever gets typed in is a type.
+ *  Sorted by total activity so the busiest permit types float to the top. */
+function permitBreakdown(leadsList) {
+  const byType = new Map();
+  leadsList.forEach(l => {
+    (l.permits || []).forEach(p => {
+      const type = (p.type || '').trim();
+      if (!type) return;
+      const key = type.toLowerCase();
+      if (!byType.has(key)) byType.set(key, { label: type, submitted: [], approved: [] });
+      const entry = byType.get(key);
+      if (p.status === 'submitted') entry.submitted.push({ id: l.id, title: l.title });
+      if (p.status === 'approved') entry.approved.push({ id: l.id, title: l.title });
+    });
+  });
+  return [...byType.values()].sort((a, b) => (b.submitted.length + b.approved.length) - (a.submitted.length + a.approved.length));
+}
+
+/** Diffs one project's old vs. new permit list (matched by type,
+ *  case-insensitively) into readable history lines: additions, removals,
+ *  and status changes. */
+function diffPermits(oldPermits, newPermits) {
+  const changes = [];
+  const oldByType = new Map(oldPermits.map(p => [(p.type || '').trim().toLowerCase(), p]));
+  const newByType = new Map(newPermits.map(p => [(p.type || '').trim().toLowerCase(), p]));
+  newByType.forEach((p, key) => {
+    const old = oldByType.get(key);
+    if (!old) changes.push(`${p.type} permit added (${permitStatusLabel(p.status)})`);
+    else if (old.status !== p.status) changes.push(`${p.type} permit: ${permitStatusLabel(old.status)} → ${permitStatusLabel(p.status)}`);
+  });
+  oldByType.forEach((p, key) => {
+    if (!newByType.has(key)) changes.push(`${p.type} permit removed`);
+  });
+  return changes;
 }
 
 /* =========================== Cache boot + realtime =========================== */
@@ -367,8 +405,7 @@ const Leads = {
     // only default it to the first stage the first time it's ever won.
     const projectStage = l.projectStage || PROJECT_STAGES[0].id;
     const projectStatus = l.projectStatus || PROJECT_STATUS_OPTIONS[0].id;
-    const permitStatus = l.permitStatus || PERMIT_STATUS_OPTIONS[0].id;
-    return this._patch(id, { status: 'won', stage: 'won', wonAt: now, projectStage, projectStatus, permitStatus, history });
+    return this._patch(id, { status: 'won', stage: 'won', wonAt: now, projectStage, projectStatus, history });
   },
   async moveProjectStage(id, stageId) {
     const l = this.get(id);
@@ -377,19 +414,20 @@ const Leads = {
     const history = [...l.history, { at: new Date().toISOString(), event: 'project_stage_change', detail: `Project moved from "${projectStageLabel(from)}" to "${projectStageLabel(stageId)}"` }];
     return this._patch(id, { projectStage: stageId, history });
   },
-  /** Updates a project's health status and/or permit info together — the
-   *  "Permit & Status" box shown once a lead is won. Only logs a history
-   *  line for whichever of the three fields actually changed. */
-  async updateProjectMeta(id, { projectStatus, permitStatus, permitTownship }) {
+  /** Updates a project's health status, permit list, and/or permit township
+   *  together — the "Permit & Status" box shown once a lead is won. Diffs
+   *  the permit list by type (case-insensitively) so history reads as
+   *  "Electrical permit: Submitted -> Approved" rather than a generic blob. */
+  async updateProjectMeta(id, { projectStatus, permits, permitTownship }) {
     const l = this.get(id);
     if (!l) return null;
     const changes = [];
     if (projectStatus !== undefined && projectStatus !== l.projectStatus) changes.push(`Status set to "${projectStatusLabel(projectStatus)}"`);
-    if (permitStatus !== undefined && permitStatus !== l.permitStatus) changes.push(`Permit set to "${permitStatusLabel(permitStatus)}"`);
     if (permitTownship !== undefined && (permitTownship || '').trim() !== (l.permitTownship || '').trim()) changes.push(`Permit township set to "${permitTownship || '—'}"`);
+    if (permits !== undefined) changes.push(...diffPermits(l.permits || [], permits));
     if (!changes.length) return l;
     const history = [...l.history, { at: new Date().toISOString(), event: 'project_meta_change', detail: changes.join('; ') }];
-    return this._patch(id, { projectStatus, permitStatus, permitTownship, history });
+    return this._patch(id, { projectStatus, permits, permitTownship, history });
   },
   async markLost(id, reason) {
     const l = this.get(id);

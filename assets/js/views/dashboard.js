@@ -80,19 +80,15 @@ function computeProjectAnalytics() {
 
   const delayed = projects.filter(l => l.projectStatus === 'delayed').length;
   const onTrack = projects.length - delayed;
-  const permitCounts = {
-    not_submitted: projects.filter(l => (l.permitStatus || 'not_submitted') === 'not_submitted').length,
-    submitted: projects.filter(l => l.permitStatus === 'submitted').length,
-    approved: projects.filter(l => l.permitStatus === 'approved').length,
-  };
+  const permits = permitBreakdown(projects);
 
   return {
     totals: {
       totalProjects: projects.length, inProduction: inProduction.length, completed: completed.length,
       completedThisMonth: completedThisMonth.length, totalValue, completedValue, inProductionValue,
-      onTrack, delayed, permitCounts,
+      onTrack, delayed,
     },
-    byStage, months, inProductionSorted,
+    byStage, months, inProductionSorted, permits,
   };
 }
 
@@ -269,11 +265,13 @@ function renderProjectsTab(root) {
           <div><span class="kpi-inline__num">${t.delayed}</span><span class="kpi-inline__label">Delayed</span></div>
         </div>
         <h3>Permits</h3>
-        <div class="kpi-inline">
-          <div><span class="kpi-inline__num">${t.permitCounts.not_submitted}</span><span class="kpi-inline__label">Not Submitted</span></div>
-          <div><span class="kpi-inline__num">${t.permitCounts.submitted}</span><span class="kpi-inline__label">Submitted</span></div>
-          <div><span class="kpi-inline__num">${t.permitCounts.approved}</span><span class="kpi-inline__label">Approved</span></div>
-        </div>
+        ${a.permits.length ? `
+          <table class="mini-table">
+            <thead><tr><th>Permit Type</th><th>Submitted</th><th>Approved</th></tr></thead>
+            <tbody>
+              ${a.permits.map(p => `<tr><td>${esc(p.label)}</td><td>${p.submitted.length}</td><td>${p.approved.length}</td></tr>`).join('')}
+            </tbody>
+          </table>` : `<p class="empty-inline">No permits logged yet.</p>`}
       </div>
     </div>
   `;
