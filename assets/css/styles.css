@@ -9,7 +9,7 @@
   --ink: #1f2933;
   --ink-soft: #45505c;
   --muted: #6b7686;
-  --line: #e4e2dc;
+  --line: #c9c4b7;
   --paper: #faf8f4;
   --card: #ffffff;
   --brand: #166232;
@@ -224,7 +224,7 @@ p { margin: 0; }
 
 .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
 .entity-card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); cursor: pointer; }
-.entity-card:hover { border-color: #c9c4b7; }
+.entity-card:hover { border-color: #a8a290; }
 .entity-card__top { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; }
 .entity-card__stats { display: flex; justify-content: space-between; border-top: 1px solid var(--line); padding-top: 12px; }
 
