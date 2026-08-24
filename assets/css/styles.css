@@ -309,13 +309,8 @@ p { margin: 0; }
 .stage-step.is-current { background: rgba(224,122,44,0.14); border-color: var(--amber); color: var(--amber-dark); }
 .stage-step.is-current .stage-step__dot { background: var(--amber); }
 
-.permit-status-box {
-  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-  background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px;
-}
-.permit-status-box__pills { display: flex; gap: 6px; flex-wrap: wrap; }
-.permit-status-box__township { font-size: 0.82rem; color: var(--muted); flex: 1; }
-.permit-status-box .btn { margin-left: auto; }
+.permit-status-box__pills { display: flex; gap: 8px; flex-wrap: wrap; row-gap: 8px; }
+.permit-status-box__township { font-size: 0.82rem; color: var(--muted); }
 
 /* ---------------------------- Progress bar ---------------------------- */
 

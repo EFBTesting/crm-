@@ -59,13 +59,16 @@ function renderLeadDetail(root, { id }) {
               <span class="stage-step__dot"></span>${esc(s.label)}
             </button>`).join('')}
         </div>
-        <div class="permit-status-box mb-md">
+        <div class="panel mb-md">
+          <div class="panel__head-row">
+            <h3>Permits &amp; Status</h3>
+            <button type="button" class="btn btn--ghost btn--sm" id="edit-permit-btn">Edit</button>
+          </div>
           <div class="permit-status-box__pills">
             ${projectStatusPillHtml(l)}
             ${(l.permits || []).map(p => `<span class="pill pill--${p.status === 'approved' ? 'green' : p.status === 'submitted' ? 'stage' : 'muted'}">${esc(p.type)}: ${permitStatusLabel(p.status)}</span>`).join('') || '<span class="pill pill--muted">No permits logged</span>'}
           </div>
-          <div class="permit-status-box__township">${l.permitTownship ? `Township: ${esc(l.permitTownship)}` : 'No township on file'}</div>
-          <button type="button" class="btn btn--ghost btn--sm" id="edit-permit-btn">Edit</button>
+          <div class="permit-status-box__township mt-sm">${l.permitTownship ? `Township: ${esc(l.permitTownship)}` : 'No township on file'}</div>
         </div>
 
         ${preconSectionHtml(l)}
