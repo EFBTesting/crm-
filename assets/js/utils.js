@@ -14,6 +14,16 @@ function fmtDate(iso) {
   return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
+/** Same as fmtDate, but for a plain "YYYY-MM-DD" date-only value (no time
+ *  zone attached) — e.g. projected_start_date. Parsing that string directly
+ *  reads it as UTC midnight, which renders as the day before in any
+ *  timezone behind UTC (all of the US); anchoring it to local midnight
+ *  first avoids that off-by-one. */
+function fmtDateOnly(dateStr) {
+  if (!dateStr) return '—';
+  return fmtDate(`${dateStr}T00:00:00`);
+}
+
 function fmtDateTime(iso) {
   if (!iso) return '—';
   const d = new Date(iso);
@@ -122,6 +132,19 @@ function permitSummaryPillHtml(lead) {
   if (notSubmitted) return `<span class="pill pill--muted">${label} · ${notSubmitted} not submitted</span>`;
   if (submitted) return `<span class="pill pill--stage">${label} · ${submitted} submitted</span>`;
   return `<span class="pill pill--green">${label} · all approved</span>`;
+}
+
+/** Pre-Construction status pill — colors mirror the old tracker's color
+ *  coding (green = ready to break ground, amber = starting soon, red = past
+ *  projected start / lost). `progress` comes from preconProgress(lead). */
+function preconStatusPillHtml(progress) {
+  if (!progress) return `<span class="pill pill--muted">Not started</span>`;
+  return `<span class="pill pill--${progress.statusTone}">${esc(progress.statusLabel)}</span>`;
+}
+/** A thin horizontal progress bar. `fraction` is 0–1 (or null → empty track). */
+function progressBarHtml(fraction, extraClass = '') {
+  const pct = Math.round(Math.max(0, Math.min(1, fraction || 0)) * 100);
+  return `<div class="progress-bar ${extraClass}"><div class="progress-bar__fill" style="width:${pct}%"></div></div>`;
 }
 
 /** Debounce a function by `ms` milliseconds. */

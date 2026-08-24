@@ -67,6 +67,8 @@ function renderLeadDetail(root, { id }) {
           <div class="permit-status-box__township">${l.permitTownship ? `Township: ${esc(l.permitTownship)}` : 'No township on file'}</div>
           <button type="button" class="btn btn--ghost btn--sm" id="edit-permit-btn">Edit</button>
         </div>
+
+        ${preconSectionHtml(l)}
       `}
 
       <div class="detail-grid">
@@ -141,6 +143,7 @@ function renderLeadDetail(root, { id }) {
         catch (err) { toast(err.message || 'Could not update the project', 'warn'); }
       }));
       qs('#edit-permit-btn', root).addEventListener('click', () => openProjectMetaForm(l, () => draw()));
+      wirePreconSection(root, l, draw);
     }
 
     qs('#note-form', root).addEventListener('submit', async e => {
@@ -157,4 +160,93 @@ function renderLeadDetail(root, { id }) {
   }
 
   draw();
+}
+
+/* --------------------------- Pre-Construction checklist --------------------------- */
+
+function preconSectionHtml(l) {
+  const progress = preconProgress(l);
+  if (!progress) {
+    return `
+      <div class="panel mb-md">
+        <div class="panel__head-row"><h3>Pre-Construction Checklist</h3></div>
+        <p class="empty-inline">Not started yet — kick it off to track this project through Lead-Up and Pre-Construction step by step.</p>
+        <button type="button" class="btn btn--primary btn--sm" id="start-precon-btn">Start Pre-Construction Checklist</button>
+      </div>`;
+  }
+  const pct = progress.progressPercent === null ? null : Math.round(progress.progressPercent * 100);
+  return `
+    <div class="panel mb-md">
+      <div class="panel__head-row">
+        <h3>Pre-Construction Checklist</h3>
+        <button type="button" class="btn btn--ghost btn--sm" id="edit-precon-meta-btn">Edit Details</button>
+      </div>
+      <div class="precon-summary">
+        ${preconStatusPillHtml(progress)}
+        <span class="precon-summary__stat">${pct === null ? '—' : `${pct}%`} complete</span>
+        <span class="precon-summary__stat">${progress.completed}/${progress.stepsInScope} steps</span>
+        ${l.projectedStartDate ? `<span class="precon-summary__stat">Start ${fmtDateOnly(l.projectedStartDate)}${progress.daysToStart !== null ? ` · ${progress.daysToStart >= 0 ? `${progress.daysToStart}d away` : `${Math.abs(progress.daysToStart)}d overdue`}` : ''}</span>` : ''}
+      </div>
+      ${progressBarHtml(progress.progressPercent, 'progress-bar--lg')}
+      <p class="view-sub mt-sm">Current step: <strong>${esc(progress.currentStep)}</strong></p>
+      ${l.preconNotes ? `<p class="notes-block mt-sm">${esc(l.preconNotes)}</p>` : ''}
+
+      ${PRECON_PHASES.map(phase => preconPhaseHtml(l, phase)).join('')}
+    </div>`;
+}
+
+function preconPhaseHtml(l, phase) {
+  const steps = (l.preconSteps || []).filter(s => s.phase === phase.id);
+  return `
+    <div class="precon-phase">
+      <h4 class="precon-phase__title">${esc(phase.label)}</h4>
+      <div class="precon-step-list">
+        ${steps.map(s => `
+          <div class="precon-step-row" data-step-phase="${phase.id}" data-step-label="${esc(s.label)}">
+            <span class="precon-step-row__label">${esc(s.label)}</span>
+            <select class="precon-step-row__status" data-step-select>${optionList(PRECON_STEP_STATUSES, s.status || 'Not Started', { blank: null })}</select>
+            ${!phase.steps.includes(s.label) ? `<button type="button" class="icon-btn" data-step-remove title="Remove step">✕</button>` : ''}
+          </div>`).join('')}
+      </div>
+      <form class="precon-add-step" data-add-phase="${phase.id}">
+        <input type="text" name="label" placeholder="+ Add a custom step..." autocomplete="off">
+      </form>
+    </div>`;
+}
+
+function wirePreconSection(root, l, draw) {
+  const startBtn = qs('#start-precon-btn', root);
+  if (startBtn) startBtn.addEventListener('click', async () => {
+    try { await Leads.initPreconChecklist(l.id); draw(); }
+    catch (err) { toast(err.message || 'Could not start the checklist', 'warn'); }
+  });
+
+  const editBtn = qs('#edit-precon-meta-btn', root);
+  if (editBtn) editBtn.addEventListener('click', () => openPreconMetaForm(l, () => draw()));
+
+  qsa('.precon-step-row', root).forEach(row => {
+    const { stepPhase: phase, stepLabel: label } = row.dataset;
+    qs('[data-step-select]', row).addEventListener('change', async e => {
+      try { await Leads.setPreconStep(l.id, phase, label, e.target.value); draw(); }
+      catch (err) { toast(err.message || 'Could not update the step', 'warn'); }
+    });
+    const removeBtn = qs('[data-step-remove]', row);
+    if (removeBtn) removeBtn.addEventListener('click', () => {
+      openConfirm({ title: 'Remove step', message: `Remove "${label}" from this project's checklist?` }, async () => {
+        try { await Leads.removePreconStep(l.id, phase, label); draw(); }
+        catch (err) { toast(err.message || 'Could not remove the step', 'warn'); }
+      });
+    });
+  });
+
+  qsa('.precon-add-step', root).forEach(form => {
+    form.addEventListener('submit', async e => {
+      e.preventDefault();
+      const input = qs('input[name="label"]', form);
+      const val = input.value.trim();
+      if (!val) return;
+      try { await Leads.addPreconStep(l.id, form.dataset.addPhase, val); draw(); }
+      catch (err) { toast(err.message || 'Could not add the step', 'warn'); }
+    });
+  });
 }

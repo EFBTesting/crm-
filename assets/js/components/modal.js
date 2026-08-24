@@ -511,6 +511,44 @@ function openProjectMetaForm(lead, onSaved) {
   });
 }
 
+/* --------------------------- Pre-Con details form --------------------------- */
+
+function openPreconMetaForm(lead, onSaved) {
+  Modal.open({
+    title: 'Pre-Construction Details',
+    bodyHtml: `
+      <form id="precon-meta-form" class="form-grid">
+        <label class="field"><span>Projected start</span>
+          <input type="date" name="projectedStartDate" value="${esc(lead.projectedStartDate || '')}">
+        </label>
+        <label class="field"><span>Record status</span>
+          <select name="preconStatus">${optionList(PRECON_RECORD_STATUS_OPTIONS, lead.preconStatus || 'active', { valueKey: 'id', labelKey: 'label', blank: null })}</select>
+        </label>
+        <label class="field field--full"><span>Notes</span>
+          <textarea name="preconNotes" rows="3" placeholder="Anything worth flagging about this project's pre-con work...">${esc(lead.preconNotes || '')}</textarea>
+        </label>
+        <div class="form-actions">
+          <button type="button" class="btn btn--ghost" data-close="1">Cancel</button>
+          <button type="submit" class="btn btn--primary">Save</button>
+        </div>
+      </form>`,
+  });
+
+  const form = qs('#precon-meta-form');
+  handleAsyncSubmit(form, {
+    onSubmit: async fd => {
+      const saved = await Leads.updatePreconMeta(lead.id, {
+        projectedStartDate: fd.get('projectedStartDate') || null,
+        preconStatus: fd.get('preconStatus'),
+        preconNotes: fd.get('preconNotes'),
+      });
+      Modal.close();
+      toast('Pre-Construction details updated');
+      if (onSaved) onSaved(saved);
+    },
+  });
+}
+
 /* --------------------------- Lost reason prompt --------------------------- */
 
 function openLostReasonPrompt(lead, onDone) {

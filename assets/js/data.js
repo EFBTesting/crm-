@@ -45,6 +45,104 @@ const PERMIT_STATUS_OPTIONS = [
   { id: 'approved', label: 'Approved' },
 ];
 
+/** Pre-Construction checklist — mirrors the "PreCons" tracker spreadsheet
+ *  used before this CRM existed. Every won project gets the full checklist
+ *  the moment it's marked Won (see Leads.markWon), same as project_stage.
+ *  Two fixed phases; teams can also tack on custom steps per project,
+ *  matching the spreadsheet's "spare columns". */
+const LEAD_UP_STEPS = [
+  'Sales Lead Validated', 'Site Visit', 'Architectural Design Proposal - Sent',
+  'Architectural Design Proposal - Executed', 'Schematic Design', 'Design Development',
+  'Forecast Estimate - Drafted', 'Forecast Estimate - Review', 'Forecast Estimate - Approved',
+  'Pre-Con Agreement Signed', 'EFB Team DD Meeting', 'EFB Team / Client Intro Meeting',
+  'Cabinetry Design - Initial', 'Construction Documents - Started', 'Structural Engineering',
+  'Construction Documents - Completed', 'Official Start of Pre-Construction',
+];
+const PRE_CON_STEPS = [
+  'EFB Team Meeting 1', 'EFB Team / Client Meeting 1', 'Cabinetry Design - Preliminary',
+  'Exterior Rendering - Submitted', 'EFB Team / Client Subsequent Mtgs - See Pre Con Schedule',
+  'Truss Plans - Preliminary', 'I Joist Plans - Completed', 'Grading Plan', 'Septic Plan',
+  'Client Vendor Visits', 'Material Selections - See Pre Con Schedule', "Trade Quotes / RFI's / Site Visits",
+  'Permit(s) Submitted - Grading / Septic', 'Truss Plans - Sealed', 'Permit(s) Submitted - Building',
+  'Cabinetry Design - Final (Layout)', 'Budget / Estimate Final', 'Permit Approved',
+  'Construction Agreement - Drafted/Sent', 'Construction Agreement - Signed', 'Job Started',
+];
+const PRECON_PHASES = [
+  { id: 'lead_up', label: 'Lead-Up Phase', steps: LEAD_UP_STEPS },
+  { id: 'pre_construction', label: 'Pre-Construction Phase', steps: PRE_CON_STEPS },
+];
+/** Status options for one checklist step. Blank/"Not Started" and "Pending"
+ *  behave the same as far as progress math goes — only "Completed" counts
+ *  toward progress, and only "N/A" is excluded from the step count entirely. */
+const PRECON_STEP_STATUSES = ['Not Started', 'In Progress', 'Completed', 'On Hold', 'Pending', 'N/A'];
+/** The checklist's own "Record status" — independent of the lead's
+ *  won/lost status above; this is about the pre-con phase specifically
+ *  (a won project can still have its pre-con work put on hold, for
+ *  instance, without the project itself being lost). */
+const PRECON_RECORD_STATUS_OPTIONS = [
+  { id: 'active', label: 'Active' }, { id: 'on_hold', label: 'On Hold' },
+  { id: 'lost', label: 'Lost' }, { id: 'complete', label: 'Complete' },
+];
+function preconRecordStatusLabel(id) {
+  const s = PRECON_RECORD_STATUS_OPTIONS.find(s => s.id === id);
+  return s ? s.label : 'Active';
+}
+function defaultPreconSteps() {
+  const steps = [];
+  PRECON_PHASES.forEach(phase => phase.steps.forEach(label => steps.push({ phase: phase.id, label, status: '' })));
+  return steps;
+}
+
+/** Live-computed Pre-Construction progress — never stored, same philosophy
+ *  as revenueAmount(): recomputed from precon_steps/projected_start_date
+ *  every time so it can never drift. Mirrors the old tracker's Days to
+ *  start / Progress / Current step / Status columns exactly. Returns null
+ *  for a project that hasn't started its checklist yet. */
+function preconProgress(lead) {
+  const steps = lead?.preconSteps || [];
+  if (!steps.length) return null;
+  const completed = steps.filter(s => s.status === 'Completed').length;
+  const inProgress = steps.filter(s => s.status === 'In Progress').length;
+  const stepsInScope = steps.filter(s => s.status !== 'N/A').length;
+  const progressPercent = stepsInScope ? completed / stepsInScope : null;
+
+  let currentStep;
+  const inProgressStep = steps.find(s => s.status === 'In Progress');
+  if (inProgressStep) currentStep = inProgressStep.label;
+  else if (completed === 0) currentStep = 'Not started';
+  else {
+    const completedSteps = steps.filter(s => s.status === 'Completed');
+    currentStep = completedSteps[completedSteps.length - 1].label;
+  }
+
+  const recordStatus = lead.preconStatus || 'active';
+  let daysToStart = null;
+  if (lead.projectedStartDate) {
+    const start = new Date(lead.projectedStartDate + 'T00:00:00');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    daysToStart = Math.round((start - today) / 86400000);
+  }
+
+  let statusLabel, statusTone;
+  if (recordStatus !== 'active') {
+    statusLabel = preconRecordStatusLabel(recordStatus);
+    statusTone = recordStatus === 'lost' ? 'red' : recordStatus === 'complete' ? 'green' : 'muted';
+  } else if (stepsInScope > 0 && completed === stepsInScope) {
+    statusLabel = 'Ready to break ground'; statusTone = 'green';
+  } else if (!lead.projectedStartDate) {
+    statusLabel = 'No target set'; statusTone = 'muted';
+  } else if (daysToStart < 0) {
+    statusLabel = 'Past projected start'; statusTone = 'red';
+  } else if (daysToStart <= 30) {
+    statusLabel = 'Starting soon'; statusTone = 'stage';
+  } else {
+    statusLabel = 'On track'; statusTone = 'navy';
+  }
+
+  return { completed, inProgress, stepsInScope, progressPercent, currentStep, daysToStart, statusLabel, statusTone, recordStatus };
+}
+
 function stageLabel(stageId) {
   const s = STAGES.find(s => s.id === stageId);
   return s ? s.label : stageId;
@@ -116,6 +214,8 @@ function leadFromRow(r) {
     projectType: r.project_type || '', source: r.source || '', notes: r.notes || '', lostReason: r.lost_reason || '',
     history: r.history || [], projectStage: r.project_stage || null,
     projectStatus: r.project_status || null, permitTownship: r.permit_township || '', permits: r.permits || [],
+    projectedStartDate: r.projected_start_date || '', preconStatus: r.precon_status || 'active',
+    preconSteps: r.precon_steps || [], preconNotes: r.precon_notes || '',
     wonAt: r.won_at, lostAt: r.lost_at, createdAt: r.created_at, updatedAt: r.updated_at,
   };
 }
@@ -134,6 +234,10 @@ function leadToRow(d) {
   if (d.projectStatus !== undefined) row.project_status = d.projectStatus;
   if (d.permitTownship !== undefined) row.permit_township = (d.permitTownship || '').trim();
   if (d.permits !== undefined) row.permits = d.permits;
+  if (d.projectedStartDate !== undefined) row.projected_start_date = d.projectedStartDate || null;
+  if (d.preconStatus !== undefined) row.precon_status = d.preconStatus;
+  if (d.preconSteps !== undefined) row.precon_steps = d.preconSteps;
+  if (d.preconNotes !== undefined) row.precon_notes = (d.preconNotes || '').trim();
   if (d.wonAt !== undefined) row.won_at = d.wonAt;
   if (d.lostAt !== undefined) row.lost_at = d.lostAt;
   return row;
@@ -405,7 +509,11 @@ const Leads = {
     // only default it to the first stage the first time it's ever won.
     const projectStage = l.projectStage || PROJECT_STAGES[0].id;
     const projectStatus = l.projectStatus || PROJECT_STATUS_OPTIONS[0].id;
-    return this._patch(id, { status: 'won', stage: 'won', wonAt: now, projectStage, projectStatus, history });
+    // Same "only default it the first time" rule as projectStage/projectStatus above —
+    // a reopened-then-rewon project keeps whatever checklist progress it already had.
+    const preconSteps = l.preconSteps && l.preconSteps.length ? l.preconSteps : defaultPreconSteps();
+    const preconStatus = l.preconStatus || 'active';
+    return this._patch(id, { status: 'won', stage: 'won', wonAt: now, projectStage, projectStatus, preconSteps, preconStatus, history });
   },
   async moveProjectStage(id, stageId) {
     const l = this.get(id);
@@ -428,6 +536,56 @@ const Leads = {
     if (!changes.length) return l;
     const history = [...l.history, { at: new Date().toISOString(), event: 'project_meta_change', detail: changes.join('; ') }];
     return this._patch(id, { projectStatus, permits, permitTownship, history });
+  },
+  /** Starts the Pre-Construction checklist for a project that doesn't have
+   *  one yet (e.g. a project won before this feature existed). Safe to call
+   *  repeatedly — a no-op once steps exist. */
+  async initPreconChecklist(id) {
+    const l = this.get(id);
+    if (!l) return null;
+    if (l.preconSteps && l.preconSteps.length) return l;
+    const history = [...l.history, { at: new Date().toISOString(), event: 'precon_started', detail: 'Pre-Construction checklist started' }];
+    return this._patch(id, { preconSteps: defaultPreconSteps(), preconStatus: l.preconStatus || 'active', history });
+  },
+  /** Marks one checklist step. No history line per click — with 38 steps
+   *  that would flood the activity feed; the checklist itself is the record. */
+  async setPreconStep(id, phase, label, status) {
+    const l = this.get(id);
+    if (!l) return null;
+    const steps = (l.preconSteps || []).map(s => (s.phase === phase && s.label === label) ? { ...s, status } : s);
+    return this._patch(id, { preconSteps: steps });
+  },
+  /** Adds a custom step to one phase — the "spare columns" from the old
+   *  spreadsheet, so a job that needs an extra step isn't stuck. */
+  async addPreconStep(id, phase, label) {
+    const l = this.get(id);
+    if (!l) return null;
+    const trimmed = (label || '').trim();
+    if (!trimmed) return l;
+    const steps = [...(l.preconSteps || []), { phase, label: trimmed, status: '' }];
+    return this._patch(id, { preconSteps: steps });
+  },
+  async removePreconStep(id, phase, label) {
+    const l = this.get(id);
+    if (!l) return null;
+    const steps = (l.preconSteps || []).filter(s => !(s.phase === phase && s.label === label));
+    return this._patch(id, { preconSteps: steps });
+  },
+  /** Updates the checklist's projected start date, record status, and/or
+   *  notes together — the "Pre-Con Details" box on the project page. */
+  async updatePreconMeta(id, { projectedStartDate, preconStatus, preconNotes }) {
+    const l = this.get(id);
+    if (!l) return null;
+    const changes = [];
+    if (projectedStartDate !== undefined && (projectedStartDate || '') !== (l.projectedStartDate || '')) {
+      changes.push(`Projected start set to ${projectedStartDate ? fmtDateOnly(projectedStartDate) : '—'}`);
+    }
+    if (preconStatus !== undefined && preconStatus !== (l.preconStatus || 'active')) {
+      changes.push(`Pre-Con status set to "${preconRecordStatusLabel(preconStatus)}"`);
+    }
+    if (!changes.length) return this._patch(id, { projectedStartDate, preconStatus, preconNotes });
+    const history = [...l.history, { at: new Date().toISOString(), event: 'precon_meta_change', detail: changes.join('; ') }];
+    return this._patch(id, { projectedStartDate, preconStatus, preconNotes, history });
   },
   async markLost(id, reason) {
     const l = this.get(id);

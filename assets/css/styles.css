@@ -48,7 +48,9 @@ p { margin: 0; }
 .muted { color: var(--muted); }
 .mt { margin-top: 20px; }
 .mt-lg { margin-top: 24px; }
+.mt-sm { margin-top: 8px; }
 .mb-md { margin-bottom: 16px; }
+.mb-sm { margin-bottom: 8px; }
 
 /* ---------------------------- App shell ---------------------------- */
 
@@ -151,6 +153,7 @@ p { margin: 0; }
 .kpi-tile--amber { border-top-color: var(--amber); }
 .kpi-tile--green { border-top-color: var(--green); }
 .kpi-tile--slate { border-top-color: #8a97ab; }
+.kpi-tile--red { border-top-color: var(--red); }
 .kpi-tile__label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); font-weight: 700; }
 .kpi-tile__value { font-size: 1.5rem; font-weight: 800; margin: 6px 0 2px; letter-spacing: -0.01em; }
 .kpi-tile__sub { font-size: 0.76rem; color: var(--muted); }
@@ -311,6 +314,40 @@ p { margin: 0; }
 .permit-status-box__pills { display: flex; gap: 6px; flex-wrap: wrap; }
 .permit-status-box__township { font-size: 0.82rem; color: var(--muted); flex: 1; }
 .permit-status-box .btn { margin-left: auto; }
+
+/* ---------------------------- Progress bar ---------------------------- */
+
+.progress-bar { width: 100%; height: 6px; border-radius: 100px; background: var(--line); overflow: hidden; }
+.progress-bar--lg { height: 9px; margin: 8px 0; }
+.progress-bar__fill { height: 100%; border-radius: 100px; background: var(--brand); transition: width 0.2s; }
+
+/* ---------------------------- Pre-Construction checklist ---------------------------- */
+
+.precon-summary { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
+.precon-summary__stat { font-size: 0.82rem; color: var(--ink-soft); font-weight: 600; }
+
+.precon-phase { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
+.precon-phase__title { font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--muted); margin-bottom: 10px; }
+.precon-step-list { display: flex; flex-direction: column; gap: 6px; }
+.precon-step-row {
+  display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 8px;
+}
+.precon-step-row:hover { background: #f7f5f0; }
+.precon-step-row__label { flex: 1; font-size: 0.86rem; }
+.precon-step-row__status {
+  border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; font-size: 0.78rem;
+  font-weight: 600; background: #fff; color: var(--ink-soft); flex-shrink: 0;
+}
+.precon-add-step { margin-top: 10px; }
+.precon-add-step input {
+  width: 100%; border: 1px dashed var(--line); border-radius: 8px; padding: 7px 10px;
+  font-size: 0.82rem; color: var(--ink-soft); background: transparent;
+}
+.precon-add-step input:focus { border-style: solid; border-color: var(--brand); }
+
+.lead-card__precon { margin-bottom: 8px; cursor: pointer; }
+.lead-card__precon-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 4px; }
+.lead-card__precon-step { font-size: 0.72rem; color: var(--muted); margin-top: 4px; }
 
 /* ---------------------------- Activity feed ---------------------------- */
 

@@ -79,6 +79,10 @@ create table if not exists leads (
   permit_status text,                          -- deprecated: superseded by `permits` (a project can have many)
   permit_township text,                        -- one township per project — all its permits are filed there
   permits jsonb not null default '[]',          -- [{ type: 'Electrical', status: 'submitted' }, ...]
+  projected_start_date date,                   -- target construction start (only once won)
+  precon_status text,                          -- active | on_hold | lost | complete (Pre-Con "Record status")
+  precon_steps jsonb not null default '[]',    -- [{ phase: 'lead_up'|'pre_construction', label, status }, ...]
+  precon_notes text,                            -- free-text notes on the Pre-Con checklist
   won_at timestamptz,
   lost_at timestamptz,
   created_at timestamptz not null default now(),
@@ -100,6 +104,10 @@ alter table leads add column if not exists project_status text;
 alter table leads add column if not exists permit_status text;
 alter table leads add column if not exists permit_township text;
 alter table leads add column if not exists permits jsonb not null default '[]';
+alter table leads add column if not exists projected_start_date date;
+alter table leads add column if not exists precon_status text;
+alter table leads add column if not exists precon_steps jsonb not null default '[]';
+alter table leads add column if not exists precon_notes text;
 
 -- ---------------------------------------------------------------------
 -- Keep updated_at fresh automatically

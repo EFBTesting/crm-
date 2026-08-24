@@ -103,7 +103,10 @@ function renderProjectTracking(root) {
     const contact = Contacts.get(l.contactId);
     const company = Companies.get(l.companyId);
     const who = contact ? fullName(contact) : (company ? company.name : 'Unassigned');
-    const isCompleted = (l.projectStage || PROJECT_STAGES[0].id) === 'completed';
+    const stage = l.projectStage || PROJECT_STAGES[0].id;
+    const isCompleted = stage === 'completed';
+    const isPreCon = stage === 'pre_con';
+    const precon = isPreCon ? preconProgress(l) : null;
     return `
       <div class="lead-card" draggable="true" data-lead-id="${l.id}">
         <div class="lead-card__top">
@@ -118,6 +121,15 @@ function renderProjectTracking(root) {
           <button type="button" class="pill-btn" data-edit-meta="${l.id}" title="Edit status">${projectStatusPillHtml(l)}</button>
           <button type="button" class="pill-btn" data-edit-meta="${l.id}" title="Edit permits">${permitSummaryPillHtml(l)}</button>
         </div>`}
+        ${precon ? `
+        <div class="lead-card__precon row-link" data-nav="/leads/${l.id}">
+          <div class="lead-card__precon-row">
+            ${preconStatusPillHtml(precon)}
+            <span class="precon-summary__stat">${Math.round((precon.progressPercent || 0) * 100)}%</span>
+          </div>
+          ${progressBarHtml(precon.progressPercent)}
+          <div class="lead-card__precon-step">${esc(precon.currentStep)}</div>
+        </div>` : ''}
         <div class="lead-card__meta">
           <span class="lead-card__value">${fmtMoney(l.value)}</span>
           ${l.projectType ? `<span class="pill pill--muted">${esc(l.projectType)}</span>` : ''}
