@@ -99,7 +99,10 @@ function renderProjectTracking(root) {
       <div class="table-wrap">
         <table class="data-table project-table">
           <thead>
-            <tr><th>Project</th><th>Stage</th><th>Progress</th><th>Status</th><th>Start</th><th>Value</th><th></th></tr>
+            <tr>
+              <th>Project</th><th>Stage</th><th>Progress</th><th>Steps</th><th>Current Step</th>
+              <th>Status</th><th>Projected Start</th><th>Days</th><th>Value</th><th></th>
+            </tr>
           </thead>
           <tbody>
             ${sorted.map(l => projectRowHtml(l)).join('')}
@@ -131,7 +134,10 @@ function renderProjectTracking(root) {
             <div class="progress-cell">${progressBarHtml(precon.progressPercent)}<span class="precon-summary__stat">${Math.round((precon.progressPercent || 0) * 100)}%</span></div>
           ` : isCompleted ? `<span class="pill pill--muted">🏁 Done</span>` : `<span class="muted">—</span>`}
         </td>
+        <td>${precon ? `<span class="cell-sub">${precon.completed}/${precon.stepsInScope}</span>` : '—'}</td>
+        <td class="project-table__step" title="${precon ? esc(precon.currentStep) : ''}">${precon ? esc(precon.currentStep) : '—'}</td>
         <td>${precon ? preconStatusPillHtml(precon) : (isCompleted ? '' : projectStatusPillHtml(l))}</td>
+        <td>${l.projectedStartDate ? fmtDateOnly(l.projectedStartDate) : '—'}</td>
         <td>${precon && precon.daysToStart !== null ? (precon.daysToStart >= 0 ? `${precon.daysToStart}d` : `${Math.abs(precon.daysToStart)}d over`) : '—'}</td>
         <td class="cell-title">${fmtMoney(l.value)}</td>
         <td>${!isCompleted ? `<button type="button" class="chip-btn chip-btn--won" data-complete="${l.id}" title="Mark completed">✓</button>` : ''}</td>
