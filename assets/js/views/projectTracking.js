@@ -114,7 +114,9 @@ function renderProjectTracking(root) {
     const who = contact ? fullName(contact) : (company ? company.name : 'Unassigned');
     const stage = l.projectStage || PROJECT_STAGES[0].id;
     const isCompleted = stage === 'completed';
-    const precon = stage === 'pre_con' ? preconProgress(l) : null;
+    // Not stage-gated — the checklist doesn't disappear once a project
+    // moves past Pre-Construction, so keep showing its progress here too.
+    const precon = preconProgress(l);
     return `
       <tr class="row-link" data-nav="/leads/${l.id}">
         <td>
@@ -184,8 +186,10 @@ function renderProjectTracking(root) {
     const who = contact ? fullName(contact) : (company ? company.name : 'Unassigned');
     const stage = l.projectStage || PROJECT_STAGES[0].id;
     const isCompleted = stage === 'completed';
-    const isPreCon = stage === 'pre_con';
-    const precon = isPreCon ? preconProgress(l) : null;
+    // Not stage-gated, same reasoning as the List view's row — a checklist
+    // started in Pre-Construction is still worth showing after the project
+    // has moved on to Construction (or was never moved out of Design).
+    const precon = preconProgress(l);
     return `
       <div class="lead-card" draggable="true" data-lead-id="${l.id}">
         <div class="lead-card__top">
