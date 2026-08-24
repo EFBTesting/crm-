@@ -434,7 +434,7 @@ function openLeadForm(existing = null, defaults = {}, onSaved = null) {
   });
 }
 
-/* --------------------------- Permit & Status form --------------------------- */
+/* --------------------------- Permits form --------------------------- */
 
 /** One row in the permits editor: a free-fill Type (Electrical, Building,
  *  Septic, whatever the job needs) + its own status. Township is shared
@@ -448,19 +448,16 @@ function permitRowHtml(permit) {
     </div>`;
 }
 
-/** Only meaningful once a lead is won — shown from a Project Tracking
- *  card's badges or the lead detail page's Permit & Status panel. A
- *  project can have as many permits as it needs, added/removed freely. */
+/** Only meaningful once a lead is won — shown from the lead detail page's
+ *  Permits & Status panel. A project can have as many permits as it
+ *  needs, added/removed freely. */
 function openProjectMetaForm(lead, onSaved) {
   const permits = lead.permits && lead.permits.length ? lead.permits : [];
   Modal.open({
-    title: 'Permit & Status',
+    title: 'Permits',
     wide: true,
     bodyHtml: `
       <form id="project-meta-form" class="form-grid">
-        <label class="field"><span>Status</span>
-          <select name="projectStatus">${optionList(PROJECT_STATUS_OPTIONS, lead.projectStatus || 'on_track', { valueKey: 'id', labelKey: 'label', blank: null })}</select>
-        </label>
         <label class="field"><span>Permit township</span>
           <input name="permitTownship" value="${esc(lead.permitTownship)}" placeholder="e.g. Springfield Township">
         </label>
@@ -502,10 +499,10 @@ function openProjectMetaForm(lead, onSaved) {
         .map(row => ({ type: qs('.permit-row__type', row).value.trim(), status: qs('.permit-row__status', row).value }))
         .filter(p => p.type);
       const saved = await Leads.updateProjectMeta(lead.id, {
-        projectStatus: fd.get('projectStatus'), permits: newPermits, permitTownship: fd.get('permitTownship'),
+        permits: newPermits, permitTownship: fd.get('permitTownship'),
       });
       Modal.close();
-      toast('Permit & status updated');
+      toast('Permits updated');
       if (onSaved) onSaved(saved);
     },
   });

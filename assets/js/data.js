@@ -32,10 +32,15 @@ const PROJECT_STAGES = [
   { id: 'completed', label: 'Completed', description: 'Job finished and closed out.' },
 ];
 
-/** Overall health of a project — separate from what stage it's in. */
+/** Overall health of a project — separate from what stage it's in. Set
+ *  by hand from the Project Tracking table (not computed) — someone on
+ *  the team picks whichever label best describes it right now. */
 const PROJECT_STATUS_OPTIONS = [
   { id: 'on_track', label: 'On Track' },
   { id: 'delayed', label: 'Delayed' },
+  { id: 'starting_soon', label: 'Starting Soon' },
+  { id: 'ready_to_break_ground', label: 'Ready to Break Ground' },
+  { id: 'past_projected_start', label: 'Past Projected Start' },
 ];
 
 /** Where a project's permit stands — only meaningful once it's a project. */
@@ -523,8 +528,9 @@ const Leads = {
     return this._patch(id, { projectStage: stageId, history });
   },
   /** Updates a project's health status, permit list, and/or permit township
-   *  together — the "Permit & Status" box shown once a lead is won. Diffs
-   *  the permit list by type (case-insensitively) so history reads as
+   *  together — status is set from the Project Tracking table now, permits
+   *  and township from the lead detail page's Permits panel. Diffs the
+   *  permit list by type (case-insensitively) so history reads as
    *  "Electrical permit: Submitted -> Approved" rather than a generic blob. */
   async updateProjectMeta(id, { projectStatus, permits, permitTownship }) {
     const l = this.get(id);

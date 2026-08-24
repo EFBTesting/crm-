@@ -86,17 +86,8 @@ function computeProjectAnalytics() {
   const onTrack = inProduction.length - delayed;
   const permits = permitBreakdown(inProduction);
 
-  // Pre-Construction pipeline — mirrors the old spreadsheet's dashboard tile row.
-  const precon = projects
-    .map(l => ({ lead: l, progress: preconProgress(l) }))
-    .filter(p => p.progress);
-  const preconActive = precon.filter(p => p.progress.recordStatus === 'active');
-  const preconTotals = {
-    active: preconActive.length,
-    startingSoon: preconActive.filter(p => p.progress.statusLabel === 'Starting soon').length,
-    pastStart: preconActive.filter(p => p.progress.statusLabel === 'Past projected start').length,
-    readyToBreakGround: preconActive.filter(p => p.progress.statusLabel === 'Ready to break ground').length,
-  };
+  // How many active (non-completed) projects sit in each stage right now.
+  const stageCounts = byStage.filter(b => b.stage.id !== 'completed');
 
   return {
     totals: {
@@ -104,7 +95,7 @@ function computeProjectAnalytics() {
       completedThisMonth: completedThisMonth.length, totalValue, completedValue, inProductionValue,
       onTrack, delayed,
     },
-    byStage, months, inProductionSorted, permits, preconTotals,
+    byStage, months, inProductionSorted, permits, stageCounts,
   };
 }
 
@@ -247,12 +238,9 @@ function renderProjectsTab(root) {
         <strong>No projects yet.</strong> Mark a lead <strong>Won</strong> on the Lead Pipeline and it'll show up here, tracked through Design → Pre-Construction → Construction → Completed.
       </div>` : ''}
 
-    <h3 class="mb-sm">Pre-Construction Pipeline</h3>
-    <div class="kpi-grid mb-md">
-      ${kpiTile('Active Pre-Con Jobs', String(a.preconTotals.active), 'Checklist started, still active', 'navy')}
-      ${kpiTile('Starting Within 30 Days', String(a.preconTotals.startingSoon), 'Projected start date is close', 'amber')}
-      ${kpiTile('Past Projected Start', String(a.preconTotals.pastStart), 'Target date has come and gone', 'red')}
-      ${kpiTile('Ready to Break Ground', String(a.preconTotals.readyToBreakGround), 'Every checklist step is done', 'green')}
+    <h3 class="mb-sm">Projects by Stage</h3>
+    <div class="kpi-grid kpi-grid--3col mb-md">
+      ${a.stageCounts.map((b, i) => kpiTile(b.stage.label, String(b.count), `${fmtMoney(b.value)} in this stage`, ['slate', 'navy', 'amber'][i] || 'slate')).join('')}
     </div>
 
     <div class="chart-row">

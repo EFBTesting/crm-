@@ -122,7 +122,9 @@ function renderProjectTracking(root) {
         </td>
         <td>${precon ? `<span class="cell-sub">${precon.completed}/${precon.stepsInScope}</span>` : '—'}</td>
         <td class="project-table__step" title="${precon ? esc(precon.currentStep) : ''}">${precon ? esc(precon.currentStep) : '—'}</td>
-        <td>${precon ? preconStatusPillHtml(precon) : (isCompleted ? '' : projectStatusPillHtml(l))}</td>
+        <td>
+          ${isCompleted ? '' : `<select class="stage-select" data-project-status-select="${l.id}">${optionList(PROJECT_STATUS_OPTIONS, l.projectStatus || 'on_track', { valueKey: 'id', labelKey: 'label', blank: null })}</select>`}
+        </td>
         <td>${l.projectedStartDate ? fmtDateOnly(l.projectedStartDate) : '—'}</td>
         <td>${precon && precon.daysToStart !== null ? (precon.daysToStart >= 0 ? `${precon.daysToStart}d` : `${Math.abs(precon.daysToStart)}d over`) : '—'}</td>
         <td class="cell-title">${fmtMoney(l.value)}</td>
@@ -170,6 +172,21 @@ function renderProjectTracking(root) {
           toast(`Moved to "${projectStageLabel(e.target.value)}"`);
           draw();
         } catch (err) { toast(err.message || 'Could not move the project', 'warn'); }
+      });
+    });
+
+    // Status dropdown — set by hand now (On Track / Delayed / Starting
+    // Soon / Ready to Break Ground / Past Projected Start).
+    qsa('[data-project-status-select]', root).forEach(sel => {
+      sel.addEventListener('click', e => e.stopPropagation());
+      sel.addEventListener('change', async e => {
+        e.stopPropagation();
+        const id = sel.dataset.projectStatusSelect;
+        try {
+          await Leads.updateProjectMeta(id, { projectStatus: e.target.value });
+          toast(`Status set to "${projectStatusLabel(e.target.value)}"`);
+          draw();
+        } catch (err) { toast(err.message || 'Could not update the status', 'warn'); }
       });
     });
 
