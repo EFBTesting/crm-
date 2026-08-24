@@ -1,8 +1,17 @@
 /* ==========================================================================
-   Project Tracking — kanban board for won leads as they move through
-   post-sale production: Design -> Pre-Construction -> Construction ->
-   Completed. Mirrors the Lead Pipeline board's drag-and-drop UX.
+   Project Tracking — won leads moving through post-sale production:
+   Design -> Pre-Construction -> Construction -> Completed.
+
+   Two views, switched with the same tab control the Dashboard uses:
+   - List (default): a dense table, one row per project. Stays readable
+     no matter how many projects pile up — nothing to scroll past, nothing
+     that grows taller than its neighbors.
+   - Board: the original drag-and-drop kanban, good for quickly moving a
+     handful of projects between stages. Each column scrolls on its own
+     past a certain height so a busy stage doesn't stretch the whole page.
    ========================================================================== */
+
+let projectTrackingView = 'list';
 
 function renderProjectTracking(root) {
   let query = '';
@@ -35,6 +44,10 @@ function renderProjectTracking(root) {
           <p class="view-sub">${projects.length} project${projects.length === 1 ? '' : 's'}${hasFilters ? ` matching (of ${allProjects.length})` : ' in production'} · ${fmtMoney(totalValue)} total</p>
         </div>
         <div class="view-head__actions">
+          <div class="view-tabs" id="pt-view-tabs">
+            <button class="view-tabs__btn ${projectTrackingView === 'list' ? 'is-active' : ''}" data-pt-view="list">List</button>
+            <button class="view-tabs__btn ${projectTrackingView === 'board' ? 'is-active' : ''}" data-pt-view="board">Board</button>
+          </div>
           <a class="btn btn--ghost" href="#/pipeline">View Lead Pipeline</a>
         </div>
       </div>
@@ -51,26 +64,7 @@ function renderProjectTracking(root) {
         </div>`}
 
       <div class="project-tracking-layout">
-        <div class="kanban kanban--4col" id="project-kanban">
-          ${PROJECT_STAGES.map(stage => {
-            const items = projects.filter(l => (l.projectStage || PROJECT_STAGES[0].id) === stage.id).sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
-            const value = items.reduce((s, l) => s + (Number(l.value) || 0), 0);
-            return `
-            <div class="kanban-col" data-stage="${stage.id}">
-              <div class="kanban-col__head">
-                <div>
-                  <h3>${esc(stage.label)}</h3>
-                  <p class="kanban-col__desc">${esc(stage.description)}</p>
-                </div>
-                <span class="pill pill--navy">${items.length}</span>
-              </div>
-              <div class="kanban-col__value">${fmtMoney(value)}</div>
-              <div class="kanban-col__body" data-dropzone="${stage.id}">
-                ${items.map(l => projectCardHtml(l)).join('') || `<div class="kanban-empty">${hasFilters ? 'No matches.' : 'Drop projects here.'}</div>`}
-              </div>
-            </div>`;
-          }).join('')}
-        </div>
+        ${projectTrackingView === 'board' ? boardHtml(projects, hasFilters) : listHtml(projects, hasFilters)}
 
         <div class="permit-summary-panel">
           <h3>Permits Across All Projects</h3>
@@ -81,6 +75,91 @@ function renderProjectTracking(root) {
     `;
 
     wire();
+  }
+
+  /* --------------------------- List view --------------------------- */
+
+  function listHtml(projects, hasFilters) {
+    if (!projects.length) {
+      return `<div class="table-wrap"><div class="empty-state">
+        <p><strong>No projects match.</strong></p>
+        <p class="muted">${hasFilters ? 'Try clearing your filters.' : 'Mark a lead Won on the Lead Pipeline to see it here.'}</p>
+      </div></div>`;
+    }
+    const sorted = [...projects].sort((a, b) => {
+      const stageA = PROJECT_STAGES.findIndex(s => s.id === (a.projectStage || PROJECT_STAGES[0].id));
+      const stageB = PROJECT_STAGES.findIndex(s => s.id === (b.projectStage || PROJECT_STAGES[0].id));
+      if (stageA !== stageB) return stageA - stageB;
+      const da = preconProgress(a)?.daysToStart;
+      const db = preconProgress(b)?.daysToStart;
+      if (da !== undefined && da !== null && db !== undefined && db !== null) return da - db;
+      return new Date(b.updatedAt) - new Date(a.updatedAt);
+    });
+    return `
+      <div class="table-wrap">
+        <table class="data-table project-table">
+          <thead>
+            <tr><th>Project</th><th>Stage</th><th>Progress</th><th>Status</th><th>Start</th><th>Value</th><th></th></tr>
+          </thead>
+          <tbody>
+            ${sorted.map(l => projectRowHtml(l)).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  }
+
+  function projectRowHtml(l) {
+    const contact = Contacts.get(l.contactId);
+    const company = Companies.get(l.companyId);
+    const who = contact ? fullName(contact) : (company ? company.name : 'Unassigned');
+    const stage = l.projectStage || PROJECT_STAGES[0].id;
+    const isCompleted = stage === 'completed';
+    const precon = stage === 'pre_con' ? preconProgress(l) : null;
+    return `
+      <tr class="row-link" data-nav="/leads/${l.id}">
+        <td>
+          <div class="cell-title">${esc(l.title)}</div>
+          <div class="cell-sub">${esc(who)}</div>
+        </td>
+        <td>
+          <select class="stage-select" data-stage-select="${l.id}">${PROJECT_STAGES.map(s => `<option value="${s.id}" ${s.id === stage ? 'selected' : ''}>${esc(s.label)}</option>`).join('')}</select>
+        </td>
+        <td>
+          ${precon ? `
+            <div class="progress-cell">${progressBarHtml(precon.progressPercent)}<span class="precon-summary__stat">${Math.round((precon.progressPercent || 0) * 100)}%</span></div>
+          ` : isCompleted ? `<span class="pill pill--muted">🏁 Done</span>` : `<span class="muted">—</span>`}
+        </td>
+        <td>${precon ? preconStatusPillHtml(precon) : (isCompleted ? '' : projectStatusPillHtml(l))}</td>
+        <td>${precon && precon.daysToStart !== null ? (precon.daysToStart >= 0 ? `${precon.daysToStart}d` : `${Math.abs(precon.daysToStart)}d over`) : '—'}</td>
+        <td class="cell-title">${fmtMoney(l.value)}</td>
+        <td>${!isCompleted ? `<button type="button" class="chip-btn chip-btn--won" data-complete="${l.id}" title="Mark completed">✓</button>` : ''}</td>
+      </tr>`;
+  }
+
+  /* --------------------------- Board view --------------------------- */
+
+  function boardHtml(projects, hasFilters) {
+    return `
+      <div class="kanban kanban--4col" id="project-kanban">
+        ${PROJECT_STAGES.map(stage => {
+          const items = projects.filter(l => (l.projectStage || PROJECT_STAGES[0].id) === stage.id).sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+          const value = items.reduce((s, l) => s + (Number(l.value) || 0), 0);
+          return `
+          <div class="kanban-col" data-stage="${stage.id}">
+            <div class="kanban-col__head">
+              <div>
+                <h3>${esc(stage.label)}</h3>
+                <p class="kanban-col__desc">${esc(stage.description)}</p>
+              </div>
+              <span class="pill pill--navy">${items.length}</span>
+            </div>
+            <div class="kanban-col__value">${fmtMoney(value)}</div>
+            <div class="kanban-col__body" data-dropzone="${stage.id}">
+              ${items.map(l => projectCardHtml(l)).join('') || `<div class="kanban-empty">${hasFilters ? 'No matches.' : 'Drop projects here.'}</div>`}
+            </div>
+          </div>`;
+        }).join('')}
+      </div>`;
   }
 
   function renderPermitSummary(breakdown) {
@@ -144,6 +223,11 @@ function renderProjectTracking(root) {
   function wire() {
     qsa('[data-nav]', root).forEach(node => node.addEventListener('click', e => { e.stopPropagation(); Router.navigate(node.dataset.nav); }));
 
+    qsa('[data-pt-view]', root).forEach(btn => btn.addEventListener('click', () => {
+      projectTrackingView = btn.dataset.ptView;
+      draw();
+    }));
+
     const searchInput = qs('#project-search', root);
     if (searchInput) {
       searchInput.addEventListener('input', debounce(e => {
@@ -175,7 +259,22 @@ function renderProjectTracking(root) {
       openProjectMetaForm(Leads.get(btn.dataset.editMeta), () => draw());
     }));
 
-    // Drag & drop
+    // List view's stage dropdown — the table's equivalent of dragging a
+    // kanban card to another column.
+    qsa('[data-stage-select]', root).forEach(sel => {
+      sel.addEventListener('click', e => e.stopPropagation());
+      sel.addEventListener('change', async e => {
+        e.stopPropagation();
+        const id = sel.dataset.stageSelect;
+        try {
+          await Leads.moveProjectStage(id, e.target.value);
+          toast(`Moved to "${projectStageLabel(e.target.value)}"`);
+          draw();
+        } catch (err) { toast(err.message || 'Could not move the project', 'warn'); }
+      });
+    });
+
+    // Drag & drop (Board view only)
     let draggedId = null;
     qsa('.lead-card', root).forEach(card => {
       card.addEventListener('dragstart', () => {

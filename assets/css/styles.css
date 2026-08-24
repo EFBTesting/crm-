@@ -274,7 +274,10 @@ p { margin: 0; }
 .kanban-col__head h3 { font-size: 0.82rem; margin-bottom: 2px; }
 .kanban-col__desc { font-size: 0.7rem; color: var(--muted); line-height: 1.25; }
 .kanban-col__value { font-size: 0.76rem; font-weight: 700; color: var(--ink-soft); margin-bottom: 10px; }
-.kanban-col__body { display: flex; flex-direction: column; gap: 8px; min-height: 60px; border-radius: 8px; transition: background 0.1s; }
+.kanban-col__body {
+  display: flex; flex-direction: column; gap: 8px; min-height: 60px; border-radius: 8px; transition: background 0.1s;
+  max-height: 640px; overflow-y: auto; padding-right: 2px;
+}
 .kanban-col__body.is-dragover { background: rgba(224,122,44,0.1); outline: 2px dashed var(--amber); }
 .kanban-empty { font-size: 0.76rem; color: var(--muted); border: 1px dashed var(--line); border-radius: 8px; padding: 14px 8px; text-align: center; }
 
@@ -347,7 +350,18 @@ p { margin: 0; }
 
 .lead-card__precon { margin-bottom: 8px; cursor: pointer; }
 .lead-card__precon-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 4px; }
-.lead-card__precon-step { font-size: 0.72rem; color: var(--muted); margin-top: 4px; }
+.lead-card__precon-step { font-size: 0.72rem; color: var(--muted); margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------------------------- Project Tracking: List view ---------------------------- */
+
+.project-table th, .project-table td { white-space: nowrap; }
+.project-table th:first-child, .project-table td:first-child { white-space: normal; }
+.progress-cell { display: flex; align-items: center; gap: 8px; }
+.progress-cell .progress-bar { width: 90px; flex-shrink: 0; }
+.stage-select {
+  border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; font-size: 0.78rem;
+  font-weight: 600; background: #fff; color: var(--ink-soft); cursor: pointer;
+}
 
 /* ---------------------------- Activity feed ---------------------------- */
 
