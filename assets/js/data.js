@@ -6,15 +6,16 @@
    keeps every open tab in sync when teammates make changes elsewhere.
    ========================================================================== */
 
-/** The 5 active pipeline stages, in order. "Lost" is tracked separately
- *  (a lead can be marked lost from any stage) so it doesn't eat one of the
- *  five requested stages. */
+/** The active pipeline stages, in order. "Lost" is tracked separately (a
+ *  lead can be marked lost from any stage). Reaching the last stage here
+ *  is the win condition — see Leads.moveStage — so there's no separate
+ *  "Won" bucket to manage; the lead just moves on to Project Tracking. */
 const STAGES = [
   { id: 'new_lead', label: 'New Lead', description: 'Inbound inquiry captured — phone, web form, referral, walk-in.' },
   { id: 'site_visit', label: 'Site Visit Scheduled', description: 'Qualified and an on-site assessment is booked or complete.' },
   { id: 'estimate_sent', label: 'Estimate Sent', description: 'A bid / proposal has been delivered to the prospect.' },
   { id: 'negotiation', label: 'Negotiation', description: 'Discussing scope, price, timeline, or contract terms.' },
-  { id: 'won', label: 'Won – Contract Signed', description: 'Contract signed. Converted to an active job.' },
+  { id: 'design_contract_signed', label: 'Design Contract Signed', description: 'Design contract signed — automatically becomes an active project.' },
 ];
 
 const LEAD_SOURCES = ['Referral', 'Website', 'Google Search', 'Angi / HomeAdvisor', 'Facebook / Instagram', 'Repeat Client', 'Signage / Drive-by', 'Trade Show', 'Other'];
@@ -499,9 +500,14 @@ const Leads = {
   async update(id, data) {
     return this._patch(id, data);
   },
+  /** Reaching the last stage (Design Contract Signed) IS the win condition
+   *  — no separate "Mark Won" action needed, the lead just moves on to
+   *  Project Tracking automatically, same as clicking through the stage
+   *  tracker on any other stage. */
   async moveStage(id, stageId) {
     const l = this.get(id);
     if (!l) return null;
+    if (stageId === STAGES[STAGES.length - 1].id) return this.markWon(id);
     const history = [...l.history, { at: new Date().toISOString(), event: 'stage_change', detail: `Moved from "${stageLabel(l.stage)}" to "${stageLabel(stageId)}"` }];
     return this._patch(id, { stage: stageId, status: 'active', history });
   },
@@ -509,7 +515,8 @@ const Leads = {
     const l = this.get(id);
     if (!l) return null;
     const now = new Date().toISOString();
-    const history = [...l.history, { at: now, event: 'won', detail: 'Marked as Won – contract signed' }];
+    const finalStage = STAGES[STAGES.length - 1].id;
+    const history = [...l.history, { at: now, event: 'won', detail: `${stageLabel(finalStage)} — converted to an active project` }];
     // Preserve project progress if this lead was won before and got reopened —
     // only default it to the first stage the first time it's ever won.
     const projectStage = l.projectStage || PROJECT_STAGES[0].id;
@@ -518,7 +525,7 @@ const Leads = {
     // a reopened-then-rewon project keeps whatever checklist progress it already had.
     const preconSteps = l.preconSteps && l.preconSteps.length ? l.preconSteps : defaultPreconSteps();
     const preconStatus = l.preconStatus || 'active';
-    return this._patch(id, { status: 'won', stage: 'won', wonAt: now, projectStage, projectStatus, preconSteps, preconStatus, history });
+    return this._patch(id, { status: 'won', stage: finalStage, wonAt: now, projectStage, projectStatus, preconSteps, preconStatus, history });
   },
   async moveProjectStage(id, stageId) {
     const l = this.get(id);

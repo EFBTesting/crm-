@@ -44,7 +44,6 @@ function renderLeadDetail(root, { id }) {
             </button>`).join('')}
         </div>
         <div class="view-head__actions mb-md">
-          <button class="btn btn--success" id="won-btn">✓ Mark Won</button>
           <button class="btn btn--danger" id="lost-btn">✕ Mark Lost</button>
         </div>
       ` : l.status === 'lost' ? `
@@ -124,13 +123,14 @@ function renderLeadDetail(root, { id }) {
     });
 
     if (l.status === 'active') {
-      qs('#won-btn', root).addEventListener('click', async () => {
-        try { await Leads.markWon(l.id); toast('🎉 Lead marked as won'); draw(); }
-        catch (err) { toast(err.message || 'Could not update the lead', 'warn'); }
-      });
       qs('#lost-btn', root).addEventListener('click', () => openLostReasonPrompt(l, () => draw()));
       qsa('[data-set-stage]', root).forEach(btn => btn.addEventListener('click', async () => {
-        try { await Leads.moveStage(l.id, btn.dataset.setStage); draw(); }
+        try {
+          const isFinal = btn.dataset.setStage === STAGES[STAGES.length - 1].id;
+          await Leads.moveStage(l.id, btn.dataset.setStage);
+          if (isFinal) toast('🎉 Design contract signed — moved to Project Tracking');
+          draw();
+        }
         catch (err) { toast(err.message || 'Could not update the lead', 'warn'); }
       }));
     }
