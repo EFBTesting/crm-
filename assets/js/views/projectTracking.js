@@ -65,12 +65,6 @@ function renderProjectTracking(root) {
 
       <div class="project-tracking-layout">
         ${projectTrackingView === 'board' ? boardHtml(projects, hasFilters) : listHtml(projects, hasFilters)}
-
-        <div class="permit-summary-panel">
-          <h3>Permits Across All Projects</h3>
-          <p class="view-sub mb-md">In-progress only — completed projects drop off this live view (their permits are still on file, just click into the project to see them).</p>
-          ${renderPermitSummary(permitBreakdown(allProjects.filter(l => (l.projectStage || PROJECT_STAGES[0].id) !== 'completed')))}
-        </div>
       </div>
     `;
 
@@ -100,7 +94,7 @@ function renderProjectTracking(root) {
         <table class="data-table project-table">
           <thead>
             <tr>
-              <th>Project</th><th>Stage</th><th>Progress</th><th>Steps</th><th>Current Step</th>
+              <th>Project</th><th>Stage</th><th>Progress</th><th>Record Status</th><th>Steps</th><th>Current Step</th>
               <th>Status</th><th>Projected Start</th><th>Days</th><th>Value</th><th></th>
             </tr>
           </thead>
@@ -133,6 +127,9 @@ function renderProjectTracking(root) {
           ${precon ? `
             <div class="progress-cell">${progressBarHtml(precon.progressPercent)}<span class="precon-summary__stat">${Math.round((precon.progressPercent || 0) * 100)}%</span></div>
           ` : isCompleted ? `<span class="pill pill--muted">🏁 Done</span>` : `<span class="muted">—</span>`}
+        </td>
+        <td>
+          ${precon ? `<select class="stage-select" data-precon-status-select="${l.id}">${optionList(PRECON_RECORD_STATUS_OPTIONS, precon.recordStatus, { valueKey: 'id', labelKey: 'label', blank: null })}</select>` : '<span class="muted">—</span>'}
         </td>
         <td>${precon ? `<span class="cell-sub">${precon.completed}/${precon.stepsInScope}</span>` : '—'}</td>
         <td class="project-table__step" title="${precon ? esc(precon.currentStep) : ''}">${precon ? esc(precon.currentStep) : '—'}</td>
@@ -168,22 +165,6 @@ function renderProjectTracking(root) {
           </div>`;
         }).join('')}
       </div>`;
-  }
-
-  function renderPermitSummary(breakdown) {
-    if (!breakdown.length) return `<p class="empty-inline">No permits logged yet. Add some from any project card's Permit badge.</p>`;
-    return breakdown.map(section => `
-      <div class="permit-summary-section">
-        <div class="permit-summary-section__title">${esc(section.label)}</div>
-        <div class="permit-summary-group">
-          <span class="pill pill--stage">Submitted (${section.submitted.length})</span>
-          ${section.submitted.length ? `<ul class="permit-summary-list">${section.submitted.map(p => `<li class="row-link" data-nav="/leads/${p.id}">${esc(p.title)}</li>`).join('')}</ul>` : ''}
-        </div>
-        <div class="permit-summary-group">
-          <span class="pill pill--green">Approved (${section.approved.length})</span>
-          ${section.approved.length ? `<ul class="permit-summary-list">${section.approved.map(p => `<li class="row-link" data-nav="/leads/${p.id}">${esc(p.title)}</li>`).join('')}</ul>` : ''}
-        </div>
-      </div>`).join('');
   }
 
   function projectCardHtml(l) {
@@ -281,6 +262,21 @@ function renderProjectTracking(root) {
           toast(`Moved to "${projectStageLabel(e.target.value)}"`);
           draw();
         } catch (err) { toast(err.message || 'Could not move the project', 'warn'); }
+      });
+    });
+
+    // List view's Record Status dropdown — same idea, for the checklist's
+    // own status (Active / On hold / Lost / Complete).
+    qsa('[data-precon-status-select]', root).forEach(sel => {
+      sel.addEventListener('click', e => e.stopPropagation());
+      sel.addEventListener('change', async e => {
+        e.stopPropagation();
+        const id = sel.dataset.preconStatusSelect;
+        try {
+          await Leads.updatePreconMeta(id, { preconStatus: e.target.value });
+          toast(`Record status set to "${preconRecordStatusLabel(e.target.value)}"`);
+          draw();
+        } catch (err) { toast(err.message || 'Could not update the record status', 'warn'); }
       });
     });
 
