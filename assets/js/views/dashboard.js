@@ -78,13 +78,16 @@ function computeProjectAnalytics() {
 
   const inProductionSorted = [...inProduction].sort((a, b) => (b.value || 0) - (a.value || 0)).slice(0, 8);
 
-  // Status/permit "live feeds" only reflect projects still in progress —
-  // a completed project drops off these the moment it's marked Completed,
+  // Status breakdowns only reflect projects still in progress — a
+  // completed project drops off these the moment it's marked Completed,
   // and reappears automatically if it's ever moved back to another stage
   // (both computed fresh from current data, nothing to manually restore).
-  const delayed = inProduction.filter(l => l.projectStatus === 'delayed').length;
-  const onTrack = inProduction.length - delayed;
-  const permits = permitBreakdown(inProduction);
+  const projectStatusCounts = PROJECT_STATUS_OPTIONS.map(opt => ({
+    opt, count: inProduction.filter(l => (l.projectStatus || 'on_track') === opt.id).length,
+  }));
+  const preconRecordCounts = PRECON_RECORD_STATUS_OPTIONS.map(opt => ({
+    opt, count: inProduction.filter(l => (l.preconStatus || 'active') === opt.id).length,
+  }));
 
   // How many active (non-completed) projects sit in each stage right now.
   const stageCounts = byStage.filter(b => b.stage.id !== 'completed');
@@ -93,9 +96,8 @@ function computeProjectAnalytics() {
     totals: {
       totalProjects: projects.length, inProduction: inProduction.length, completed: completed.length,
       completedThisMonth: completedThisMonth.length, totalValue, completedValue, inProductionValue,
-      onTrack, delayed,
     },
-    byStage, months, inProductionSorted, permits, stageCounts,
+    byStage, months, inProductionSorted, stageCounts, projectStatusCounts, preconRecordCounts,
   };
 }
 
@@ -272,18 +274,13 @@ function renderProjectsTab(root) {
       </div>
       <div class="panel">
         <h3>Project Health</h3>
-        <div class="kpi-inline mb-md">
-          <div><span class="kpi-inline__num">${t.onTrack}</span><span class="kpi-inline__label">On Track</span></div>
-          <div><span class="kpi-inline__num">${t.delayed}</span><span class="kpi-inline__label">Delayed</span></div>
+        <div class="kpi-inline kpi-inline--wrap mb-md">
+          ${a.projectStatusCounts.map(({ opt, count }) => `<div><span class="kpi-inline__num">${count}</span><span class="kpi-inline__label">${esc(opt.label)}</span></div>`).join('')}
         </div>
-        <h3>Permits</h3>
-        ${a.permits.length ? `
-          <table class="mini-table">
-            <thead><tr><th>Permit Type</th><th>Submitted</th><th>Approved</th></tr></thead>
-            <tbody>
-              ${a.permits.map(p => `<tr><td>${esc(p.label)}</td><td>${p.submitted.length}</td><td>${p.approved.length}</td></tr>`).join('')}
-            </tbody>
-          </table>` : `<p class="empty-inline">No permits logged yet.</p>`}
+        <div class="panel-divider"></div>
+        <div class="kpi-inline kpi-inline--wrap mt-sm">
+          ${a.preconRecordCounts.map(({ opt, count }) => `<div><span class="kpi-inline__num">${count}</span><span class="kpi-inline__label">${esc(opt.label)}</span></div>`).join('')}
+        </div>
       </div>
     </div>
   `;

@@ -19,7 +19,12 @@ const STAGES = [
 ];
 
 const LEAD_SOURCES = ['Referral', 'Website', 'Google Search', 'Angi / HomeAdvisor', 'Facebook / Instagram', 'Repeat Client', 'Signage / Drive-by', 'Trade Show', 'Other'];
-const PROJECT_TYPES = ['Kitchen Remodel', 'Bathroom Remodel', 'Home Addition', 'New Custom Build', 'Deck / Outdoor Living', 'Roofing', 'Whole-Home Renovation', 'Commercial Build-Out', 'Other'];
+/** Matches the classification scheme from the old Excel tracker's Settings
+ *  tab, not room/job type — projects are classified by scale/complexity. */
+const PROJECT_TYPES = [
+  'Small Reno-Class D', 'Small Reno-Class C', 'Hybrid: Reno/Add-Class B', 'Lg Scale Reno-Class A',
+  'New Con: Semi-Custom', 'New Con: Full Custom', 'New Con: Design Only', 'Other',
+];
 const COMPANY_TYPES = ['Property Management', 'Developer', 'Architect / Design Partner', 'General Contractor Partner', 'Commercial Client', 'Supplier / Vendor', 'Other'];
 const LOST_REASONS = ['Price too high', 'Chose another contractor', 'Timeline mismatch', 'Project postponed', 'Went unresponsive', 'Scope changed / no longer needed', 'Other'];
 const BEST_TIME_OPTIONS = ['Morning', 'Evening', 'Night', 'Whenever'];
@@ -497,6 +502,26 @@ const Leads = {
     cache.leads.push(lead);
     return lead;
   },
+  /** Creates a project directly, skipping the sales pipeline — for a job
+   *  that's already contracted (e.g. backfilling from the old spreadsheet)
+   *  rather than won off a tracked lead. Sets up the same defaults markWon
+   *  does: final pipeline stage, a fresh Pre-Con checklist, on-track status. */
+  async createProject(data) {
+    const now = new Date().toISOString();
+    const finalStage = STAGES[STAGES.length - 1].id;
+    const projectStage = data.projectStage || PROJECT_STAGES[0].id;
+    const history = [{ at: now, event: 'created', detail: `Project created directly in stage "${projectStageLabel(projectStage)}"` }];
+    const row = leadToRow({
+      ...data, stage: finalStage, status: 'won', wonAt: now,
+      projectStage, projectStatus: PROJECT_STATUS_OPTIONS[0].id,
+      preconSteps: defaultPreconSteps(), preconStatus: 'active', history,
+    });
+    const { data: saved, error } = await mustClient().from('leads').insert(row).select().single();
+    if (error) throw error;
+    const lead = leadFromRow(saved);
+    cache.leads.push(lead);
+    return lead;
+  },
   async update(id, data) {
     return this._patch(id, data);
   },
@@ -608,11 +633,16 @@ const Leads = {
     const history = [...l.history, { at: now, event: 'lost', detail: `Marked as Lost (${lostReason})` }];
     return this._patch(id, { status: 'lost', lostReason, lostAt: now, history });
   },
+  /** Reopens a lost lead OR a lost project. A project that gets marked lost
+   *  still has wonAt set (never cleared), so that's what tells reopen()
+   *  which state to restore it to — back into the Pipeline (never won) or
+   *  back onto Project Tracking (won, then lost). */
   async reopen(id) {
     const l = this.get(id);
     if (!l) return null;
-    const history = [...l.history, { at: new Date().toISOString(), event: 'reopened', detail: 'Lead reopened' }];
-    return this._patch(id, { status: 'active', lostReason: '', history });
+    const restoredStatus = l.wonAt ? 'won' : 'active';
+    const history = [...l.history, { at: new Date().toISOString(), event: 'reopened', detail: restoredStatus === 'won' ? 'Project reopened' : 'Lead reopened' }];
+    return this._patch(id, { status: restoredStatus, lostReason: '', history });
   },
   async addNote(id, note) {
     const l = this.get(id);

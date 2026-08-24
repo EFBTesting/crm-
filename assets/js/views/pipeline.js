@@ -26,7 +26,9 @@ function renderPipeline(root) {
 
   function draw() {
     const active = Leads.active().filter(matchesFilters);
-    const lost = Leads.all().filter(l => l.status === 'lost').filter(matchesFilters);
+    // Never-won leads only — a project that was won and later lost shows
+    // up on Project Tracking's own Lost list instead, not here.
+    const lost = Leads.all().filter(l => l.status === 'lost' && !l.wonAt).filter(matchesFilters);
     const won = Leads.projects().sort((a, b) => new Date(b.wonAt || b.updatedAt) - new Date(a.wonAt || a.updatedAt));
     const totalActiveValue = active.reduce((s, l) => s + (Number(l.value) || 0), 0);
     const hasFilters = query || filterProjectType || filterSource;

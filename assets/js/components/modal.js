@@ -292,6 +292,7 @@ function contactFieldsHtml(prefix, contact) {
 }
 
 function openLeadForm(existing = null, defaults = {}, onSaved = null) {
+  const asProject = !existing && !!defaults.asProject;
   let contact1ExistingId = existing?.contactId ?? defaults.contactId ?? null;
   let contact2ExistingId = existing?.secondaryContactId ?? null;
   const primaryContact = Contacts.get(contact1ExistingId);
@@ -299,16 +300,25 @@ function openLeadForm(existing = null, defaults = {}, onSaved = null) {
   const hasSecondContact = !!secondaryContact;
 
   Modal.open({
-    title: existing ? 'Edit Lead' : 'New Lead',
+    title: existing ? 'Edit Lead' : (asProject ? 'New Project' : 'New Lead'),
     wide: true,
     bodyHtml: `
       <form id="lead-form" class="form-grid">
-        <label class="field field--full"><span>Lead title *</span>
+        <label class="field field--full"><span>${asProject ? 'Project name *' : 'Lead title *'}</span>
           <input name="title" required value="${esc(existing?.title)}" placeholder="e.g. Kitchen Remodel — Smith Residence">
         </label>
+        ${asProject ? `
+        <label class="field"><span>Project stage</span>
+          <select name="projectStage">${optionList(PROJECT_STAGES, PROJECT_STAGES[0].id, { valueKey: 'id', labelKey: 'label', blank: null })}</select>
+        </label>
+        <label class="field"><span>Projected start</span>
+          <input type="date" name="projectedStartDate">
+        </label>
+        ` : `
         <label class="field"><span>Stage</span>
           <select name="stage">${optionList(STAGES, existing?.stage ?? defaults.stage ?? STAGES[0].id, { valueKey: 'id', labelKey: 'label', blank: null })}</select>
         </label>
+        `}
         <label class="field"><span>Budget ($)</span>
           <input type="number" min="0" step="100" name="value" id="lead-value-input" value="${existing?.value ?? ''}" placeholder="25000">
         </label>
@@ -344,7 +354,7 @@ function openLeadForm(existing = null, defaults = {}, onSaved = null) {
 
         <div class="form-actions">
           <button type="button" class="btn btn--ghost" data-close="1">Cancel</button>
-          <button type="submit" class="btn btn--primary">${existing ? 'Save changes' : 'Create lead'}</button>
+          <button type="submit" class="btn btn--primary">${existing ? 'Save changes' : (asProject ? 'Create project' : 'Create lead')}</button>
         </div>
       </form>`,
   });
@@ -422,13 +432,19 @@ function openLeadForm(existing = null, defaults = {}, onSaved = null) {
       });
 
       const data = {
-        title, stage: fd.get('stage'), value: fd.get('value'), revenuePercent: fd.get('revenuePercent'),
+        title, value: fd.get('value'), revenuePercent: fd.get('revenuePercent'),
         projectType: fd.get('projectType'), source, notes: fd.get('notes'),
         contactId: contact1Id, secondaryContactId: contact2Id,
       };
-      const saved = existing ? await Leads.update(existing.id, data) : await Leads.create(data);
+      // Only the Lead form (new or edit) has a "stage" field — the New
+      // Project form has "projectStage" instead, set below.
+      if (!asProject) data.stage = fd.get('stage');
+      let saved;
+      if (existing) saved = await Leads.update(existing.id, data);
+      else if (asProject) saved = await Leads.createProject({ ...data, projectStage: fd.get('projectStage'), projectedStartDate: fd.get('projectedStartDate') || null });
+      else saved = await Leads.create(data);
       Modal.close();
-      toast(existing ? 'Lead updated' : 'Lead created');
+      toast(existing ? 'Lead updated' : (asProject ? 'Project created' : 'Lead created'));
       if (onSaved) onSaved(saved);
     },
   });
@@ -549,8 +565,9 @@ function openPreconMetaForm(lead, onSaved) {
 /* --------------------------- Lost reason prompt --------------------------- */
 
 function openLostReasonPrompt(lead, onDone) {
+  const isProject = !!lead.wonAt;
   Modal.open({
-    title: 'Mark lead as lost',
+    title: isProject ? 'Mark project as lost' : 'Mark lead as lost',
     bodyHtml: `
       <form id="lost-form" class="form-grid">
         <label class="field field--full"><span>Reason</span>
@@ -567,7 +584,7 @@ function openLostReasonPrompt(lead, onDone) {
       const reason = fd.get('reason') || 'Other';
       await Leads.markLost(lead.id, reason);
       Modal.close();
-      toast('Lead marked as lost', 'warn');
+      toast(isProject ? 'Project marked as lost' : 'Lead marked as lost', 'warn');
       if (onDone) onDone();
     },
   });

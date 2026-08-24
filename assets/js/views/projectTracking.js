@@ -9,6 +9,7 @@
    ========================================================================== */
 
 function renderProjectTracking(root) {
+  let showLost = false;
   let query = '';
   let filterProjectType = '';
   let filterStatus = '';
@@ -31,6 +32,10 @@ function renderProjectTracking(root) {
     const projects = allProjects.filter(matchesFilters);
     const totalValue = projects.reduce((s, l) => s + (Number(l.value) || 0), 0);
     const hasFilters = query || filterProjectType || filterStatus;
+    // A project that was won and later fell through — status flips to
+    // 'lost', but wonAt stays set, which is what separates it from a
+    // never-won lead sitting in the Pipeline's own Lost list.
+    const lostProjects = Leads.all().filter(l => l.status === 'lost' && l.wonAt).filter(matchesFilters);
 
     root.innerHTML = `
       <div class="view-head">
@@ -39,7 +44,9 @@ function renderProjectTracking(root) {
           <p class="view-sub">${projects.length} project${projects.length === 1 ? '' : 's'}${hasFilters ? ` matching (of ${allProjects.length})` : ' in production'} · ${fmtMoney(totalValue)} total</p>
         </div>
         <div class="view-head__actions">
+          <button class="btn btn--ghost" id="toggle-lost-btn">${showLost ? 'Hide' : 'Show'} lost projects (${lostProjects.length})</button>
           <a class="btn btn--ghost" href="#/pipeline">View Lead Pipeline</a>
+          <button class="btn btn--primary" id="new-project-btn">+ New Project</button>
         </div>
       </div>
 
@@ -57,6 +64,25 @@ function renderProjectTracking(root) {
       <div class="project-tracking-layout">
         ${listHtml(projects, hasFilters)}
       </div>
+
+      ${showLost ? `
+        <div class="panel mt-lg">
+          <h3>Lost projects (${lostProjects.length})</h3>
+          ${lostProjects.length ? `
+            <table class="mini-table">
+              <thead><tr><th>Project</th><th>Reason</th><th>Value</th><th>Lost</th><th></th></tr></thead>
+              <tbody>
+                ${lostProjects.map(l => `
+                  <tr>
+                    <td class="row-link" data-nav="/leads/${l.id}">${esc(l.title)}</td>
+                    <td><span class="pill pill--red">${esc(l.lostReason || 'Other')}</span></td>
+                    <td>${fmtMoney(l.value)}</td>
+                    <td class="muted">${timeAgo(l.lostAt)}</td>
+                    <td><button class="btn btn--ghost btn--sm" data-reopen="${l.id}">Reopen</button></td>
+                  </tr>`).join('')}
+              </tbody>
+            </table>` : `<p class="empty-inline">No lost projects. Nice.</p>`}
+        </div>` : ''}
     `;
 
     wire();
@@ -128,12 +154,19 @@ function renderProjectTracking(root) {
         <td>${l.projectedStartDate ? fmtDateOnly(l.projectedStartDate) : '—'}</td>
         <td>${precon && precon.daysToStart !== null ? (precon.daysToStart >= 0 ? `${precon.daysToStart}d` : `${Math.abs(precon.daysToStart)}d over`) : '—'}</td>
         <td class="cell-title">${fmtMoney(l.value)}</td>
-        <td>${!isCompleted ? `<button type="button" class="chip-btn chip-btn--won" data-complete="${l.id}" title="Mark completed">✓</button>` : ''}</td>
+        <td class="project-table__actions">
+          ${!isCompleted ? `
+            <button type="button" class="chip-btn chip-btn--won" data-complete="${l.id}" title="Mark completed">✓</button>
+            <button type="button" class="chip-btn chip-btn--lost" data-lost="${l.id}" title="Mark lost">✕</button>
+          ` : ''}
+        </td>
       </tr>`;
   }
 
   function wire() {
     qsa('[data-nav]', root).forEach(node => node.addEventListener('click', e => { e.stopPropagation(); Router.navigate(node.dataset.nav); }));
+    qs('#new-project-btn', root).addEventListener('click', () => openLeadForm(null, { asProject: true }, () => draw()));
+    qs('#toggle-lost-btn', root).addEventListener('click', () => { showLost = !showLost; draw(); });
 
     const searchInput = qs('#project-search', root);
     if (searchInput) {
@@ -157,6 +190,19 @@ function renderProjectTracking(root) {
       try {
         await Leads.moveProjectStage(btn.dataset.complete, 'completed');
         toast('🏁 Project marked completed');
+        draw();
+      } catch (err) { toast(err.message || 'Could not update the project', 'warn'); }
+    }));
+
+    qsa('[data-lost]', root).forEach(btn => btn.addEventListener('click', e => {
+      e.stopPropagation();
+      openLostReasonPrompt(Leads.get(btn.dataset.lost), () => draw());
+    }));
+    qsa('[data-reopen]', root).forEach(btn => btn.addEventListener('click', async e => {
+      e.stopPropagation();
+      try {
+        await Leads.reopen(btn.dataset.reopen);
+        toast('Project reopened');
         draw();
       } catch (err) { toast(err.message || 'Could not update the project', 'warn'); }
     }));

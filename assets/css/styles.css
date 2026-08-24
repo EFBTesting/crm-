@@ -166,6 +166,7 @@ p { margin: 0; }
 .kpi-inline--wrap { flex-wrap: wrap; gap: 20px 26px; }
 .kpi-inline__num { display: block; font-size: 1.25rem; font-weight: 800; }
 .kpi-inline__label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
+.panel-divider { border-top: 1px solid var(--line); margin: 4px 0 16px; }
 
 /* ---------------------------- Charts / panels ---------------------------- */
 
@@ -330,6 +331,7 @@ p { margin: 0; }
   border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; font-size: 0.78rem;
   font-weight: 600; background: #fff; color: var(--ink-soft); cursor: pointer;
 }
+.project-table__actions { display: flex; gap: 6px; }
 
 /* ---------------------------- Activity feed ---------------------------- */
 
