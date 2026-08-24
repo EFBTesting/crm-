@@ -96,7 +96,7 @@ p { margin: 0; }
   flex: 1;
   min-width: 0;
   padding: 28px 32px 60px;
-  max-width: 1320px;
+  max-width: 1600px;
 }
 
 /* ---------------------------- View head / shared ---------------------------- */
@@ -354,12 +354,12 @@ p { margin: 0; }
 
 /* ---------------------------- Project Tracking: List view ---------------------------- */
 
-.project-table th, .project-table td { white-space: nowrap; }
+.project-table th, .project-table td { white-space: nowrap; padding: 10px 12px; }
 .project-table th:first-child, .project-table td:first-child { white-space: normal; }
-.progress-cell { display: flex; align-items: center; gap: 8px; }
-.progress-cell .progress-bar { width: 90px; flex-shrink: 0; }
+.progress-cell { display: flex; align-items: center; gap: 6px; }
+.progress-cell .progress-bar { width: 64px; flex-shrink: 0; }
 .project-table__step {
-  max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap !important;
+  max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap !important;
   color: var(--ink-soft); font-size: 0.84rem;
 }
 .stage-select {
