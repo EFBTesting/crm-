@@ -2,16 +2,11 @@
    Project Tracking — won leads moving through post-sale production:
    Design -> Pre-Construction -> Construction -> Completed.
 
-   Two views, switched with the same tab control the Dashboard uses:
-   - List (default): a dense table, one row per project. Stays readable
-     no matter how many projects pile up — nothing to scroll past, nothing
-     that grows taller than its neighbors.
-   - Board: the original drag-and-drop kanban, good for quickly moving a
-     handful of projects between stages. Each column scrolls on its own
-     past a certain height so a busy stage doesn't stretch the whole page.
+   A dense table, one row per project. New wins drop in as a line in
+   Design and move down via the Stage dropdown — stays readable no
+   matter how many projects pile up, nothing to scroll past, nothing
+   that grows taller than its neighbors.
    ========================================================================== */
-
-let projectTrackingView = 'list';
 
 function renderProjectTracking(root) {
   let query = '';
@@ -44,10 +39,6 @@ function renderProjectTracking(root) {
           <p class="view-sub">${projects.length} project${projects.length === 1 ? '' : 's'}${hasFilters ? ` matching (of ${allProjects.length})` : ' in production'} · ${fmtMoney(totalValue)} total</p>
         </div>
         <div class="view-head__actions">
-          <div class="view-tabs" id="pt-view-tabs">
-            <button class="view-tabs__btn ${projectTrackingView === 'list' ? 'is-active' : ''}" data-pt-view="list">List</button>
-            <button class="view-tabs__btn ${projectTrackingView === 'board' ? 'is-active' : ''}" data-pt-view="board">Board</button>
-          </div>
           <a class="btn btn--ghost" href="#/pipeline">View Lead Pipeline</a>
         </div>
       </div>
@@ -64,14 +55,12 @@ function renderProjectTracking(root) {
         </div>`}
 
       <div class="project-tracking-layout">
-        ${projectTrackingView === 'board' ? boardHtml(projects, hasFilters) : listHtml(projects, hasFilters)}
+        ${listHtml(projects, hasFilters)}
       </div>
     `;
 
     wire();
   }
-
-  /* --------------------------- List view --------------------------- */
 
   function listHtml(projects, hasFilters) {
     if (!projects.length) {
@@ -141,83 +130,8 @@ function renderProjectTracking(root) {
       </tr>`;
   }
 
-  /* --------------------------- Board view --------------------------- */
-
-  function boardHtml(projects, hasFilters) {
-    return `
-      <div class="kanban kanban--4col" id="project-kanban">
-        ${PROJECT_STAGES.map(stage => {
-          const items = projects.filter(l => (l.projectStage || PROJECT_STAGES[0].id) === stage.id).sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
-          const value = items.reduce((s, l) => s + (Number(l.value) || 0), 0);
-          return `
-          <div class="kanban-col" data-stage="${stage.id}">
-            <div class="kanban-col__head">
-              <div>
-                <h3>${esc(stage.label)}</h3>
-                <p class="kanban-col__desc">${esc(stage.description)}</p>
-              </div>
-              <span class="pill pill--navy">${items.length}</span>
-            </div>
-            <div class="kanban-col__value">${fmtMoney(value)}</div>
-            <div class="kanban-col__body" data-dropzone="${stage.id}">
-              ${items.map(l => projectCardHtml(l)).join('') || `<div class="kanban-empty">${hasFilters ? 'No matches.' : 'Drop projects here.'}</div>`}
-            </div>
-          </div>`;
-        }).join('')}
-      </div>`;
-  }
-
-  function projectCardHtml(l) {
-    const contact = Contacts.get(l.contactId);
-    const company = Companies.get(l.companyId);
-    const who = contact ? fullName(contact) : (company ? company.name : 'Unassigned');
-    const stage = l.projectStage || PROJECT_STAGES[0].id;
-    const isCompleted = stage === 'completed';
-    // Not stage-gated, same reasoning as the List view's row — a checklist
-    // started in Pre-Construction is still worth showing after the project
-    // has moved on to Construction (or was never moved out of Design).
-    const precon = preconProgress(l);
-    return `
-      <div class="lead-card" draggable="true" data-lead-id="${l.id}">
-        <div class="lead-card__top">
-          <span class="lead-card__title row-link" data-nav="/leads/${l.id}">${esc(l.title)}</span>
-        </div>
-        <div class="lead-card__who">${esc(who)}</div>
-        ${isCompleted ? `
-        <div class="lead-card__badges">
-          <span class="pill pill--muted">🏁 Completed — click to view</span>
-        </div>` : `
-        <div class="lead-card__badges">
-          <button type="button" class="pill-btn" data-edit-meta="${l.id}" title="Edit status">${projectStatusPillHtml(l)}</button>
-          <button type="button" class="pill-btn" data-edit-meta="${l.id}" title="Edit permits">${permitSummaryPillHtml(l)}</button>
-        </div>`}
-        ${precon ? `
-        <div class="lead-card__precon row-link" data-nav="/leads/${l.id}">
-          <div class="lead-card__precon-row">
-            ${preconStatusPillHtml(precon)}
-            <span class="precon-summary__stat">${Math.round((precon.progressPercent || 0) * 100)}%</span>
-          </div>
-          ${progressBarHtml(precon.progressPercent)}
-          <div class="lead-card__precon-step">${esc(precon.currentStep)}</div>
-        </div>` : ''}
-        <div class="lead-card__meta">
-          <span class="lead-card__value">${fmtMoney(l.value)}</span>
-          ${l.projectType ? `<span class="pill pill--muted">${esc(l.projectType)}</span>` : ''}
-        </div>
-        ${!isCompleted ? `
-        <div class="lead-card__actions">
-          <button class="chip-btn chip-btn--won" data-complete="${l.id}" title="Mark completed">✓ Completed</button>
-        </div>` : ''}
-      </div>`;
-  }
-
   function wire() {
     qsa('[data-nav]', root).forEach(node => node.addEventListener('click', e => { e.stopPropagation(); Router.navigate(node.dataset.nav); }));
-
-    qsa('[data-pt-view]', root).forEach(btn => btn.addEventListener('click', () => {
-      projectTrackingView = btn.dataset.ptView;
-      draw();
-    }));
 
     const searchInput = qs('#project-search', root);
     if (searchInput) {
@@ -245,13 +159,7 @@ function renderProjectTracking(root) {
       } catch (err) { toast(err.message || 'Could not update the project', 'warn'); }
     }));
 
-    qsa('[data-edit-meta]', root).forEach(btn => btn.addEventListener('click', e => {
-      e.stopPropagation();
-      openProjectMetaForm(Leads.get(btn.dataset.editMeta), () => draw());
-    }));
-
-    // List view's stage dropdown — the table's equivalent of dragging a
-    // kanban card to another column.
+    // Stage dropdown — how a project moves from column to column now.
     qsa('[data-stage-select]', root).forEach(sel => {
       sel.addEventListener('click', e => e.stopPropagation());
       sel.addEventListener('change', async e => {
@@ -265,8 +173,8 @@ function renderProjectTracking(root) {
       });
     });
 
-    // List view's Record Status dropdown — same idea, for the checklist's
-    // own status (Active / On hold / Lost / Complete).
+    // Record Status dropdown — the checklist's own status (Active / On
+    // hold / Lost / Complete).
     qsa('[data-precon-status-select]', root).forEach(sel => {
       sel.addEventListener('click', e => e.stopPropagation());
       sel.addEventListener('change', async e => {
@@ -277,40 +185,6 @@ function renderProjectTracking(root) {
           toast(`Record status set to "${preconRecordStatusLabel(e.target.value)}"`);
           draw();
         } catch (err) { toast(err.message || 'Could not update the record status', 'warn'); }
-      });
-    });
-
-    // Drag & drop (Board view only)
-    let draggedId = null;
-    qsa('.lead-card', root).forEach(card => {
-      card.addEventListener('dragstart', () => {
-        draggedId = card.dataset.leadId;
-        card.classList.add('is-dragging');
-      });
-      card.addEventListener('dragend', () => card.classList.remove('is-dragging'));
-    });
-    qsa('[data-dropzone]', root).forEach(zone => {
-      zone.addEventListener('dragover', e => {
-        e.preventDefault();
-        zone.classList.add('is-dragover');
-      });
-      zone.addEventListener('dragleave', () => zone.classList.remove('is-dragover'));
-      zone.addEventListener('drop', async e => {
-        e.preventDefault();
-        zone.classList.remove('is-dragover');
-        if (!draggedId) return;
-        const targetStage = zone.dataset.dropzone;
-        const lead = Leads.get(draggedId);
-        const movingId = draggedId;
-        draggedId = null;
-        if (!lead || (lead.projectStage || PROJECT_STAGES[0].id) === targetStage) return;
-        try {
-          await Leads.moveProjectStage(movingId, targetStage);
-          toast(`Moved to “${projectStageLabel(targetStage)}”`);
-          draw();
-        } catch (err) {
-          toast(err.message || 'Could not move the project', 'warn');
-        }
       });
     });
   }
