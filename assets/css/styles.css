@@ -96,7 +96,6 @@ p { margin: 0; }
   flex: 1;
   min-width: 0;
   padding: 28px 32px 60px;
-  max-width: 1600px;
 }
 
 /* ---------------------------- View head / shared ---------------------------- */
