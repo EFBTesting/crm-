@@ -77,7 +77,7 @@ function renderProjectCalendar(root) {
       <div class="filter-bar">
         <select id="filter-field-select" class="filter-select">${optionList(CALENDAR_FILTER_FIELDS, pendingField, { valueKey: 'key', labelKey: 'label', blank: 'Filter by team...' })}</select>
         <select id="filter-value-select" class="filter-select" ${pendingField ? '' : 'disabled'}>${optionList(fieldValueOptions(pendingField, allProjects), '', { blank: 'Any name' })}</select>
-        <button type="button" class="btn btn--ghost btn--sm" id="add-filter-btn" ${pendingField ? '' : 'disabled'}>+ Add filter</button>
+        <button type="button" class="btn btn--ghost btn--sm" id="add-filter-btn" ${pendingField ? '' : 'disabled'}>Search filter</button>
         ${hasFilters ? `<button type="button" class="link-btn-inline" id="clear-filters-btn">Clear all</button>` : ''}
       </div>
       ${hasFilters ? `
