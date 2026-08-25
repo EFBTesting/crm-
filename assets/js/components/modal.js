@@ -314,6 +314,9 @@ function openLeadForm(existing = null, defaults = {}, onSaved = null) {
         <label class="field"><span>Projected start</span>
           <input type="date" name="projectedStartDate">
         </label>
+        <label class="field"><span>Target completion</span>
+          <input type="date" name="targetCompletionDate">
+        </label>
         ` : `
         <label class="field"><span>Stage</span>
           <select name="stage">${optionList(STAGES, existing?.stage ?? defaults.stage ?? STAGES[0].id, { valueKey: 'id', labelKey: 'label', blank: null })}</select>
@@ -441,7 +444,7 @@ function openLeadForm(existing = null, defaults = {}, onSaved = null) {
       if (!asProject) data.stage = fd.get('stage');
       let saved;
       if (existing) saved = await Leads.update(existing.id, data);
-      else if (asProject) saved = await Leads.createProject({ ...data, projectStage: fd.get('projectStage'), projectedStartDate: fd.get('projectedStartDate') || null });
+      else if (asProject) saved = await Leads.createProject({ ...data, projectStage: fd.get('projectStage'), projectedStartDate: fd.get('projectedStartDate') || null, targetCompletionDate: fd.get('targetCompletionDate') || null });
       else saved = await Leads.create(data);
       Modal.close();
       toast(existing ? 'Lead updated' : (asProject ? 'Project created' : 'Lead created'));
@@ -534,6 +537,9 @@ function openPreconMetaForm(lead, onSaved) {
         <label class="field"><span>Projected start</span>
           <input type="date" name="projectedStartDate" value="${esc(lead.projectedStartDate || '')}">
         </label>
+        <label class="field"><span>Target completion</span>
+          <input type="date" name="targetCompletionDate" value="${esc(lead.targetCompletionDate || '')}">
+        </label>
         <label class="field"><span>Record status</span>
           <select name="preconStatus">${optionList(PRECON_RECORD_STATUS_OPTIONS, lead.preconStatus || 'active', { valueKey: 'id', labelKey: 'label', blank: null })}</select>
         </label>
@@ -552,6 +558,7 @@ function openPreconMetaForm(lead, onSaved) {
     onSubmit: async fd => {
       const saved = await Leads.updatePreconMeta(lead.id, {
         projectedStartDate: fd.get('projectedStartDate') || null,
+        targetCompletionDate: fd.get('targetCompletionDate') || null,
         preconStatus: fd.get('preconStatus'),
         preconNotes: fd.get('preconNotes'),
       });

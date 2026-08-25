@@ -237,7 +237,7 @@ function leadFromRow(r) {
     projectType: r.project_type || '', source: r.source || '', notes: r.notes || '', lostReason: r.lost_reason || '',
     history: r.history || [], projectStage: r.project_stage || null,
     projectStatus: r.project_status || null, permitTownship: r.permit_township || '', permits: r.permits || [],
-    projectedStartDate: r.projected_start_date || '', preconStatus: r.precon_status || 'active',
+    projectedStartDate: r.projected_start_date || '', targetCompletionDate: r.target_completion_date || '', preconStatus: r.precon_status || 'active',
     preconSteps: r.precon_steps || [], preconNotes: r.precon_notes || '',
     wonAt: r.won_at, lostAt: r.lost_at, createdAt: r.created_at, updatedAt: r.updated_at,
   };
@@ -258,6 +258,7 @@ function leadToRow(d) {
   if (d.permitTownship !== undefined) row.permit_township = (d.permitTownship || '').trim();
   if (d.permits !== undefined) row.permits = d.permits;
   if (d.projectedStartDate !== undefined) row.projected_start_date = d.projectedStartDate || null;
+  if (d.targetCompletionDate !== undefined) row.target_completion_date = d.targetCompletionDate || null;
   if (d.preconStatus !== undefined) row.precon_status = d.preconStatus;
   if (d.preconSteps !== undefined) row.precon_steps = d.preconSteps;
   if (d.preconNotes !== undefined) row.precon_notes = (d.preconNotes || '').trim();
@@ -622,21 +623,26 @@ const Leads = {
     const steps = (l.preconSteps || []).filter(s => !(s.phase === phase && s.label === label));
     return this._patch(id, { preconSteps: steps });
   },
-  /** Updates the checklist's projected start date, record status, and/or
-   *  notes together — the "Pre-Con Details" box on the project page. */
-  async updatePreconMeta(id, { projectedStartDate, preconStatus, preconNotes }) {
+  /** Updates the checklist's projected start / target completion dates,
+   *  record status, and/or notes together — the "Pre-Con Details" box on
+   *  the project page. Start and target completion are what draws each
+   *  project's bar on the Project Calendar's Gantt-style timeline. */
+  async updatePreconMeta(id, { projectedStartDate, targetCompletionDate, preconStatus, preconNotes }) {
     const l = this.get(id);
     if (!l) return null;
     const changes = [];
     if (projectedStartDate !== undefined && (projectedStartDate || '') !== (l.projectedStartDate || '')) {
       changes.push(`Projected start set to ${projectedStartDate ? fmtDateOnly(projectedStartDate) : '—'}`);
     }
+    if (targetCompletionDate !== undefined && (targetCompletionDate || '') !== (l.targetCompletionDate || '')) {
+      changes.push(`Target completion set to ${targetCompletionDate ? fmtDateOnly(targetCompletionDate) : '—'}`);
+    }
     if (preconStatus !== undefined && preconStatus !== (l.preconStatus || 'active')) {
       changes.push(`Pre-Con status set to "${preconRecordStatusLabel(preconStatus)}"`);
     }
-    if (!changes.length) return this._patch(id, { projectedStartDate, preconStatus, preconNotes });
+    if (!changes.length) return this._patch(id, { projectedStartDate, targetCompletionDate, preconStatus, preconNotes });
     const history = [...l.history, { at: new Date().toISOString(), event: 'precon_meta_change', detail: changes.join('; ') }];
-    return this._patch(id, { projectedStartDate, preconStatus, preconNotes, history });
+    return this._patch(id, { projectedStartDate, targetCompletionDate, preconStatus, preconNotes, history });
   },
   /** Sets a lead's Active/On Hold status directly — the Pipeline's Status
    *  dropdown. Lost goes through markLost instead (it needs a reason). */

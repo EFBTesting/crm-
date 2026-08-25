@@ -328,35 +328,38 @@ p { margin: 0; }
   font-weight: 600; background: #fff; color: var(--ink-soft); cursor: pointer;
 }
 
-/* ---------------------------- Project Tracking: Calendar view ---------------------------- */
+/* ---------------------------- Project Calendar (Gantt timeline) ---------------------------- */
 
-.calendar { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px; }
-.calendar__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
-.calendar__title { font-size: 1.05rem; font-weight: 800; }
-.calendar__nav { display: flex; gap: 6px; }
-.calendar__grid {
-  display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 1px;
-  background: var(--line); border: 1px solid var(--line); border-radius: 8px; overflow: hidden;
+.gantt-wrap {
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow);
+  overflow: auto; max-height: 76vh;
 }
-.calendar__dow {
-  background: #f2efe8; padding: 6px 8px; font-size: 0.7rem; font-weight: 700;
-  text-transform: uppercase; letter-spacing: 0.03em; color: var(--muted); text-align: center;
+.gantt-table { border-collapse: collapse; }
+.gantt-table th, .gantt-table td { border: 1px solid var(--line); }
+.gantt-table thead th {
+  position: sticky; top: 0; z-index: 2; height: 24px; box-sizing: border-box;
+  font-size: 0.66rem; font-weight: 700; text-align: center; padding: 0 3px; white-space: nowrap; color: var(--ink-soft);
 }
-.calendar__cell { background: #fff; min-height: 96px; padding: 6px; display: flex; flex-direction: column; min-width: 0; }
-.calendar__cell--outside { background: #faf8f4; }
-.calendar__cell.is-today { background: rgba(22,98,50,0.06); }
-.calendar__cell.is-today .calendar__date { color: var(--brand); }
-.calendar__date { font-size: 0.76rem; font-weight: 700; color: var(--ink-soft); margin-bottom: 4px; }
-.calendar__items { display: flex; flex-direction: column; gap: 3px; overflow-y: auto; max-height: 92px; }
-.calendar__chip {
-  border-radius: 5px; padding: 2px 6px; font-size: 0.7rem; font-weight: 600; cursor: pointer;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+.gantt-row--year th { background: #e4edea; top: 0; }
+.gantt-row--month th { background: #eef0e6; top: 24px; }
+.gantt-row--week th { background: #f2efe8; top: 48px; font-size: 0.62rem; color: var(--muted); }
+.gantt-th--name {
+  position: sticky; left: 0; z-index: 4 !important; text-align: left !important; background: #f2efe8 !important;
+  min-width: 200px; padding: 0 10px !important;
 }
-.calendar__chip--green { background: rgba(63,143,95,0.14); color: var(--green); }
-.calendar__chip--red { background: rgba(193,73,59,0.14); color: var(--red); }
-.calendar__chip--stage { background: rgba(224,122,44,0.14); color: var(--amber-dark); }
-.calendar__chip--navy { background: rgba(43,58,85,0.14); color: var(--navy); }
-.calendar__chip--muted { background: #ece9e1; color: var(--ink-soft); }
+.gantt-td--name {
+  position: sticky; left: 0; z-index: 1; background: var(--card); padding: 6px 10px;
+  font-weight: 700; font-size: 0.82rem; cursor: pointer; white-space: nowrap;
+  min-width: 200px; max-width: 240px; overflow: hidden; text-overflow: ellipsis;
+}
+.gantt-td--name:hover { color: var(--brand); text-decoration: underline; }
+.gantt-cell { width: 26px; min-width: 26px; height: 30px; position: relative; padding: 0; }
+.gantt-cell.is-bar { background: var(--green); }
+.gantt-cell.is-current-week { box-shadow: inset 0 0 0 2px var(--amber); }
+.gantt-cell.is-milestone::after {
+  content: '◆'; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  color: #1f2933; font-size: 10px; line-height: 1;
+}
 
 /* ---------------------------- Activity feed ---------------------------- */
 
@@ -507,8 +510,4 @@ body.modal-open { overflow: hidden; }
   .permit-row { flex-wrap: wrap; }
   .permit-row__status { flex: 1 1 auto; }
   .detail-list > div { grid-template-columns: 100px 1fr; }
-  .calendar__cell { min-height: 64px; padding: 4px; }
-  .calendar__dow { font-size: 0.6rem; padding: 4px 2px; }
-  .calendar__date { font-size: 0.68rem; }
-  .calendar__chip { font-size: 0.62rem; padding: 1px 4px; }
 }

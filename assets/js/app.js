@@ -21,6 +21,7 @@
   Router.register('/companies/:id', params => mount(renderCompanyDetail, params));
   Router.register('/pipeline', () => mount(renderPipeline));
   Router.register('/projects', () => mount(renderProjectTracking));
+  Router.register('/calendar', () => mount(renderProjectCalendar));
   Router.register('/leads/:id', params => mount(renderLeadDetail, params));
 
   const navToggle = qs('#nav-toggle');

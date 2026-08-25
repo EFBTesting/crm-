@@ -24,6 +24,13 @@ function fmtDateOnly(dateStr) {
   return fmtDate(`${dateStr}T00:00:00`);
 }
 
+/** Parses a plain "YYYY-MM-DD" date-only value as local midnight — the
+ *  companion to fmtDateOnly/fmtDateKey, for when you need an actual Date
+ *  object (e.g. Gantt-bar math) rather than just a display string. */
+function dateOnlyToDate(dateStr) {
+  return new Date(`${dateStr}T00:00:00`);
+}
+
 /** Formats a Date object as a local "YYYY-MM-DD" key — for comparing
  *  against a stored date-only value (like projectedStartDate) without
  *  the UTC-vs-local shifting that Date#toISOString() would introduce. */
