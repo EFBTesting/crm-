@@ -35,11 +35,11 @@ const LEAD_SOURCES =['Referral', 'Website', 'Google Search', 'Angi / HomeAdvisor
  *  / Designer fields — from the old tracker's staff list. Free-text either
  *  way (a datalist, not a locked dropdown), since the roster changes. */
 const STAFF_NAMES = [
-  'Bradley, Galen', 'Brochu, Alex', 'Dejana, Shelby', 'Diehl, Ron', 'Donchez, Jill', 'Dormann, Steve',
+  'Architect', 'Bradley, Galen', 'Brochu, Alex', 'Dejana, Shelby', 'Diehl, Ron', 'Donchez, Jill', 'Dormann, Steve',
   'Evans, Tyler', 'Fantasia, Dan', 'Fies, Shaun', 'Gehman, Kevin', 'Gehman, Tait', 'Helm, Emily', 'Helm, Sue',
   'Hoeing, Keith', 'Hudson, Alex', 'Jandrew, Brian', 'Kucharczuk, Jared', 'Maguire, Darren', 'Oswald, Stephen',
-  'Ryan, Kelly', 'Scherer, Blake', 'Simkulak, Michele', 'Stahley, Jack', 'Stradling, Steve', 'Toth, Josh',
-  'Zurick, Brandon', 'Swine Design', 'Architect', 'Other',
+  'Ryan, Kelly', 'Scherer, Blake', 'Simkulak, Michele', 'Stahley, Jack', 'Stradling, Steve', 'Swine Design',
+  'Toth, Josh', 'Zurick, Brandon', 'N-A', 'EFB / Swine D.', 'TBD', 'Other',
 ];
 /** Matches the classification scheme from the old Excel tracker's Settings
  *  tab, not room/job type — projects are classified by scale/complexity. */

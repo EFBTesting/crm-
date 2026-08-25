@@ -109,6 +109,23 @@ function capitalizeWords(str) {
 /** Wires an input to auto-capitalize the first letter of each word as the
  *  person types, preserving cursor position (since the transform never
  *  changes the string's length, restoring the same offset is always safe). */
+/** Native <input list> datalist popups only show options that match the
+ *  current text — once a value is picked, re-opening the field filters the
+ *  list down to just that one match instead of showing everyone again.
+ *  Clearing the field on focus (and putting the old value back on blur if
+ *  nothing new was picked) makes the full list show up so a different name
+ *  can be chosen. */
+function bindDatalistReopen(input) {
+  if (!input) return;
+  input.addEventListener('focus', () => {
+    input.dataset.prevValue = input.value;
+    input.value = '';
+  });
+  input.addEventListener('blur', () => {
+    if (!input.value && input.dataset.prevValue) input.value = input.dataset.prevValue;
+    delete input.dataset.prevValue;
+  });
+}
 function bindAutoCapitalize(input) {
   if (!input) return;
   input.addEventListener('input', () => {

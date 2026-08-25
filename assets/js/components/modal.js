@@ -571,6 +571,7 @@ function openPreconMetaForm(lead, onSaved) {
   });
 
   const form = qs('#precon-meta-form');
+  ['assignedTo', 'estimator', 'fieldManager', 'designer'].forEach(name => bindDatalistReopen(qs(`[name="${name}"]`, form)));
   handleAsyncSubmit(form, {
     onSubmit: async fd => {
       const saved = await Leads.updatePreconMeta(lead.id, {
