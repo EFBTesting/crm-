@@ -280,11 +280,13 @@ function renderProjectsTab(root) {
           </table>` : `<p class="empty-inline">Nothing in production right now.</p>`}
       </div>
       <div class="panel">
-        <h3>Project Health</h3>
+        <h3 class="panel-title--lg">Project Health</h3>
+        <div class="kpi-inline-subtitle">Status</div>
         <div class="kpi-inline kpi-inline--wrap mb-md">
           ${a.projectStatusCounts.map(({ opt, count }) => `<div><span class="kpi-inline__num">${count}</span><span class="kpi-inline__label">${esc(opt.label)}</span></div>`).join('')}
         </div>
         <div class="panel-divider"></div>
+        <div class="kpi-inline-subtitle">Record Status</div>
         <div class="kpi-inline kpi-inline--wrap mt-sm">
           ${a.preconRecordCounts.map(({ opt, count }) => `<div><span class="kpi-inline__num">${count}</span><span class="kpi-inline__label">${esc(opt.label)}</span></div>`).join('')}
         </div>

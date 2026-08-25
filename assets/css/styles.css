@@ -167,6 +167,8 @@ p { margin: 0; }
 .kpi-inline__num { display: block; font-size: 1.25rem; font-weight: 800; }
 .kpi-inline__label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
 .panel-divider { border-top: 1px solid var(--line); margin: 4px 0 16px; }
+.panel-title--lg { font-size: 1.15rem; font-weight: 800; }
+.kpi-inline-subtitle { font-size: 0.72rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 8px; }
 
 /* ---------------------------- Charts / panels ---------------------------- */
 
