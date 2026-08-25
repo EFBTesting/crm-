@@ -9,7 +9,7 @@
   --ink: #1f2933;
   --ink-soft: #45505c;
   --muted: #6b7686;
-  --line: #c9c4b7;
+  --line: #aba79c;
   --paper: #faf8f4;
   --card: #ffffff;
   --brand: #166232;
@@ -43,7 +43,7 @@ a { color: var(--brand); text-decoration: none; }
 a:hover { text-decoration: underline; }
 h1, h2, h3 { font-family: inherit; margin: 0; color: var(--ink); }
 h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.01em; }
-h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 12px; }
+h3 { font-size: 1rem; font-weight: 800; margin-bottom: 12px; }
 p { margin: 0; }
 .muted { color: var(--muted); }
 .mt { margin-top: 20px; }

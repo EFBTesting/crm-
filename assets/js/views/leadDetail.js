@@ -58,7 +58,6 @@ function renderLeadDetail(root, { id }) {
           <button class="btn btn--ghost btn--sm" id="reopen-btn">Reopen lead</button>
         </div>
       ` : `
-        <div class="empty-banner empty-banner--success">🎉 Won on ${fmtDate(l.wonAt)}. Contract signed — now tracked as a project.</div>
         <div class="stage-tracker">
           ${PROJECT_STAGES.map((s, i) => `
             <button class="stage-step ${s.id === projectStage ? 'is-current' : ''} ${PROJECT_STAGES.findIndex(x => x.id === projectStage) > i ? 'is-done' : ''}" data-set-project-stage="${s.id}">
@@ -67,14 +66,13 @@ function renderLeadDetail(root, { id }) {
         </div>
         <div class="panel mb-md">
           <div class="panel__head-row">
-            <h3>Permits &amp; Status</h3>
+            <h3>Permits</h3>
             <button type="button" class="btn btn--ghost btn--sm" id="edit-permit-btn">Edit</button>
           </div>
-          <div class="permit-status-box__pills">
-            ${projectStatusPillHtml(l)}
+          <div class="permit-status-box__township">${l.permitTownship ? `Township: ${esc(l.permitTownship)}` : 'No township on file'}</div>
+          <div class="permit-status-box__pills mt-sm">
             ${(l.permits || []).map(p => `<span class="pill pill--${p.status === 'approved' ? 'green' : p.status === 'submitted' ? 'stage' : 'muted'}">${esc(p.type)}: ${permitStatusLabel(p.status)}</span>`).join('') || '<span class="pill pill--muted">No permits logged</span>'}
           </div>
-          <div class="permit-status-box__township mt-sm">${l.permitTownship ? `Township: ${esc(l.permitTownship)}` : 'No township on file'}</div>
         </div>
 
         ${preconSectionHtml(l)}
