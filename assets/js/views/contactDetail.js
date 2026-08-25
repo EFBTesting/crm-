@@ -110,7 +110,7 @@ function renderContactDetail(root, { id }) {
 }
 
 function statusPill(lead) {
-  if (lead.status === 'won') return `<span class="pill pill--green">Won</span>`;
+  if (lead.status === 'won') return '';
   if (lead.status === 'lost') return `<span class="pill pill--red">Lost</span>`;
   if (lead.status === 'on_hold') return `<span class="pill pill--muted">On Hold</span>`;
   return `<span class="pill pill--stage">${esc(stageLabel(lead.stage))}</span>`;
