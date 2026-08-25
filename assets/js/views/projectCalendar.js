@@ -24,11 +24,47 @@ const GANTT_INFO_OFFSETS = (() => {
   return GANTT_INFO_COLS.map(c => { const left = acc; acc += c.width; return left; });
 })();
 
+/** Fields the Team filter can narrow by — a project's own person fields.
+ *  Picking just the field (no name) means "this field is filled in, don't
+ *  care by whom"; picking a name on top of that narrows to that person. */
+const CALENDAR_FILTER_FIELDS = [
+  { key: 'assignedTo', label: 'Assigned To' },
+  { key: 'estimator', label: 'Estimator' },
+  { key: 'fieldManager', label: 'Field Mgr' },
+  { key: 'designer', label: 'Designer' },
+];
+
 function renderProjectCalendar(root) {
+  let activeFilters = {}; // { [fieldKey]: '' (any name) | 'Some, Name' }
+  let pendingField = '';
+
+  function applyFilters(projects) {
+    const entries = Object.entries(activeFilters);
+    if (!entries.length) return projects;
+    return projects.filter(l => entries.every(([field, value]) => {
+      const val = l[field];
+      if (!val) return false;
+      return value ? val === value : true;
+    }));
+  }
+
+  function fieldValueOptions(field, projects) {
+    if (!field) return [];
+    const set = new Set();
+    projects.forEach(l => { if (l[field]) set.add(l[field]); });
+    return [...set].sort((a, b) => a.localeCompare(b));
+  }
+
+  function fieldLabel(key) {
+    return (CALENDAR_FILTER_FIELDS.find(f => f.key === key) || {}).label || key;
+  }
+
   function draw() {
-    const projects = Leads.projects().filter(l => (l.preconStatus || 'active') === 'active');
+    const allProjects = Leads.projects().filter(l => (l.preconStatus || 'active') === 'active');
+    const projects = applyFilters(allProjects);
     const plottable = projects.filter(l => l.projectedStartDate || l.targetCompletionDate);
     const unscheduled = projects.filter(l => !l.projectedStartDate && !l.targetCompletionDate);
+    const hasFilters = Object.keys(activeFilters).length > 0;
 
     root.innerHTML = `
       <div class="view-head">
@@ -38,9 +74,27 @@ function renderProjectCalendar(root) {
         </div>
       </div>
 
+      <div class="filter-bar">
+        <select id="filter-field-select" class="filter-select">${optionList(CALENDAR_FILTER_FIELDS, pendingField, { valueKey: 'key', labelKey: 'label', blank: 'Filter by team...' })}</select>
+        <select id="filter-value-select" class="filter-select" ${pendingField ? '' : 'disabled'}>${optionList(fieldValueOptions(pendingField, allProjects), '', { blank: 'Any name' })}</select>
+        <button type="button" class="btn btn--ghost btn--sm" id="add-filter-btn" ${pendingField ? '' : 'disabled'}>+ Add filter</button>
+        ${hasFilters ? `<button type="button" class="link-btn-inline" id="clear-filters-btn">Clear all</button>` : ''}
+      </div>
+      ${hasFilters ? `
+        <div class="filter-chips mb-md">
+          ${Object.entries(activeFilters).map(([field, value]) => `
+            <span class="filter-chip">${esc(fieldLabel(field))}${value ? `: ${esc(value)}` : ''}
+              <button type="button" class="filter-chip__remove" data-remove-filter="${esc(field)}" title="Remove filter">✕</button>
+            </span>`).join('')}
+        </div>` : ''}
+
       ${!plottable.length ? `
         <div class="empty-banner">
-          <strong>Nothing to plot yet.</strong> Add a Projected Start or Target Completion date to a project (from its Pre-Construction Details on the project page) and it'll show up here.
+          ${hasFilters && !projects.length ? `
+            <strong>No projects match these filters.</strong> Try removing one above.
+          ` : `
+            <strong>Nothing to plot yet.</strong> Add a Projected Start or Target Completion date to a project (from its Pre-Construction Details on the project page) and it'll show up here.
+          `}
         </div>` : ganttHtml(plottable)}
 
       ${unscheduled.length ? `
@@ -137,6 +191,26 @@ function renderProjectCalendar(root) {
 
   function wire() {
     qsa('[data-nav]', root).forEach(node => node.addEventListener('click', e => { e.stopPropagation(); Router.navigate(node.dataset.nav); }));
+
+    const fieldSelect = qs('#filter-field-select', root);
+    if (fieldSelect) fieldSelect.addEventListener('change', e => { pendingField = e.target.value; draw(); });
+
+    const addBtn = qs('#add-filter-btn', root);
+    if (addBtn) addBtn.addEventListener('click', () => {
+      if (!pendingField) return;
+      const valueSelect = qs('#filter-value-select', root);
+      activeFilters[pendingField] = valueSelect ? valueSelect.value : '';
+      pendingField = '';
+      draw();
+    });
+
+    const clearBtn = qs('#clear-filters-btn', root);
+    if (clearBtn) clearBtn.addEventListener('click', () => { activeFilters = {}; pendingField = ''; draw(); });
+
+    qsa('[data-remove-filter]', root).forEach(btn => btn.addEventListener('click', () => {
+      delete activeFilters[btn.dataset.removeFilter];
+      draw();
+    }));
   }
 
   draw();
