@@ -20,6 +20,7 @@ function renderLeadDetail(root, { id }) {
     const history = [...l.history].sort((a, b) => new Date(b.at) - new Date(a.at));
 
     const projectStage = l.projectStage || PROJECT_STAGES[0].id;
+    const showContacted = l.status !== 'won'; // once won it's a Project (Project Tracking/Calendar), not a lead being worked
     const contacted = contactedProgress(l);
 
     root.innerHTML = `
@@ -28,7 +29,7 @@ function renderLeadDetail(root, { id }) {
       <div class="profile-head">
         <div class="profile-head__info">
           <div class="lead-status-row">${statusPill(l)}</div>
-          <h1>${esc(l.title)}${contacted.overdueCount ? `<span class="overdue-badge" title="${contacted.overdueCount} follow-up${contacted.overdueCount > 1 ? 's' : ''} overdue — see Contacted below">!</span>` : ''}</h1>
+          <h1>${esc(l.title)}${showContacted && contacted.overdueCount ? `<span class="overdue-badge" title="${contacted.overdueCount} follow-up${contacted.overdueCount > 1 ? 's' : ''} overdue — see Contacted below">!</span>` : ''}</h1>
           <p class="view-sub">${fmtMoney(l.value)} budget${l.projectType ? ` · ${esc(l.projectType)}` : ''}${revenue !== null ? ` · ${fmtMoney(revenue)} est. revenue` : ''}</p>
         </div>
         <div class="view-head__actions">
@@ -73,7 +74,7 @@ function renderLeadDetail(root, { id }) {
         ${preconSectionHtml(l)}
       `}
 
-      ${contactedSectionHtml(contacted)}
+      ${showContacted ? contactedSectionHtml(contacted) : ''}
 
       <div class="detail-grid">
         <div class="panel">
