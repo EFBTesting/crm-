@@ -343,13 +343,10 @@ p { margin: 0; }
 .gantt-row--year th { background: #e4edea; top: 0; }
 .gantt-row--month th { background: #eef0e6; top: 24px; }
 .gantt-row--week th { background: #f2efe8; top: 48px; font-size: 0.62rem; color: var(--muted); }
-.gantt-th--name {
-  position: sticky; left: 0; z-index: 4 !important; text-align: left !important; background: #f2efe8 !important;
-  padding: 0 10px !important;
-}
 .gantt-th-info {
   position: sticky; z-index: 3 !important; text-align: left !important; background: #f2efe8 !important;
-  padding: 0 8px !important;
+  padding: 0 8px !important; height: auto !important; vertical-align: middle;
+  font-size: 0.74rem !important; font-weight: 800 !important; color: var(--ink) !important;
 }
 .gantt-td-info {
   position: sticky; z-index: 1; background: var(--card); padding: 6px 8px;

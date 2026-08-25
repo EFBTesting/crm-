@@ -89,15 +89,13 @@ function renderProjectCalendar(root) {
         <table class="gantt-table">
           <thead>
             <tr class="gantt-row--year">
-              <th class="gantt-th--name" colspan="${GANTT_INFO_COLS.length}"></th>
+              ${GANTT_INFO_COLS.map((c, i) => `<th class="gantt-th-info${i === GANTT_INFO_COLS.length - 1 ? ' gantt-info--divider' : ''}" rowspan="3" style="left:${GANTT_INFO_OFFSETS[i]}px; min-width:${c.width}px; max-width:${c.width}px;">${esc(c.label)}</th>`).join('')}
               ${yearGroups.map(g => `<th colspan="${g.count}">${g.key}</th>`).join('')}
             </tr>
             <tr class="gantt-row--month">
-              <th class="gantt-th--name" colspan="${GANTT_INFO_COLS.length}"></th>
               ${monthGroups.map(g => `<th colspan="${g.count}">${monthShortLabel(g.key)}</th>`).join('')}
             </tr>
             <tr class="gantt-row--week">
-              ${GANTT_INFO_COLS.map((c, i) => `<th class="gantt-th-info${i === GANTT_INFO_COLS.length - 1 ? ' gantt-info--divider' : ''}" style="left:${GANTT_INFO_OFFSETS[i]}px; min-width:${c.width}px; max-width:${c.width}px;">${esc(c.label)}</th>`).join('')}
               ${weeks.map(w => `<th>${w.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</th>`).join('')}
             </tr>
           </thead>
