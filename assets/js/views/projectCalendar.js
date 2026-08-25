@@ -98,8 +98,8 @@ function renderProjectCalendar(root) {
               ${monthGroups.map(g => `<th colspan="${g.count}">${monthShortLabel(g.key)}</th>`).join('')}
             </tr>
             <tr class="gantt-row--week">
-              ${GANTT_INFO_COLS.map((c, i) => `<th class="gantt-th-info" style="left:${GANTT_INFO_OFFSETS[i]}px; min-width:${c.width}px; max-width:${c.width}px;">${esc(c.label)}</th>`).join('')}
-              ${weeks.map(w => `<th>${w.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</th>`).join('')}
+              ${GANTT_INFO_COLS.map((c, i) => `<th class="gantt-th-info${i === GANTT_INFO_COLS.length - 1 ? ' gantt-info--divider' : ''}" style="left:${GANTT_INFO_OFFSETS[i]}px; min-width:${c.width}px; max-width:${c.width}px;">${esc(c.label)}</th>`).join('')}
+              ${weeks.map(w => `<th class="${fmtDateKey(w) === todayWeekKey ? 'is-current-week' : ''}" title="${fmtDateKey(w) === todayWeekKey ? 'This week' : ''}">${w.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</th>`).join('')}
             </tr>
           </thead>
           <tbody>
@@ -114,7 +114,8 @@ function renderProjectCalendar(root) {
     const end = l.targetCompletionDate ? dateOnlyToDate(l.targetCompletionDate) : null;
     const infoCells = GANTT_INFO_COLS.map((c, i) => {
       const val = c.key === 'title' ? l.title : (c.isDate ? fmtDateOnly(l[c.key]) : (l[c.key] || '—'));
-      const nameAttrs = c.key === 'title' ? ' data-nav="' + `/leads/${l.id}` + '" class="gantt-td-info gantt-td--name row-link"' : ' class="gantt-td-info"';
+      const dividerClass = i === GANTT_INFO_COLS.length - 1 ? ' gantt-info--divider' : '';
+      const nameAttrs = c.key === 'title' ? ' data-nav="' + `/leads/${l.id}` + '" class="gantt-td-info gantt-td--name row-link"' : ` class="gantt-td-info${dividerClass}"`;
       return `<td${nameAttrs} style="left:${GANTT_INFO_OFFSETS[i]}px; min-width:${c.width}px; max-width:${c.width}px;" title="${esc(val)}">${esc(val)}</td>`;
     }).join('');
     return `
@@ -132,7 +133,7 @@ function renderProjectCalendar(root) {
             isMilestone = end >= week && end <= weekEnd;
           }
           const isCurrent = fmtDateKey(week) === todayWeekKey;
-          const label = `${l.title} — week of ${week.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+          const label = `${l.title} — week of ${week.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}${isCurrent ? ' (this week)' : ''}`;
           return `<td class="gantt-cell ${inBar ? 'is-bar' : ''} ${isMilestone ? 'is-milestone' : ''} ${isCurrent ? 'is-current-week' : ''}" title="${esc(label)}"></td>`;
         }).join('')}
       </tr>`;
