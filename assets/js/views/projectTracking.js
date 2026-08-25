@@ -67,7 +67,6 @@ function renderProjectTracking(root) {
           <button class="btn btn--ghost" id="toggle-lost-btn">${showLost ? 'Hide' : 'Show'} lost (${lostProjects.length})</button>
           <button class="btn btn--ghost" id="toggle-onhold-btn">${showOnHold ? 'Hide' : 'Show'} on hold (${onHoldProjects.length})</button>
           <button class="btn btn--ghost" id="toggle-completed-btn">${showCompleted ? 'Hide' : 'Show'} completed (${completedProjects.length})</button>
-          <a class="btn btn--ghost" href="#/pipeline">View Lead Pipeline</a>
           <button class="btn btn--primary" id="new-project-btn">+ New Project</button>
         </div>
       </div>
