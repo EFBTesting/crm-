@@ -13,6 +13,8 @@
    production Stage). Active is the only Record Status that stays here.
    ========================================================================== */
 
+let projectTrackingView = 'list';
+
 function renderProjectTracking(root) {
   let showLost = false;
   let showOnHold = false;
@@ -20,6 +22,9 @@ function renderProjectTracking(root) {
   let query = '';
   let filterProjectType = '';
   let filterStatus = '';
+  const today = new Date();
+  let calYear = today.getFullYear();
+  let calMonth = today.getMonth();
 
   function matchesFilters(l) {
     if (filterProjectType && l.projectType !== filterProjectType) return false;
@@ -55,6 +60,10 @@ function renderProjectTracking(root) {
           <p class="view-sub">${projects.length} project${projects.length === 1 ? '' : 's'}${hasFilters ? ` matching (of ${inProduction.length})` : ' in production'} · ${fmtMoney(totalValue)} total</p>
         </div>
         <div class="view-head__actions">
+          <div class="view-tabs" id="pt-view-tabs">
+            <button class="view-tabs__btn ${projectTrackingView === 'list' ? 'is-active' : ''}" data-pt-view="list">List</button>
+            <button class="view-tabs__btn ${projectTrackingView === 'calendar' ? 'is-active' : ''}" data-pt-view="calendar">Calendar</button>
+          </div>
           <button class="btn btn--ghost" id="toggle-lost-btn">${showLost ? 'Hide' : 'Show'} lost (${lostProjects.length})</button>
           <button class="btn btn--ghost" id="toggle-onhold-btn">${showOnHold ? 'Hide' : 'Show'} on hold (${onHoldProjects.length})</button>
           <button class="btn btn--ghost" id="toggle-completed-btn">${showCompleted ? 'Hide' : 'Show'} completed (${completedProjects.length})</button>
@@ -75,7 +84,7 @@ function renderProjectTracking(root) {
         </div>`}
 
       <div class="project-tracking-layout">
-        ${listHtml(projects, hasFilters)}
+        ${projectTrackingView === 'calendar' ? calendarHtml(projects) : listHtml(projects, hasFilters)}
       </div>
 
       ${showLost ? sideListHtml({
@@ -119,6 +128,70 @@ function renderProjectTracking(root) {
             </tbody>
           </table>` : `<p class="empty-inline">${esc(emptyText)}</p>`}
       </div>`;
+  }
+
+  /** Calendar view — one cell per day, projects plotted on their
+   *  Projected Start date. Anything without one is listed separately
+   *  below rather than silently dropped. */
+  function calendarHtml(projects) {
+    const monthLabel = new Date(calYear, calMonth, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    const byDay = new Map();
+    const unscheduled = [];
+    projects.forEach(l => {
+      if (!l.projectedStartDate) { unscheduled.push(l); return; }
+      if (!byDay.has(l.projectedStartDate)) byDay.set(l.projectedStartDate, []);
+      byDay.get(l.projectedStartDate).push(l);
+    });
+
+    const startWeekday = new Date(calYear, calMonth, 1).getDay();
+    const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+    const todayKey = fmtDateKey(new Date());
+
+    const cells = [];
+    for (let i = 0; i < startWeekday; i++) cells.push(null);
+    for (let d = 1; d <= daysInMonth; d++) {
+      const key = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      cells.push({ day: d, key, isToday: key === todayKey, items: byDay.get(key) || [] });
+    }
+    while (cells.length % 7 !== 0) cells.push(null);
+
+    const dow = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+    return `
+      <div class="calendar">
+        <div class="calendar__head">
+          <div class="calendar__title">${monthLabel}</div>
+          <div class="calendar__nav">
+            <button type="button" class="btn btn--ghost btn--sm" id="cal-prev">‹</button>
+            <button type="button" class="btn btn--ghost btn--sm" id="cal-today">Today</button>
+            <button type="button" class="btn btn--ghost btn--sm" id="cal-next">›</button>
+          </div>
+        </div>
+        <div class="calendar__grid">
+          ${dow.map(d => `<div class="calendar__dow">${d}</div>`).join('')}
+          ${cells.map(cell => !cell ? `<div class="calendar__cell calendar__cell--outside"></div>` : `
+            <div class="calendar__cell ${cell.isToday ? 'is-today' : ''}">
+              <div class="calendar__date">${cell.day}</div>
+              <div class="calendar__items">
+                ${cell.items.map(l => {
+                  const tone = PROJECT_STATUS_TONES[l.projectStatus || 'on_track'] || 'muted';
+                  return `<div class="calendar__chip calendar__chip--${tone} row-link" data-nav="/leads/${l.id}" title="${esc(l.title)}">${esc(l.title)}</div>`;
+                }).join('')}
+              </div>
+            </div>`).join('')}
+        </div>
+      </div>
+      ${unscheduled.length ? `
+        <div class="panel mt-lg">
+          <h3>No projected start date (${unscheduled.length})</h3>
+          <ul class="side-panel-list">
+            ${unscheduled.map(l => `
+              <li class="row-link" data-nav="/leads/${l.id}">
+                <div class="cell-title">${esc(l.title)}</div>
+                <div class="cell-sub">${fmtMoney(l.value)}</div>
+              </li>`).join('')}
+          </ul>
+        </div>` : ''}`;
   }
 
   function listHtml(projects, hasFilters) {
@@ -196,6 +269,24 @@ function renderProjectTracking(root) {
     qs('#toggle-lost-btn', root).addEventListener('click', () => { showLost = !showLost; draw(); });
     qs('#toggle-onhold-btn', root).addEventListener('click', () => { showOnHold = !showOnHold; draw(); });
     qs('#toggle-completed-btn', root).addEventListener('click', () => { showCompleted = !showCompleted; draw(); });
+    qsa('[data-pt-view]', root).forEach(btn => btn.addEventListener('click', () => { projectTrackingView = btn.dataset.ptView; draw(); }));
+
+    const calPrev = qs('#cal-prev', root);
+    if (calPrev) calPrev.addEventListener('click', () => {
+      calMonth--; if (calMonth < 0) { calMonth = 11; calYear--; }
+      draw();
+    });
+    const calNext = qs('#cal-next', root);
+    if (calNext) calNext.addEventListener('click', () => {
+      calMonth++; if (calMonth > 11) { calMonth = 0; calYear++; }
+      draw();
+    });
+    const calToday = qs('#cal-today', root);
+    if (calToday) calToday.addEventListener('click', () => {
+      const now = new Date();
+      calYear = now.getFullYear(); calMonth = now.getMonth();
+      draw();
+    });
 
     const searchInput = qs('#project-search', root);
     if (searchInput) {

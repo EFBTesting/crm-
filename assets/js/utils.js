@@ -24,6 +24,16 @@ function fmtDateOnly(dateStr) {
   return fmtDate(`${dateStr}T00:00:00`);
 }
 
+/** Formats a Date object as a local "YYYY-MM-DD" key — for comparing
+ *  against a stored date-only value (like projectedStartDate) without
+ *  the UTC-vs-local shifting that Date#toISOString() would introduce. */
+function fmtDateKey(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 function fmtDateTime(iso) {
   if (!iso) return '—';
   const d = new Date(iso);
