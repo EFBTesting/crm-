@@ -46,6 +46,13 @@ function renderLeadDetail(root, { id }) {
         <div class="view-head__actions mb-md">
           <button class="btn btn--danger" id="lost-btn">✕ Mark Lost</button>
         </div>
+      ` : l.status === 'on_hold' ? `
+        <div class="empty-banner">This lead is on hold.
+          <button class="btn btn--ghost btn--sm" id="reactivate-btn">Reactivate</button>
+        </div>
+        <div class="view-head__actions mb-md">
+          <button class="btn btn--danger" id="lost-btn">✕ Mark Lost</button>
+        </div>
       ` : l.status === 'lost' ? `
         <div class="empty-banner empty-banner--danger">Marked lost: <strong>${esc(l.lostReason || 'Other')}</strong> on ${fmtDate(l.lostAt)}.
           <button class="btn btn--ghost btn--sm" id="reopen-btn">Reopen lead</button>
@@ -133,6 +140,13 @@ function renderLeadDetail(root, { id }) {
         }
         catch (err) { toast(err.message || 'Could not update the lead', 'warn'); }
       }));
+    }
+    if (l.status === 'on_hold') {
+      qs('#lost-btn', root).addEventListener('click', () => openLostReasonPrompt(l, () => draw()));
+      qs('#reactivate-btn', root).addEventListener('click', async () => {
+        try { await Leads.setStatus(l.id, 'active'); toast('Lead reactivated'); draw(); }
+        catch (err) { toast(err.message || 'Could not update the lead', 'warn'); }
+      });
     }
     if (l.status === 'lost') {
       qs('#reopen-btn', root).addEventListener('click', async () => {

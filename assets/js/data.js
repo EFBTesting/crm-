@@ -18,7 +18,19 @@ const STAGES = [
   { id: 'design_contract_signed', label: 'Design Contract Signed', description: 'Design contract signed — automatically becomes an active project.' },
 ];
 
-const LEAD_SOURCES = ['Referral', 'Website', 'Google Search', 'Angi / HomeAdvisor', 'Facebook / Instagram', 'Repeat Client', 'Signage / Drive-by', 'Trade Show', 'Other'];
+/** A lead's overall status, independent of what Stage it's sitting in.
+ *  Only Active leads show on the main Pipeline table — On Hold and Lost
+ *  both move out into the Pipeline's own "inactive" list. Winning (Design
+ *  Contract Signed) is a Stage event, not a Status option here. */
+const LEAD_STATUS_OPTIONS = [
+  { id: 'active', label: 'Active' }, { id: 'on_hold', label: 'On Hold' }, { id: 'lost', label: 'Lost' },
+];
+function leadStatusLabel(id) {
+  const s = LEAD_STATUS_OPTIONS.find(s => s.id === id);
+  return s ? s.label : 'Active';
+}
+
+const LEAD_SOURCES =['Referral', 'Website', 'Google Search', 'Angi / HomeAdvisor', 'Facebook / Instagram', 'Repeat Client', 'Signage / Drive-by', 'Trade Show', 'Other'];
 /** Matches the classification scheme from the old Excel tracker's Settings
  *  tab, not room/job type — projects are classified by scale/complexity. */
 const PROJECT_TYPES = [
@@ -380,7 +392,8 @@ const Contacts = {
   },
   /** A contact's overall status, derived live from their linked leads —
    *  never stored, so it's always correct the moment a lead changes:
-   *  - 'open' if any linked lead is currently active
+   *  - 'open' if any linked lead is currently active or on hold — neither
+   *    is a closed outcome, just active vs. paused
    *  - otherwise 'previous' (their most recently updated lead's outcome,
    *    won or lost) — once a lead is reopened it becomes active again,
    *    which flips this straight back to 'open'
@@ -388,8 +401,8 @@ const Contacts = {
   statusFor(contactId) {
     const leads = this.leadsFor(contactId);
     if (!leads.length) return { kind: 'none' };
-    const active = leads.filter(l => l.status === 'active');
-    if (active.length) return { kind: 'open', count: active.length };
+    const open = leads.filter(l => l.status === 'active' || l.status === 'on_hold');
+    if (open.length) return { kind: 'open', count: open.length };
     const mostRecent = [...leads].sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))[0];
     return { kind: 'previous', outcome: mostRecent.status };
   },
@@ -625,24 +638,47 @@ const Leads = {
     const history = [...l.history, { at: new Date().toISOString(), event: 'precon_meta_change', detail: changes.join('; ') }];
     return this._patch(id, { projectedStartDate, preconStatus, preconNotes, history });
   },
+  /** Sets a lead's Active/On Hold status directly — the Pipeline's Status
+   *  dropdown. Lost goes through markLost instead (it needs a reason). */
+  async setStatus(id, status) {
+    const l = this.get(id);
+    if (!l) return null;
+    const history = [...l.history, { at: new Date().toISOString(), event: 'status_change', detail: `Status set to "${leadStatusLabel(status)}"` }];
+    return this._patch(id, { status, history });
+  },
   async markLost(id, reason) {
     const l = this.get(id);
     if (!l) return null;
     const now = new Date().toISOString();
     const lostReason = reason || 'Other';
     const history = [...l.history, { at: now, event: 'lost', detail: `Marked as Lost (${lostReason})` }];
-    return this._patch(id, { status: 'lost', lostReason, lostAt: now, history });
+    const patch = { status: 'lost', lostReason, lostAt: now, history };
+    // Keep a project's Record Status in sync — it's now the same "lost"
+    // app-wide, just reached from either page.
+    if (l.wonAt) patch.preconStatus = 'lost';
+    return this._patch(id, patch);
   },
-  /** Reopens a lost lead OR a lost project. A project that gets marked lost
-   *  still has wonAt set (never cleared), so that's what tells reopen()
-   *  which state to restore it to — back into the Pipeline (never won) or
-   *  back onto Project Tracking (won, then lost). */
+  /** Reopens a lost/on-hold lead OR a lost project. A project that gets
+   *  marked lost still has wonAt set (never cleared), so that's what tells
+   *  reopen() which state to restore it to — back into the Pipeline (never
+   *  won) or back onto Project Tracking (won, then lost). */
   async reopen(id) {
     const l = this.get(id);
     if (!l) return null;
     const restoredStatus = l.wonAt ? 'won' : 'active';
     const history = [...l.history, { at: new Date().toISOString(), event: 'reopened', detail: restoredStatus === 'won' ? 'Project reopened' : 'Lead reopened' }];
-    return this._patch(id, { status: restoredStatus, lostReason: '', history });
+    const patch = { status: restoredStatus, lostReason: '', history };
+    if (l.wonAt) patch.preconStatus = 'active';
+    return this._patch(id, patch);
+  },
+  /** Marks a project's Record Status Complete — also closes out its
+   *  production stage, since "the record is done" and "the build is done"
+   *  should agree once someone's explicitly archiving it. */
+  async markProjectComplete(id) {
+    const l = this.get(id);
+    if (!l) return null;
+    const history = [...l.history, { at: new Date().toISOString(), event: 'precon_meta_change', detail: 'Record status set to "Complete"' }];
+    return this._patch(id, { preconStatus: 'complete', projectStage: 'completed', history });
   },
   async addNote(id, note) {
     const l = this.get(id);

@@ -16,6 +16,7 @@ function renderContactDetail(root, { id }) {
     const company = Companies.get(c.companyId);
     const leads = Contacts.leadsFor(c.id).sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
     const activeLeads = leads.filter(l => l.status === 'active');
+    const onHoldLeads = leads.filter(l => l.status === 'on_hold');
     const wonLeads = leads.filter(l => l.status === 'won');
     const lostLeads = leads.filter(l => l.status === 'lost');
     const totalWonValue = wonLeads.reduce((s, l) => s + (Number(l.value) || 0), 0);
@@ -57,6 +58,7 @@ function renderContactDetail(root, { id }) {
           <div class="kpi-inline kpi-inline--wrap">
             <div><span class="kpi-inline__num">${leads.length}</span><span class="kpi-inline__label">Total Projects</span></div>
             <div><span class="kpi-inline__num">${activeLeads.length}</span><span class="kpi-inline__label">Active</span></div>
+            <div><span class="kpi-inline__num">${onHoldLeads.length}</span><span class="kpi-inline__label">On Hold</span></div>
             <div><span class="kpi-inline__num">${wonLeads.length}</span><span class="kpi-inline__label">Won</span></div>
             <div><span class="kpi-inline__num">${lostLeads.length}</span><span class="kpi-inline__label">Lost</span></div>
             <div><span class="kpi-inline__num">${fmtMoney(totalWonValue)}</span><span class="kpi-inline__label">Total Won $</span></div>
@@ -110,6 +112,7 @@ function renderContactDetail(root, { id }) {
 function statusPill(lead) {
   if (lead.status === 'won') return `<span class="pill pill--green">Won</span>`;
   if (lead.status === 'lost') return `<span class="pill pill--red">Lost</span>`;
+  if (lead.status === 'on_hold') return `<span class="pill pill--muted">On Hold</span>`;
   return `<span class="pill pill--stage">${esc(stageLabel(lead.stage))}</span>`;
 }
 

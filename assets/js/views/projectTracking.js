@@ -6,10 +6,17 @@
    Design and move down via the Stage dropdown — stays readable no
    matter how many projects pile up, nothing to scroll past, nothing
    that grows taller than its neighbors.
+
+   Record Status is what drives whether a project sits in the main table
+   or one of its three side lists: Lost (fully marked lost, app-wide),
+   On Hold (paused), or Completed (archived — also closes out its
+   production Stage). Active is the only Record Status that stays here.
    ========================================================================== */
 
 function renderProjectTracking(root) {
   let showLost = false;
+  let showOnHold = false;
+  let showCompleted = false;
   let query = '';
   let filterProjectType = '';
   let filterStatus = '';
@@ -29,22 +36,28 @@ function renderProjectTracking(root) {
 
   function draw() {
     const allProjects = Leads.projects();
-    const projects = allProjects.filter(matchesFilters);
+    const inProduction = allProjects.filter(l => (l.preconStatus || 'active') === 'active');
+    const projects = inProduction.filter(matchesFilters);
     const totalValue = projects.reduce((s, l) => s + (Number(l.value) || 0), 0);
     const hasFilters = query || filterProjectType || filterStatus;
+
     // A project that was won and later fell through — status flips to
-    // 'lost', but wonAt stays set, which is what separates it from a
-    // never-won lead sitting in the Pipeline's own Lost list.
+    // 'lost' app-wide, but wonAt stays set, which is what separates it
+    // from a never-won lead sitting in the Pipeline's own Lost list.
     const lostProjects = Leads.all().filter(l => l.status === 'lost' && l.wonAt).filter(matchesFilters);
+    const onHoldProjects = allProjects.filter(l => l.preconStatus === 'on_hold').filter(matchesFilters);
+    const completedProjects = allProjects.filter(l => l.preconStatus === 'complete').filter(matchesFilters);
 
     root.innerHTML = `
       <div class="view-head">
         <div>
           <h1>Project Tracking</h1>
-          <p class="view-sub">${projects.length} project${projects.length === 1 ? '' : 's'}${hasFilters ? ` matching (of ${allProjects.length})` : ' in production'} · ${fmtMoney(totalValue)} total</p>
+          <p class="view-sub">${projects.length} project${projects.length === 1 ? '' : 's'}${hasFilters ? ` matching (of ${inProduction.length})` : ' in production'} · ${fmtMoney(totalValue)} total</p>
         </div>
         <div class="view-head__actions">
-          <button class="btn btn--ghost" id="toggle-lost-btn">${showLost ? 'Hide' : 'Show'} lost projects (${lostProjects.length})</button>
+          <button class="btn btn--ghost" id="toggle-lost-btn">${showLost ? 'Hide' : 'Show'} lost (${lostProjects.length})</button>
+          <button class="btn btn--ghost" id="toggle-onhold-btn">${showOnHold ? 'Hide' : 'Show'} on hold (${onHoldProjects.length})</button>
+          <button class="btn btn--ghost" id="toggle-completed-btn">${showCompleted ? 'Hide' : 'Show'} completed (${completedProjects.length})</button>
           <a class="btn btn--ghost" href="#/pipeline">View Lead Pipeline</a>
           <button class="btn btn--primary" id="new-project-btn">+ New Project</button>
         </div>
@@ -65,27 +78,47 @@ function renderProjectTracking(root) {
         ${listHtml(projects, hasFilters)}
       </div>
 
-      ${showLost ? `
-        <div class="panel mt-lg">
-          <h3>Lost projects (${lostProjects.length})</h3>
-          ${lostProjects.length ? `
-            <table class="mini-table">
-              <thead><tr><th>Project</th><th>Reason</th><th>Value</th><th>Lost</th><th></th></tr></thead>
-              <tbody>
-                ${lostProjects.map(l => `
-                  <tr>
-                    <td class="row-link" data-nav="/leads/${l.id}">${esc(l.title)}</td>
-                    <td><span class="pill pill--red">${esc(l.lostReason || 'Other')}</span></td>
-                    <td>${fmtMoney(l.value)}</td>
-                    <td class="muted">${timeAgo(l.lostAt)}</td>
-                    <td><button class="btn btn--ghost btn--sm" data-reopen="${l.id}">Reopen</button></td>
-                  </tr>`).join('')}
-              </tbody>
-            </table>` : `<p class="empty-inline">No lost projects. Nice.</p>`}
-        </div>` : ''}
+      ${showLost ? sideListHtml({
+        title: `Lost projects (${lostProjects.length})`, items: lostProjects, emptyText: 'No lost projects. Nice.',
+        statusCol: l => `<span class="pill pill--red">${esc(l.lostReason || 'Other')}</span>`,
+        dateCol: l => timeAgo(l.lostAt), actionAttr: 'data-reopen', actionLabel: 'Reopen',
+      }) : ''}
+      ${showOnHold ? sideListHtml({
+        title: `On hold projects (${onHoldProjects.length})`, items: onHoldProjects, emptyText: 'Nothing on hold.',
+        statusCol: () => `<span class="pill pill--muted">On Hold</span>`,
+        dateCol: l => timeAgo(l.updatedAt), actionAttr: 'data-reactivate', actionLabel: 'Reactivate',
+      }) : ''}
+      ${showCompleted ? sideListHtml({
+        title: `Completed projects (${completedProjects.length})`, items: completedProjects, emptyText: 'Nothing completed yet.',
+        statusCol: () => `<span class="pill pill--green">🏁 Complete</span>`,
+        dateCol: l => timeAgo(l.updatedAt), actionAttr: 'data-reactivate', actionLabel: 'Reactivate',
+      }) : ''}
     `;
 
     wire();
+  }
+
+  /** One of the three side lists (Lost / On Hold / Completed) — same
+   *  mini-table shape, just different status pill / date / reopen action. */
+  function sideListHtml({ title, items, emptyText, statusCol, dateCol, actionAttr, actionLabel }) {
+    return `
+      <div class="panel mt-lg">
+        <h3>${title}</h3>
+        ${items.length ? `
+          <table class="mini-table">
+            <thead><tr><th>Project</th><th>Status</th><th>Value</th><th>Updated</th><th></th></tr></thead>
+            <tbody>
+              ${items.map(l => `
+                <tr>
+                  <td class="row-link" data-nav="/leads/${l.id}">${esc(l.title)}</td>
+                  <td>${statusCol(l)}</td>
+                  <td>${fmtMoney(l.value)}</td>
+                  <td class="muted">${dateCol(l)}</td>
+                  <td><button class="btn btn--ghost btn--sm" ${actionAttr}="${l.id}">${actionLabel}</button></td>
+                </tr>`).join('')}
+            </tbody>
+          </table>` : `<p class="empty-inline">${esc(emptyText)}</p>`}
+      </div>`;
   }
 
   function listHtml(projects, hasFilters) {
@@ -110,7 +143,7 @@ function renderProjectTracking(root) {
           <thead>
             <tr>
               <th>Project</th><th>Stage</th><th>Progress</th><th>Record Status</th><th>Steps</th><th>Current Step</th>
-              <th>Status</th><th>Projected Start</th><th>Days</th><th>Value</th><th></th>
+              <th>Status</th><th>Projected Start</th><th>Days</th><th>Value</th>
             </tr>
           </thead>
           <tbody>
@@ -144,7 +177,7 @@ function renderProjectTracking(root) {
           ` : isCompleted ? `<span class="pill pill--muted">🏁 Done</span>` : `<span class="muted">—</span>`}
         </td>
         <td>
-          ${precon ? `<select class="stage-select" data-precon-status-select="${l.id}">${optionList(PRECON_RECORD_STATUS_OPTIONS, precon.recordStatus, { valueKey: 'id', labelKey: 'label', blank: null })}</select>` : '<span class="muted">—</span>'}
+          <select class="stage-select" data-precon-status-select="${l.id}" data-original="${l.preconStatus || 'active'}">${optionList(PRECON_RECORD_STATUS_OPTIONS, l.preconStatus || 'active', { valueKey: 'id', labelKey: 'label', blank: null })}</select>
         </td>
         <td>${precon ? `<span class="cell-sub">${precon.completed}/${precon.stepsInScope}</span>` : '—'}</td>
         <td class="project-table__step" title="${precon ? esc(precon.currentStep) : ''}">${precon ? esc(precon.currentStep) : '—'}</td>
@@ -154,12 +187,6 @@ function renderProjectTracking(root) {
         <td>${l.projectedStartDate ? fmtDateOnly(l.projectedStartDate) : '—'}</td>
         <td>${precon && precon.daysToStart !== null ? (precon.daysToStart >= 0 ? `${precon.daysToStart}d` : `${Math.abs(precon.daysToStart)}d over`) : '—'}</td>
         <td class="cell-title">${fmtMoney(l.value)}</td>
-        <td class="project-table__actions">
-          ${!isCompleted ? `
-            <button type="button" class="chip-btn chip-btn--won" data-complete="${l.id}" title="Mark completed">✓</button>
-            <button type="button" class="chip-btn chip-btn--lost" data-lost="${l.id}" title="Mark lost">✕</button>
-          ` : ''}
-        </td>
       </tr>`;
   }
 
@@ -167,6 +194,8 @@ function renderProjectTracking(root) {
     qsa('[data-nav]', root).forEach(node => node.addEventListener('click', e => { e.stopPropagation(); Router.navigate(node.dataset.nav); }));
     qs('#new-project-btn', root).addEventListener('click', () => openLeadForm(null, { asProject: true }, () => draw()));
     qs('#toggle-lost-btn', root).addEventListener('click', () => { showLost = !showLost; draw(); });
+    qs('#toggle-onhold-btn', root).addEventListener('click', () => { showOnHold = !showOnHold; draw(); });
+    qs('#toggle-completed-btn', root).addEventListener('click', () => { showCompleted = !showCompleted; draw(); });
 
     const searchInput = qs('#project-search', root);
     if (searchInput) {
@@ -185,19 +214,7 @@ function renderProjectTracking(root) {
     const clearBtn = qs('#clear-filters-btn', root);
     if (clearBtn) clearBtn.addEventListener('click', () => { query = ''; filterProjectType = ''; filterStatus = ''; draw(); });
 
-    qsa('[data-complete]', root).forEach(btn => btn.addEventListener('click', async e => {
-      e.stopPropagation();
-      try {
-        await Leads.moveProjectStage(btn.dataset.complete, 'completed');
-        toast('🏁 Project marked completed');
-        draw();
-      } catch (err) { toast(err.message || 'Could not update the project', 'warn'); }
-    }));
-
-    qsa('[data-lost]', root).forEach(btn => btn.addEventListener('click', e => {
-      e.stopPropagation();
-      openLostReasonPrompt(Leads.get(btn.dataset.lost), () => draw());
-    }));
+    // Lost table's Reopen — full reopen(), restores status='won' too.
     qsa('[data-reopen]', root).forEach(btn => btn.addEventListener('click', async e => {
       e.stopPropagation();
       try {
@@ -206,8 +223,19 @@ function renderProjectTracking(root) {
         draw();
       } catch (err) { toast(err.message || 'Could not update the project', 'warn'); }
     }));
+    // On Hold / Completed tables' Reactivate — the project was never
+    // actually marked lost, so this just resets Record Status to Active.
+    qsa('[data-reactivate]', root).forEach(btn => btn.addEventListener('click', async e => {
+      e.stopPropagation();
+      try {
+        await Leads.updatePreconMeta(btn.dataset.reactivate, { preconStatus: 'active' });
+        toast('Back to active');
+        draw();
+      } catch (err) { toast(err.message || 'Could not update the project', 'warn'); }
+    }));
 
-    // Stage dropdown — how a project moves from column to column now.
+    // Stage dropdown — production phase (Design/Pre-Con/Construction/
+    // Completed). Independent of Record Status below.
     qsa('[data-stage-select]', root).forEach(sel => {
       sel.addEventListener('click', e => e.stopPropagation());
       sel.addEventListener('change', async e => {
@@ -236,18 +264,26 @@ function renderProjectTracking(root) {
       });
     });
 
-    // Record Status dropdown — the checklist's own status (Active / On
-    // hold / Lost / Complete).
+    // Record Status dropdown — the single control for where a project
+    // lives: Active (main table), On Hold / Completed (their own lists,
+    // reactivate to bring back), or Lost (asks why, marks it lost
+    // app-wide). Lost reverts the select until the reason is confirmed,
+    // same as the Lead Pipeline's Status dropdown.
     qsa('[data-precon-status-select]', root).forEach(sel => {
       sel.addEventListener('click', e => e.stopPropagation());
-      sel.addEventListener('change', async e => {
+      sel.addEventListener('change', e => {
         e.stopPropagation();
         const id = sel.dataset.preconStatusSelect;
-        try {
-          await Leads.updatePreconMeta(id, { preconStatus: e.target.value });
-          toast(`Record status set to "${preconRecordStatusLabel(e.target.value)}"`);
-          draw();
-        } catch (err) { toast(err.message || 'Could not update the record status', 'warn'); }
+        const value = e.target.value;
+        if (value === 'lost') {
+          e.target.value = sel.dataset.original;
+          openLostReasonPrompt(Leads.get(id), () => draw());
+          return;
+        }
+        const action = value === 'complete'
+          ? Leads.markProjectComplete(id).then(() => toast('🏁 Project marked complete'))
+          : Leads.updatePreconMeta(id, { preconStatus: value }).then(() => toast(`Record status set to "${preconRecordStatusLabel(value)}"`));
+        action.then(draw).catch(err => toast(err.message || 'Could not update the record status', 'warn'));
       });
     });
   }

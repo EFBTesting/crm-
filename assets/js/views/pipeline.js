@@ -26,9 +26,9 @@ function renderPipeline(root) {
 
   function draw() {
     const active = Leads.active().filter(matchesFilters);
-    // Never-won leads only — a project that was won and later lost shows
-    // up on Project Tracking's own Lost list instead, not here.
-    const lost = Leads.all().filter(l => l.status === 'lost' && !l.wonAt).filter(matchesFilters);
+    // On Hold and never-won Lost leads together — a project that was won
+    // and later lost shows up on Project Tracking's own Lost list instead.
+    const inactive = Leads.all().filter(l => l.status === 'on_hold' || (l.status === 'lost' && !l.wonAt)).filter(matchesFilters);
     const won = Leads.projects().sort((a, b) => new Date(b.wonAt || b.updatedAt) - new Date(a.wonAt || a.updatedAt));
     const totalActiveValue = active.reduce((s, l) => s + (Number(l.value) || 0), 0);
     const hasFilters = query || filterProjectType || filterSource;
@@ -40,7 +40,7 @@ function renderPipeline(root) {
           <p class="view-sub">${active.length} active lead${active.length === 1 ? '' : 's'} · ${fmtMoney(totalActiveValue)} in motion</p>
         </div>
         <div class="view-head__actions">
-          <button class="btn btn--ghost" id="toggle-lost-btn">${showLost ? 'Hide' : 'Show'} lost leads (${lost.length})</button>
+          <button class="btn btn--ghost" id="toggle-lost-btn">${showLost ? 'Hide' : 'Show'} lost / on hold leads (${inactive.length})</button>
           <button class="btn btn--primary" id="new-lead-btn">+ New Lead</button>
         </div>
       </div>
@@ -71,21 +71,21 @@ function renderPipeline(root) {
 
       ${showLost ? `
         <div class="panel mt-lg">
-          <h3>Lost leads (${lost.length})</h3>
-          ${lost.length ? `
+          <h3>Lost / On Hold leads (${inactive.length})</h3>
+          ${inactive.length ? `
             <table class="mini-table">
-              <thead><tr><th>Lead</th><th>Reason</th><th>Value</th><th>Lost</th><th></th></tr></thead>
+              <thead><tr><th>Lead</th><th>Status</th><th>Value</th><th>Updated</th><th></th></tr></thead>
               <tbody>
-                ${lost.map(l => `
+                ${inactive.map(l => `
                   <tr>
                     <td class="row-link" data-nav="/leads/${l.id}">${esc(l.title)}</td>
-                    <td><span class="pill pill--red">${esc(l.lostReason || 'Other')}</span></td>
+                    <td>${l.status === 'lost' ? `<span class="pill pill--red">Lost: ${esc(l.lostReason || 'Other')}</span>` : `<span class="pill pill--muted">On Hold</span>`}</td>
                     <td>${fmtMoney(l.value)}</td>
-                    <td class="muted">${timeAgo(l.lostAt)}</td>
+                    <td class="muted">${timeAgo(l.status === 'lost' ? l.lostAt : l.updatedAt)}</td>
                     <td><button class="btn btn--ghost btn--sm" data-reopen="${l.id}">Reopen</button></td>
                   </tr>`).join('')}
               </tbody>
-            </table>` : `<p class="empty-inline">No lost leads. Nice.</p>`}
+            </table>` : `<p class="empty-inline">Nothing lost or on hold. Nice.</p>`}
         </div>` : ''}
     `;
 
@@ -109,7 +109,7 @@ function renderPipeline(root) {
       <div class="table-wrap">
         <table class="data-table project-table">
           <thead>
-            <tr><th>Lead</th><th>Stage</th><th>Value</th><th>Project Type</th><th>Source</th><th></th></tr>
+            <tr><th>Lead</th><th>Stage</th><th>Status</th><th>Value</th><th>Project Type</th><th>Source</th></tr>
           </thead>
           <tbody>
             ${sorted.map(l => leadRowHtml(l)).join('')}
@@ -131,10 +131,12 @@ function renderPipeline(root) {
         <td>
           <select class="stage-select" data-stage-select="${l.id}">${STAGES.map(s => `<option value="${s.id}" ${s.id === l.stage ? 'selected' : ''}>${esc(s.label)}</option>`).join('')}</select>
         </td>
+        <td>
+          <select class="stage-select" data-lead-status-select="${l.id}" data-original="${l.status || 'active'}">${optionList(LEAD_STATUS_OPTIONS, l.status || 'active', { valueKey: 'id', labelKey: 'label', blank: null })}</select>
+        </td>
         <td class="cell-title">${fmtMoney(l.value)}</td>
         <td>${l.projectType ? esc(l.projectType) : '<span class="muted">—</span>'}</td>
         <td>${l.source ? esc(l.source) : '<span class="muted">—</span>'}</td>
-        <td><button type="button" class="chip-btn chip-btn--lost" data-lost="${l.id}" title="Mark lost">✕</button></td>
       </tr>`;
   }
 
@@ -173,10 +175,27 @@ function renderPipeline(root) {
       });
     });
 
-    qsa('[data-lost]', root).forEach(btn => btn.addEventListener('click', e => {
-      e.stopPropagation();
-      openLostReasonPrompt(Leads.get(btn.dataset.lost), () => draw());
-    }));
+    // Status dropdown — Active stays here; On Hold or Lost moves the lead
+    // into the "Lost / On Hold" list below. Picking Lost still asks why
+    // (same reason prompt as before), so the select is reverted back to
+    // its prior value until that's confirmed.
+    qsa('[data-lead-status-select]', root).forEach(sel => {
+      sel.addEventListener('click', e => e.stopPropagation());
+      sel.addEventListener('change', e => {
+        e.stopPropagation();
+        const id = sel.dataset.leadStatusSelect;
+        const value = e.target.value;
+        if (value === 'lost') {
+          e.target.value = sel.dataset.original;
+          openLostReasonPrompt(Leads.get(id), () => draw());
+          return;
+        }
+        Leads.setStatus(id, value)
+          .then(() => { toast(`Status set to "${leadStatusLabel(value)}"`); draw(); })
+          .catch(err => toast(err.message || 'Could not update the status', 'warn'));
+      });
+    });
+
     qsa('[data-reopen]', root).forEach(btn => btn.addEventListener('click', async e => {
       e.stopPropagation();
       try {

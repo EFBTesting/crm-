@@ -265,12 +265,6 @@ p { margin: 0; }
 .side-panel-list li { cursor: pointer; padding: 8px; border-radius: 8px; }
 .side-panel-list li:hover { background: #f7f5f0; }
 
-.chip-btn { flex: 1; border: 1px solid var(--line); background: #fff; border-radius: 6px; font-size: 0.72rem; padding: 4px 6px; cursor: pointer; font-weight: 700; }
-.chip-btn--won { color: var(--green); }
-.chip-btn--won:hover { background: rgba(63,143,95,0.1); }
-.chip-btn--lost { color: var(--red); }
-.chip-btn--lost:hover { background: rgba(193,73,59,0.1); }
-
 /* ---------------------------- Stage tracker (lead detail) ---------------------------- */
 
 .stage-tracker { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
@@ -331,7 +325,6 @@ p { margin: 0; }
   border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; font-size: 0.78rem;
   font-weight: 600; background: #fff; color: var(--ink-soft); cursor: pointer;
 }
-.project-table__actions { display: flex; gap: 6px; }
 
 /* ---------------------------- Activity feed ---------------------------- */
 
