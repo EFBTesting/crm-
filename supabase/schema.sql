@@ -81,6 +81,10 @@ create table if not exists leads (
   permits jsonb not null default '[]',          -- [{ type: 'Electrical', status: 'submitted' }, ...]
   projected_start_date date,                   -- target construction start (only once won)
   target_completion_date date,                 -- target finish, for the Gantt-style Project Calendar
+  assigned_to text,                            -- who's currently running this project
+  estimator text,
+  field_manager text,
+  designer text,
   precon_status text,                          -- active | on_hold | lost | complete (Pre-Con "Record status")
   precon_steps jsonb not null default '[]',    -- [{ phase: 'lead_up'|'pre_construction', label, status }, ...]
   precon_notes text,                            -- free-text notes on the Pre-Con checklist
@@ -107,6 +111,10 @@ alter table leads add column if not exists permit_township text;
 alter table leads add column if not exists permits jsonb not null default '[]';
 alter table leads add column if not exists projected_start_date date;
 alter table leads add column if not exists target_completion_date date;
+alter table leads add column if not exists assigned_to text;
+alter table leads add column if not exists estimator text;
+alter table leads add column if not exists field_manager text;
+alter table leads add column if not exists designer text;
 alter table leads add column if not exists precon_status text;
 alter table leads add column if not exists precon_steps jsonb not null default '[]';
 alter table leads add column if not exists precon_notes text;

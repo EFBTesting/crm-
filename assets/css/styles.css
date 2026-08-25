@@ -345,13 +345,17 @@ p { margin: 0; }
 .gantt-row--week th { background: #f2efe8; top: 48px; font-size: 0.62rem; color: var(--muted); }
 .gantt-th--name {
   position: sticky; left: 0; z-index: 4 !important; text-align: left !important; background: #f2efe8 !important;
-  min-width: 200px; padding: 0 10px !important;
+  padding: 0 10px !important;
 }
-.gantt-td--name {
-  position: sticky; left: 0; z-index: 1; background: var(--card); padding: 6px 10px;
-  font-weight: 700; font-size: 0.82rem; cursor: pointer; white-space: nowrap;
-  min-width: 200px; max-width: 240px; overflow: hidden; text-overflow: ellipsis;
+.gantt-th-info {
+  position: sticky; z-index: 3 !important; text-align: left !important; background: #f2efe8 !important;
+  padding: 0 8px !important;
 }
+.gantt-td-info {
+  position: sticky; z-index: 1; background: var(--card); padding: 6px 8px;
+  font-size: 0.78rem; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.gantt-td--name { font-weight: 700; font-size: 0.82rem; color: var(--ink); cursor: pointer; }
 .gantt-td--name:hover { color: var(--brand); text-decoration: underline; }
 .gantt-cell { width: 26px; min-width: 26px; height: 30px; position: relative; padding: 0; }
 .gantt-cell.is-bar { background: var(--green); }

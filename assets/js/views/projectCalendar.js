@@ -7,6 +7,21 @@
    separately below instead of silently vanishing from the view.
    ========================================================================== */
 
+/** The sticky "info" columns before the weekly bars — mirrors the old
+ *  tracker's Project / Assigned To / Estimator / Field Mgr / Designer
+ *  columns. Widths are explicit so header and body cells line up. */
+const GANTT_INFO_COLS = [
+  { key: 'title', label: 'Project', width: 190 },
+  { key: 'assignedTo', label: 'Assigned To', width: 110 },
+  { key: 'estimator', label: 'Estimator', width: 100 },
+  { key: 'fieldManager', label: 'Field Mgr', width: 100 },
+  { key: 'designer', label: 'Designer', width: 100 },
+];
+const GANTT_INFO_OFFSETS = (() => {
+  let acc = 0;
+  return GANTT_INFO_COLS.map(c => { const left = acc; acc += c.width; return left; });
+})();
+
 function renderProjectCalendar(root) {
   function draw() {
     const projects = Leads.projects().filter(l => (l.preconStatus || 'active') === 'active');
@@ -73,15 +88,15 @@ function renderProjectCalendar(root) {
         <table class="gantt-table">
           <thead>
             <tr class="gantt-row--year">
-              <th class="gantt-th--name"></th>
+              <th class="gantt-th--name" colspan="${GANTT_INFO_COLS.length}"></th>
               ${yearGroups.map(g => `<th colspan="${g.count}">${g.key}</th>`).join('')}
             </tr>
             <tr class="gantt-row--month">
-              <th class="gantt-th--name"></th>
+              <th class="gantt-th--name" colspan="${GANTT_INFO_COLS.length}"></th>
               ${monthGroups.map(g => `<th colspan="${g.count}">${monthShortLabel(g.key)}</th>`).join('')}
             </tr>
             <tr class="gantt-row--week">
-              <th class="gantt-th--name">Project</th>
+              ${GANTT_INFO_COLS.map((c, i) => `<th class="gantt-th-info" style="left:${GANTT_INFO_OFFSETS[i]}px; min-width:${c.width}px; max-width:${c.width}px;">${esc(c.label)}</th>`).join('')}
               ${weeks.map(w => `<th>${w.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</th>`).join('')}
             </tr>
           </thead>
@@ -95,9 +110,14 @@ function renderProjectCalendar(root) {
   function ganttRowHtml(l, weeks, todayWeekKey) {
     const start = l.projectedStartDate ? dateOnlyToDate(l.projectedStartDate) : null;
     const end = l.targetCompletionDate ? dateOnlyToDate(l.targetCompletionDate) : null;
+    const infoCells = GANTT_INFO_COLS.map((c, i) => {
+      const val = c.key === 'title' ? l.title : (l[c.key] || '—');
+      const nameAttrs = c.key === 'title' ? ' data-nav="' + `/leads/${l.id}` + '" class="gantt-td-info gantt-td--name row-link"' : ' class="gantt-td-info"';
+      return `<td${nameAttrs} style="left:${GANTT_INFO_OFFSETS[i]}px; min-width:${c.width}px; max-width:${c.width}px;" title="${esc(val)}">${esc(val)}</td>`;
+    }).join('');
     return `
       <tr>
-        <td class="gantt-td--name row-link" data-nav="/leads/${l.id}" title="${esc(l.title)}">${esc(l.title)}</td>
+        ${infoCells}
         ${weeks.map(week => {
           const weekEnd = addDays(week, 6);
           let inBar = false, isMilestone = false;

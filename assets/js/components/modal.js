@@ -532,7 +532,9 @@ function openProjectMetaForm(lead, onSaved) {
 function openPreconMetaForm(lead, onSaved) {
   Modal.open({
     title: 'Pre-Construction Details',
+    wide: true,
     bodyHtml: `
+      <datalist id="staff-names-list">${STAFF_NAMES.map(n => `<option value="${esc(n)}">`).join('')}</datalist>
       <form id="precon-meta-form" class="form-grid">
         <label class="field"><span>Projected start</span>
           <input type="date" name="projectedStartDate" value="${esc(lead.projectedStartDate || '')}">
@@ -543,6 +545,25 @@ function openPreconMetaForm(lead, onSaved) {
         <label class="field"><span>Record status</span>
           <select name="preconStatus">${optionList(PRECON_RECORD_STATUS_OPTIONS, lead.preconStatus || 'active', { valueKey: 'id', labelKey: 'label', blank: null })}</select>
         </label>
+
+        <div class="field field--full subform">
+          <div class="subform__head"><span>Team</span></div>
+          <div class="subform-grid">
+            <label class="field"><span>Assigned To</span>
+              <input name="assignedTo" list="staff-names-list" value="${esc(lead.assignedTo || '')}" placeholder="Who's running this project">
+            </label>
+            <label class="field"><span>Estimator</span>
+              <input name="estimator" list="staff-names-list" value="${esc(lead.estimator || '')}">
+            </label>
+            <label class="field"><span>Field Manager</span>
+              <input name="fieldManager" list="staff-names-list" value="${esc(lead.fieldManager || '')}">
+            </label>
+            <label class="field"><span>Designer</span>
+              <input name="designer" list="staff-names-list" value="${esc(lead.designer || '')}">
+            </label>
+          </div>
+        </div>
+
         <label class="field field--full"><span>Notes</span>
           <textarea name="preconNotes" rows="3" placeholder="Anything worth flagging about this project's pre-con work...">${esc(lead.preconNotes || '')}</textarea>
         </label>
@@ -561,6 +582,10 @@ function openPreconMetaForm(lead, onSaved) {
         targetCompletionDate: fd.get('targetCompletionDate') || null,
         preconStatus: fd.get('preconStatus'),
         preconNotes: fd.get('preconNotes'),
+        assignedTo: fd.get('assignedTo'),
+        estimator: fd.get('estimator'),
+        fieldManager: fd.get('fieldManager'),
+        designer: fd.get('designer'),
       });
       Modal.close();
       toast('Pre-Construction details updated');

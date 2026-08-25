@@ -31,6 +31,16 @@ function leadStatusLabel(id) {
 }
 
 const LEAD_SOURCES =['Referral', 'Website', 'Google Search', 'Angi / HomeAdvisor', 'Facebook / Instagram', 'Repeat Client', 'Signage / Drive-by', 'Trade Show', 'Other'];
+/** Autocomplete suggestions for the Assigned To / Estimator / Field Manager
+ *  / Designer fields — from the old tracker's staff list. Free-text either
+ *  way (a datalist, not a locked dropdown), since the roster changes. */
+const STAFF_NAMES = [
+  'Bradley, Galen', 'Brochu, Alex', 'Dejana, Shelby', 'Diehl, Ron', 'Donchez, Jill', 'Dormann, Steve',
+  'Evans, Tyler', 'Fantasia, Dan', 'Fies, Shaun', 'Gehman, Kevin', 'Gehman, Tait', 'Helm, Emily', 'Helm, Sue',
+  'Hoeing, Keith', 'Hudson, Alex', 'Jandrew, Brian', 'Kucharczuk, Jared', 'Maguire, Darren', 'Oswald, Stephen',
+  'Ryan, Kelly', 'Scherer, Blake', 'Simkulak, Michele', 'Stahley, Jack', 'Stradling, Steve', 'Toth, Josh',
+  'Zurick, Brandon', 'Swine Design', 'Architect', 'Other',
+];
 /** Matches the classification scheme from the old Excel tracker's Settings
  *  tab, not room/job type — projects are classified by scale/complexity. */
 const PROJECT_TYPES = [
@@ -237,7 +247,9 @@ function leadFromRow(r) {
     projectType: r.project_type || '', source: r.source || '', notes: r.notes || '', lostReason: r.lost_reason || '',
     history: r.history || [], projectStage: r.project_stage || null,
     projectStatus: r.project_status || null, permitTownship: r.permit_township || '', permits: r.permits || [],
-    projectedStartDate: r.projected_start_date || '', targetCompletionDate: r.target_completion_date || '', preconStatus: r.precon_status || 'active',
+    projectedStartDate: r.projected_start_date || '', targetCompletionDate: r.target_completion_date || '',
+    assignedTo: r.assigned_to || '', estimator: r.estimator || '', fieldManager: r.field_manager || '', designer: r.designer || '',
+    preconStatus: r.precon_status || 'active',
     preconSteps: r.precon_steps || [], preconNotes: r.precon_notes || '',
     wonAt: r.won_at, lostAt: r.lost_at, createdAt: r.created_at, updatedAt: r.updated_at,
   };
@@ -259,6 +271,10 @@ function leadToRow(d) {
   if (d.permits !== undefined) row.permits = d.permits;
   if (d.projectedStartDate !== undefined) row.projected_start_date = d.projectedStartDate || null;
   if (d.targetCompletionDate !== undefined) row.target_completion_date = d.targetCompletionDate || null;
+  if (d.assignedTo !== undefined) row.assigned_to = (d.assignedTo || '').trim();
+  if (d.estimator !== undefined) row.estimator = (d.estimator || '').trim();
+  if (d.fieldManager !== undefined) row.field_manager = (d.fieldManager || '').trim();
+  if (d.designer !== undefined) row.designer = (d.designer || '').trim();
   if (d.preconStatus !== undefined) row.precon_status = d.preconStatus;
   if (d.preconSteps !== undefined) row.precon_steps = d.preconSteps;
   if (d.preconNotes !== undefined) row.precon_notes = (d.preconNotes || '').trim();
@@ -627,7 +643,7 @@ const Leads = {
    *  record status, and/or notes together — the "Pre-Con Details" box on
    *  the project page. Start and target completion are what draws each
    *  project's bar on the Project Calendar's Gantt-style timeline. */
-  async updatePreconMeta(id, { projectedStartDate, targetCompletionDate, preconStatus, preconNotes }) {
+  async updatePreconMeta(id, { projectedStartDate, targetCompletionDate, preconStatus, preconNotes, assignedTo, estimator, fieldManager, designer }) {
     const l = this.get(id);
     if (!l) return null;
     const changes = [];
@@ -640,9 +656,10 @@ const Leads = {
     if (preconStatus !== undefined && preconStatus !== (l.preconStatus || 'active')) {
       changes.push(`Pre-Con status set to "${preconRecordStatusLabel(preconStatus)}"`);
     }
-    if (!changes.length) return this._patch(id, { projectedStartDate, targetCompletionDate, preconStatus, preconNotes });
+    const patch = { projectedStartDate, targetCompletionDate, preconStatus, preconNotes, assignedTo, estimator, fieldManager, designer };
+    if (!changes.length) return this._patch(id, patch);
     const history = [...l.history, { at: new Date().toISOString(), event: 'precon_meta_change', detail: changes.join('; ') }];
-    return this._patch(id, { projectedStartDate, targetCompletionDate, preconStatus, preconNotes, history });
+    return this._patch(id, { ...patch, history });
   },
   /** Sets a lead's Active/On Hold status directly — the Pipeline's Status
    *  dropdown. Lost goes through markLost instead (it needs a reason). */
