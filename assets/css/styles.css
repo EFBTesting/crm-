@@ -207,7 +207,7 @@ p { margin: 0; }
 
 .table-wrap { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); overflow-x: auto; box-shadow: var(--shadow); }
 .data-table, .mini-table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
-.data-table th, .mini-table th { text-align: left; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; color: var(--ink-soft); padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.data-table th, .mini-table th { text-align: center; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; color: var(--ink-soft); padding: 12px 16px; border-bottom: 1px solid var(--line); }
 .data-table td, .mini-table td { padding: 12px 16px; border-bottom: 1px solid var(--line); vertical-align: middle; }
 .mini-table th, .mini-table td { padding: 9px 10px; }
 .data-table tbody tr:last-child td, .mini-table tbody tr:last-child td { border-bottom: none; }
@@ -355,7 +355,7 @@ p { margin: 0; }
 .gantt-row--month th { background: #eef0e6; top: 24px; }
 .gantt-row--week th { background: #f2efe8; top: 48px; font-size: 0.62rem; color: var(--muted); }
 .gantt-th-info {
-  position: sticky; z-index: 3 !important; text-align: left !important; background: #f2efe8 !important;
+  position: sticky; z-index: 3 !important; text-align: center !important; background: #f2efe8 !important;
   padding: 0 8px !important; height: auto !important; vertical-align: middle;
   font-size: 0.74rem !important; font-weight: 800 !important; color: var(--ink) !important;
 }
