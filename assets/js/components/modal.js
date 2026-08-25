@@ -542,10 +542,6 @@ function openPreconMetaForm(lead, onSaved) {
         <label class="field"><span>Target completion</span>
           <input type="date" name="targetCompletionDate" value="${esc(lead.targetCompletionDate || '')}">
         </label>
-        <label class="field"><span>Record status</span>
-          <select name="preconStatus">${optionList(PRECON_RECORD_STATUS_OPTIONS, lead.preconStatus || 'active', { valueKey: 'id', labelKey: 'label', blank: null })}</select>
-        </label>
-
         <div class="field field--full subform">
           <div class="subform__head"><span>Team</span></div>
           <div class="subform-grid">
@@ -580,7 +576,6 @@ function openPreconMetaForm(lead, onSaved) {
       const saved = await Leads.updatePreconMeta(lead.id, {
         projectedStartDate: fd.get('projectedStartDate') || null,
         targetCompletionDate: fd.get('targetCompletionDate') || null,
-        preconStatus: fd.get('preconStatus'),
         preconNotes: fd.get('preconNotes'),
         assignedTo: fd.get('assignedTo'),
         estimator: fd.get('estimator'),
