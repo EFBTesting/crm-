@@ -65,7 +65,12 @@ function computeProjectAnalytics() {
   });
 
   const completed = projects.filter(l => (l.projectStage || PROJECT_STAGES[0].id) === 'completed');
-  const inProduction = projects.filter(l => (l.projectStage || PROJECT_STAGES[0].id) !== 'completed');
+  // "In Production" / "Total Projects" only count Record-Status-Active
+  // projects — On Hold, Lost, and Complete each have their own place on
+  // Project Tracking now and shouldn't inflate these totals. They come
+  // back into these numbers automatically the moment they're reactivated.
+  const activeProjects = projects.filter(l => (l.preconStatus || 'active') === 'active');
+  const inProduction = activeProjects;
   const completedThisMonth = completed.filter(l => new Date(l.updatedAt) >= startOfMonth);
 
   const totalValue = projects.reduce((sum, l) => sum + (Number(l.value) || 0), 0);
@@ -83,10 +88,12 @@ function computeProjectAnalytics() {
   // and reappears automatically if it's ever moved back to another stage
   // (both computed fresh from current data, nothing to manually restore).
   const projectStatusCounts = PROJECT_STATUS_OPTIONS.map(opt => ({
-    opt, count: inProduction.filter(l => (l.projectStatus || 'on_track') === opt.id).length,
+    opt, count: activeProjects.filter(l => (l.projectStatus || 'on_track') === opt.id).length,
   }));
+  // Record Status counts need the FULL project list, not just
+  // activeProjects — otherwise On Hold/Lost/Complete would always read 0.
   const preconRecordCounts = PRECON_RECORD_STATUS_OPTIONS.map(opt => ({
-    opt, count: inProduction.filter(l => (l.preconStatus || 'active') === opt.id).length,
+    opt, count: projects.filter(l => (l.preconStatus || 'active') === opt.id).length,
   }));
 
   // How many active (non-completed) projects sit in each stage right now.
@@ -94,7 +101,7 @@ function computeProjectAnalytics() {
 
   return {
     totals: {
-      totalProjects: projects.length, inProduction: inProduction.length, completed: completed.length,
+      totalProjects: activeProjects.length, inProduction: inProduction.length, completed: completed.length,
       completedThisMonth: completedThisMonth.length, totalValue, completedValue, inProductionValue,
     },
     byStage, months, inProductionSorted, stageCounts, projectStatusCounts, preconRecordCounts,
@@ -231,7 +238,7 @@ function renderProjectsTab(root) {
     <div class="kpi-grid">
       ${kpiTile('In Production', fmtMoney(t.inProductionValue), `${t.inProduction} project${t.inProduction === 1 ? '' : 's'} underway`, 'navy')}
       ${kpiTile('Completed (All Time)', fmtMoney(t.completedValue), `${t.completed} project${t.completed === 1 ? '' : 's'} · ${t.completedThisMonth} this month`, 'green')}
-      ${kpiTile('Total Projects', String(t.totalProjects), 'Won leads tracked here', 'amber')}
+      ${kpiTile('Total Projects', String(t.totalProjects), '', 'amber')}
       ${kpiTile('Total Project Value', fmtMoney(t.totalValue), 'In production + completed', 'slate')}
     </div>
 
