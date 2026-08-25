@@ -120,6 +120,49 @@ function preconRecordStatusLabel(id) {
   const s = PRECON_RECORD_STATUS_OPTIONS.find(s => s.id === id);
   return s ? s.label : 'Active';
 }
+/** The Lead Pipeline's "Contacted" checklist — quick follow-up tasks
+ *  tracked on every lead, independent of pipeline stage. Only "First
+ *  meeting scheduled" carries its own date; the two 2-week follow-ups
+ *  below it derive their due date from that same date (+14 days) instead
+ *  of storing their own, so moving the first-meeting date automatically
+ *  reschedules them. More steps can be added here later. */
+const CONTACTED_STEPS = [
+  { key: 'emailed_called', label: 'Emailed/Called' },
+  { key: 'first_meeting', label: 'First meeting scheduled', hasDate: true },
+  { key: 'thank_you_email', label: 'Thank you email sent' },
+  { key: 'followup_email_2wk', label: '2 week email follow up', dueFrom: 'first_meeting', dueDays: 14 },
+  { key: 'followup_phone_2wk', label: '2 week phone follow up', dueFrom: 'first_meeting', dueDays: 14 },
+];
+function defaultContactedSteps() {
+  return CONTACTED_STEPS.map(s => ({ key: s.key, done: false, date: null }));
+}
+/** Live-computed, same philosophy as preconProgress() — a step's overdue
+ *  state is never stored, always recalculated against today's date so it
+ *  can't go stale. A step only goes overdue once its due date (derived
+ *  from its anchor step's date) has passed and it's still unchecked. */
+function contactedProgress(lead) {
+  const stored = lead?.contactedSteps && lead.contactedSteps.length ? lead.contactedSteps : defaultContactedSteps();
+  const byKey = {};
+  stored.forEach(s => { byKey[s.key] = s; });
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const items = CONTACTED_STEPS.map(def => {
+    const s = byKey[def.key] || { done: false, date: null };
+    let dueDate = null, overdue = false;
+    if (def.dueFrom) {
+      const anchor = byKey[def.dueFrom];
+      if (anchor && anchor.date) {
+        dueDate = new Date(anchor.date + 'T00:00:00');
+        dueDate.setDate(dueDate.getDate() + def.dueDays);
+        overdue = !s.done && dueDate < today;
+      }
+    }
+    return { ...def, done: !!s.done, date: s.date || null, dueDate, overdue };
+  });
+
+  return { items, overdueCount: items.filter(i => i.overdue).length };
+}
 function defaultPreconSteps() {
   const steps = [];
   PRECON_PHASES.forEach(phase => phase.steps.forEach(label => steps.push({ phase: phase.id, label, status: '' })));
@@ -251,6 +294,7 @@ function leadFromRow(r) {
     assignedTo: r.assigned_to || '', estimator: r.estimator || '', fieldManager: r.field_manager || '', designer: r.designer || '',
     preconStatus: r.precon_status || 'active',
     preconSteps: r.precon_steps || [], preconNotes: r.precon_notes || '',
+    contactedSteps: r.contacted_steps || [],
     wonAt: r.won_at, lostAt: r.lost_at, createdAt: r.created_at, updatedAt: r.updated_at,
   };
 }
@@ -277,6 +321,7 @@ function leadToRow(d) {
   if (d.designer !== undefined) row.designer = (d.designer || '').trim();
   if (d.preconStatus !== undefined) row.precon_status = d.preconStatus;
   if (d.preconSteps !== undefined) row.precon_steps = d.preconSteps;
+  if (d.contactedSteps !== undefined) row.contacted_steps = d.contactedSteps;
   if (d.preconNotes !== undefined) row.precon_notes = (d.preconNotes || '').trim();
   if (d.wonAt !== undefined) row.won_at = d.wonAt;
   if (d.lostAt !== undefined) row.lost_at = d.lostAt;
@@ -622,6 +667,17 @@ const Leads = {
     if (!l) return null;
     const steps = (l.preconSteps || []).map(s => (s.phase === phase && s.label === label) ? { ...s, status } : s);
     return this._patch(id, { preconSteps: steps });
+  },
+  /** Toggles one Contacted-checklist step's done state and/or sets its
+   *  date — only "First meeting scheduled" uses the date; the two 2-week
+   *  follow-ups derive their due date from it live (see contactedProgress).
+   *  No history line per click, same reasoning as setPreconStep. */
+  async setContactedStep(id, key, patch) {
+    const l = this.get(id);
+    if (!l) return null;
+    const current = l.contactedSteps && l.contactedSteps.length ? l.contactedSteps : defaultContactedSteps();
+    const steps = current.map(s => s.key === key ? { ...s, ...patch } : s);
+    return this._patch(id, { contactedSteps: steps });
   },
   /** Adds a custom step to one phase — the "spare columns" from the old
    *  spreadsheet, so a job that needs an extra step isn't stuck. */

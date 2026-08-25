@@ -324,6 +324,26 @@ p { margin: 0; }
 }
 .precon-add-step input:focus { border-style: solid; border-color: var(--brand); }
 
+/* ---------------------------- Contacted checklist ---------------------------- */
+
+.overdue-badge {
+  display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px;
+  border-radius: 50%; background: var(--red); color: #fff; font-size: 0.85rem; font-weight: 800;
+  vertical-align: middle; margin-left: 8px; cursor: default;
+}
+.contacted-list { display: flex; flex-direction: column; gap: 6px; }
+.contacted-row { display: flex; align-items: center; gap: 12px; padding: 8px; border-radius: 8px; flex-wrap: wrap; }
+.contacted-row:hover { background: #f7f5f0; }
+.contacted-row.is-overdue { background: rgba(193, 73, 59, 0.08); }
+.contacted-row__check { display: flex; align-items: center; gap: 8px; font-size: 0.86rem; flex: 1; min-width: 200px; cursor: pointer; }
+.contacted-row__check input { width: 16px; height: 16px; accent-color: var(--brand); cursor: pointer; }
+.contacted-row__date {
+  border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; font-size: 0.78rem;
+  color: var(--ink-soft); background: #fff;
+}
+.contacted-row__flag { font-size: 0.78rem; font-weight: 700; color: var(--red); }
+.contacted-row__due { font-size: 0.78rem; }
+
 /* ---------------------------- Project Tracking: List view ---------------------------- */
 
 .project-table th, .project-table td { white-space: nowrap; padding: 10px 12px; }

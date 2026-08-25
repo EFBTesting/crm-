@@ -20,6 +20,7 @@ function renderLeadDetail(root, { id }) {
     const history = [...l.history].sort((a, b) => new Date(b.at) - new Date(a.at));
 
     const projectStage = l.projectStage || PROJECT_STAGES[0].id;
+    const contacted = contactedProgress(l);
 
     root.innerHTML = `
       <div class="breadcrumb">${l.status === 'won' ? '<a href="#/projects">Project Tracking</a>' : '<a href="#/pipeline">Pipeline</a>'} / ${esc(l.title)}</div>
@@ -27,7 +28,7 @@ function renderLeadDetail(root, { id }) {
       <div class="profile-head">
         <div class="profile-head__info">
           <div class="lead-status-row">${statusPill(l)} ${l.status === 'active' ? `<span class="pill pill--muted">${STAGES.findIndex(s => s.id === l.stage) + 1} of ${STAGES.length}</span>` : ''}</div>
-          <h1>${esc(l.title)}</h1>
+          <h1>${esc(l.title)}${contacted.overdueCount ? `<span class="overdue-badge" title="${contacted.overdueCount} follow-up${contacted.overdueCount > 1 ? 's' : ''} overdue — see Contacted below">!</span>` : ''}</h1>
           <p class="view-sub">${fmtMoney(l.value)} budget${l.projectType ? ` · ${esc(l.projectType)}` : ''}${revenue !== null ? ` · ${fmtMoney(revenue)} est. revenue` : ''}</p>
         </div>
         <div class="view-head__actions">
@@ -35,6 +36,8 @@ function renderLeadDetail(root, { id }) {
           <button class="btn btn--danger-ghost" id="delete-lead-btn">Delete</button>
         </div>
       </div>
+
+      ${contactedSectionHtml(contacted)}
 
       ${l.status === 'active' ? `
         <div class="stage-tracker">
@@ -115,6 +118,8 @@ function renderLeadDetail(root, { id }) {
       </div>
     `;
 
+    wireContactedSection(root, l, draw);
+
     qs('#edit-lead-btn', root).addEventListener('click', () => openLeadForm(l, {}, () => draw()));
     qs('#delete-lead-btn', root).addEventListener('click', () => {
       openConfirm({
@@ -175,6 +180,43 @@ function renderLeadDetail(root, { id }) {
   }
 
   draw();
+}
+
+/* --------------------------- Contacted checklist --------------------------- */
+
+function contactedSectionHtml(progress) {
+  return `
+    <div class="panel mb-md">
+      <div class="panel__head-row"><h3>Contacted</h3></div>
+      <div class="contacted-list">
+        ${progress.items.map(item => `
+          <div class="contacted-row${item.overdue ? ' is-overdue' : ''}" data-contacted-key="${item.key}">
+            <label class="contacted-row__check">
+              <input type="checkbox" data-contacted-done ${item.done ? 'checked' : ''}>
+              <span>${esc(item.label)}</span>
+            </label>
+            ${item.hasDate ? `<input type="date" class="contacted-row__date" data-contacted-date value="${esc(item.date || '')}">` : ''}
+            ${item.overdue ? `<span class="contacted-row__flag">🔴 Overdue — was due ${fmtDate(item.dueDate)}</span>`
+              : (item.dueDate ? `<span class="contacted-row__due muted">Due ${fmtDate(item.dueDate)}</span>` : '')}
+          </div>`).join('')}
+      </div>
+    </div>`;
+}
+
+function wireContactedSection(root, l, draw) {
+  qsa('[data-contacted-key]', root).forEach(row => {
+    const key = row.dataset.contactedKey;
+    const checkbox = qs('[data-contacted-done]', row);
+    checkbox.addEventListener('change', async () => {
+      try { await Leads.setContactedStep(l.id, key, { done: checkbox.checked }); draw(); }
+      catch (err) { toast(err.message || 'Could not update that step', 'warn'); }
+    });
+    const dateInput = qs('[data-contacted-date]', row);
+    if (dateInput) dateInput.addEventListener('change', async () => {
+      try { await Leads.setContactedStep(l.id, key, { date: dateInput.value || null }); draw(); }
+      catch (err) { toast(err.message || 'Could not update that date', 'warn'); }
+    });
+  });
 }
 
 /* --------------------------- Pre-Construction checklist --------------------------- */

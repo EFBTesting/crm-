@@ -88,6 +88,7 @@ create table if not exists leads (
   precon_status text,                          -- active | on_hold | lost | complete (Pre-Con "Record status")
   precon_steps jsonb not null default '[]',    -- [{ phase: 'lead_up'|'pre_construction', label, status }, ...]
   precon_notes text,                            -- free-text notes on the Pre-Con checklist
+  contacted_steps jsonb not null default '[]', -- [{ key, done, date }, ...] — the "Contacted" follow-up checklist
   won_at timestamptz,
   lost_at timestamptz,
   created_at timestamptz not null default now(),
@@ -118,6 +119,7 @@ alter table leads add column if not exists designer text;
 alter table leads add column if not exists precon_status text;
 alter table leads add column if not exists precon_steps jsonb not null default '[]';
 alter table leads add column if not exists precon_notes text;
+alter table leads add column if not exists contacted_steps jsonb not null default '[]';
 
 -- ---------------------------------------------------------------------
 -- Keep updated_at fresh automatically
