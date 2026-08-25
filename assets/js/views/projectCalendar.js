@@ -74,7 +74,6 @@ function renderProjectCalendar(root) {
     const weeks = [];
     for (let d = new Date(rangeStart); d <= rangeEnd; d = addDays(d, 7)) weeks.push(new Date(d));
 
-    const todayWeekKey = fmtDateKey(startOfWeek(new Date()));
     const yearGroups = groupConsecutive(weeks, w => w.getFullYear());
     const monthGroups = groupConsecutive(weeks, w => `${w.getFullYear()}-${w.getMonth()}`);
 
@@ -99,17 +98,17 @@ function renderProjectCalendar(root) {
             </tr>
             <tr class="gantt-row--week">
               ${GANTT_INFO_COLS.map((c, i) => `<th class="gantt-th-info${i === GANTT_INFO_COLS.length - 1 ? ' gantt-info--divider' : ''}" style="left:${GANTT_INFO_OFFSETS[i]}px; min-width:${c.width}px; max-width:${c.width}px;">${esc(c.label)}</th>`).join('')}
-              ${weeks.map(w => `<th class="${fmtDateKey(w) === todayWeekKey ? 'is-current-week' : ''}" title="${fmtDateKey(w) === todayWeekKey ? 'This week' : ''}">${w.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</th>`).join('')}
+              ${weeks.map(w => `<th>${w.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</th>`).join('')}
             </tr>
           </thead>
           <tbody>
-            ${sorted.map(l => ganttRowHtml(l, weeks, todayWeekKey)).join('')}
+            ${sorted.map(l => ganttRowHtml(l, weeks)).join('')}
           </tbody>
         </table>
       </div>`;
   }
 
-  function ganttRowHtml(l, weeks, todayWeekKey) {
+  function ganttRowHtml(l, weeks) {
     const start = l.projectedStartDate ? dateOnlyToDate(l.projectedStartDate) : null;
     const end = l.targetCompletionDate ? dateOnlyToDate(l.targetCompletionDate) : null;
     const infoCells = GANTT_INFO_COLS.map((c, i) => {
@@ -132,9 +131,8 @@ function renderProjectCalendar(root) {
           } else if (end) {
             isMilestone = end >= week && end <= weekEnd;
           }
-          const isCurrent = fmtDateKey(week) === todayWeekKey;
-          const label = `${l.title} — week of ${week.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}${isCurrent ? ' (this week)' : ''}`;
-          return `<td class="gantt-cell ${inBar ? 'is-bar' : ''} ${isMilestone ? 'is-milestone' : ''} ${isCurrent ? 'is-current-week' : ''}" title="${esc(label)}"></td>`;
+          const label = `${l.title} — week of ${week.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+          return `<td class="gantt-cell ${inBar ? 'is-bar' : ''} ${isMilestone ? 'is-milestone' : ''}" title="${esc(label)}"></td>`;
         }).join('')}
       </tr>`;
   }
