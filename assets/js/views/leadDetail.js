@@ -27,7 +27,7 @@ function renderLeadDetail(root, { id }) {
 
       <div class="profile-head">
         <div class="profile-head__info">
-          <div class="lead-status-row">${statusPill(l)} ${l.status === 'active' ? `<span class="pill pill--muted">${STAGES.findIndex(s => s.id === l.stage) + 1} of ${STAGES.length}</span>` : ''}</div>
+          <div class="lead-status-row">${statusPill(l)}</div>
           <h1>${esc(l.title)}${contacted.overdueCount ? `<span class="overdue-badge" title="${contacted.overdueCount} follow-up${contacted.overdueCount > 1 ? 's' : ''} overdue — see Contacted below">!</span>` : ''}</h1>
           <p class="view-sub">${fmtMoney(l.value)} budget${l.projectType ? ` · ${esc(l.projectType)}` : ''}${revenue !== null ? ` · ${fmtMoney(revenue)} est. revenue` : ''}</p>
         </div>
@@ -37,8 +37,6 @@ function renderLeadDetail(root, { id }) {
         </div>
       </div>
 
-      ${contactedSectionHtml(contacted)}
-
       ${l.status === 'active' ? `
         <div class="stage-tracker">
           ${STAGES.map((s, i) => `
@@ -46,15 +44,9 @@ function renderLeadDetail(root, { id }) {
               <span class="stage-step__dot"></span>${esc(s.label)}
             </button>`).join('')}
         </div>
-        <div class="view-head__actions mb-md">
-          <button class="btn btn--danger" id="lost-btn">✕ Mark Lost</button>
-        </div>
       ` : l.status === 'on_hold' ? `
         <div class="empty-banner">This lead is on hold.
           <button class="btn btn--ghost btn--sm" id="reactivate-btn">Reactivate</button>
-        </div>
-        <div class="view-head__actions mb-md">
-          <button class="btn btn--danger" id="lost-btn">✕ Mark Lost</button>
         </div>
       ` : l.status === 'lost' ? `
         <div class="empty-banner empty-banner--danger">Marked lost: <strong>${esc(l.lostReason || 'Other')}</strong> on ${fmtDate(l.lostAt)}.
@@ -80,6 +72,8 @@ function renderLeadDetail(root, { id }) {
 
         ${preconSectionHtml(l)}
       `}
+
+      ${contactedSectionHtml(contacted)}
 
       <div class="detail-grid">
         <div class="panel">
@@ -124,7 +118,7 @@ function renderLeadDetail(root, { id }) {
     qs('#delete-lead-btn', root).addEventListener('click', () => {
       openConfirm({
         title: 'Delete lead',
-        message: `Delete "${l.title}"? Their linked contact will also be deleted (unless tied to another lead). If you might reopen this later, use "Mark Lost" instead — this cannot be undone.`,
+        message: `Delete "${l.title}"? Their linked contact will also be deleted (unless tied to another lead). If you might reopen this later, mark it Lost from the Pipeline list instead — this cannot be undone.`,
       }, async () => {
         await Leads.remove(l.id);
         toast('Lead and contact deleted');
@@ -133,7 +127,6 @@ function renderLeadDetail(root, { id }) {
     });
 
     if (l.status === 'active') {
-      qs('#lost-btn', root).addEventListener('click', () => openLostReasonPrompt(l, () => draw()));
       qsa('[data-set-stage]', root).forEach(btn => btn.addEventListener('click', async () => {
         try {
           const isFinal = btn.dataset.setStage === STAGES[STAGES.length - 1].id;
@@ -145,7 +138,6 @@ function renderLeadDetail(root, { id }) {
       }));
     }
     if (l.status === 'on_hold') {
-      qs('#lost-btn', root).addEventListener('click', () => openLostReasonPrompt(l, () => draw()));
       qs('#reactivate-btn', root).addEventListener('click', async () => {
         try { await Leads.setStatus(l.id, 'active'); toast('Lead reactivated'); draw(); }
         catch (err) { toast(err.message || 'Could not update the lead', 'warn'); }
