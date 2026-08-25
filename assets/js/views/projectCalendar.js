@@ -12,6 +12,8 @@
  *  columns. Widths are explicit so header and body cells line up. */
 const GANTT_INFO_COLS = [
   { key: 'title', label: 'Project', width: 190 },
+  { key: 'projectedStartDate', label: 'Projected Start', width: 110, isDate: true },
+  { key: 'targetCompletionDate', label: 'Target Completion', width: 120, isDate: true },
   { key: 'assignedTo', label: 'Assigned To', width: 110 },
   { key: 'estimator', label: 'Estimator', width: 100 },
   { key: 'fieldManager', label: 'Field Mgr', width: 100 },
@@ -111,7 +113,7 @@ function renderProjectCalendar(root) {
     const start = l.projectedStartDate ? dateOnlyToDate(l.projectedStartDate) : null;
     const end = l.targetCompletionDate ? dateOnlyToDate(l.targetCompletionDate) : null;
     const infoCells = GANTT_INFO_COLS.map((c, i) => {
-      const val = c.key === 'title' ? l.title : (l[c.key] || '—');
+      const val = c.key === 'title' ? l.title : (c.isDate ? fmtDateOnly(l[c.key]) : (l[c.key] || '—'));
       const nameAttrs = c.key === 'title' ? ' data-nav="' + `/leads/${l.id}` + '" class="gantt-td-info gantt-td--name row-link"' : ' class="gantt-td-info"';
       return `<td${nameAttrs} style="left:${GANTT_INFO_OFFSETS[i]}px; min-width:${c.width}px; max-width:${c.width}px;" title="${esc(val)}">${esc(val)}</td>`;
     }).join('');
