@@ -131,11 +131,17 @@ function renderProjectCalendar(root) {
     const yearGroups = groupConsecutive(weeks, w => w.getFullYear());
     const monthGroups = groupConsecutive(weeks, w => `${w.getFullYear()}-${w.getMonth()}`);
 
-    const farFuture = new Date(8640000000000000);
+    // Ordered by Assigned To's last name, alphabetically — names are stored
+    // "Last, First" so sorting the raw text already sorts by last name.
+    // Unassigned projects fall to the bottom. Project Calendar only; every
+    // other list (Project Tracking, Pipeline, etc.) keeps its own sort.
     const sorted = [...projects].sort((a, b) => {
-      const aStart = a.projectedStartDate ? dateOnlyToDate(a.projectedStartDate) : (a.targetCompletionDate ? dateOnlyToDate(a.targetCompletionDate) : farFuture);
-      const bStart = b.projectedStartDate ? dateOnlyToDate(b.projectedStartDate) : (b.targetCompletionDate ? dateOnlyToDate(b.targetCompletionDate) : farFuture);
-      return aStart - bStart;
+      const aName = (a.assignedTo || '').trim();
+      const bName = (b.assignedTo || '').trim();
+      if (!aName && !bName) return 0;
+      if (!aName) return 1;
+      if (!bName) return -1;
+      return aName.localeCompare(bName);
     });
 
     return `
