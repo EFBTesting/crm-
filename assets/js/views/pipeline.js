@@ -29,7 +29,6 @@ function renderPipeline(root) {
     // On Hold and never-won Lost leads together — a project that was won
     // and later lost shows up on Project Tracking's own Lost list instead.
     const inactive = Leads.all().filter(l => l.status === 'on_hold' || (l.status === 'lost' && !l.wonAt)).filter(matchesFilters);
-    const won = Leads.projects().sort((a, b) => new Date(b.wonAt || b.updatedAt) - new Date(a.wonAt || a.updatedAt));
     const totalActiveValue = active.reduce((s, l) => s + (Number(l.value) || 0), 0);
     const hasFilters = query || filterProjectType || filterSource;
 
@@ -52,22 +51,7 @@ function renderPipeline(root) {
         ${hasFilters ? `<button type="button" id="clear-filters-btn" class="link-btn-inline">Clear filters</button>` : ''}
       </div>
 
-      <div class="side-panel-layout">
-        ${listHtml(active, hasFilters)}
-
-        <div class="side-panel">
-          <h3>Won Projects</h3>
-          <p class="view-sub mb-md">Design contract signed — now tracked on Project Tracking.</p>
-          ${won.length ? `
-            <ul class="side-panel-list">
-              ${won.map(l => `
-                <li class="row-link" data-nav="/leads/${l.id}">
-                  <div class="cell-title">${esc(l.title)}</div>
-                  <div class="cell-sub">${fmtMoney(l.value)} · ${timeAgo(l.wonAt || l.updatedAt)}</div>
-                </li>`).join('')}
-            </ul>` : `<p class="empty-inline">None yet — win a lead and it'll show up here.</p>`}
-        </div>
-      </div>
+      ${listHtml(active, hasFilters)}
 
       ${showLost ? `
         <div class="panel mt-lg">
