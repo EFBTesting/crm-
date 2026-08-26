@@ -141,6 +141,15 @@ p { margin: 0; }
 }
 .filter-bar .search-input { flex: 1; min-width: 200px; max-width: 320px; }
 
+.view-tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid var(--line); }
+.view-tab {
+  border: none; background: none; font-family: inherit; cursor: pointer;
+  padding: 9px 16px; font-size: 0.86rem; font-weight: 700; color: var(--ink-soft);
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.view-tab:hover { color: var(--ink); }
+.view-tab.is-active { color: var(--brand); border-bottom-color: var(--brand); }
+
 /* ---------------------------- KPI tiles ---------------------------- */
 
 .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }

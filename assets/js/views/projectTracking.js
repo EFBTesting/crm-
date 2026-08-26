@@ -8,16 +8,14 @@
    that grows taller than its neighbors. The Gantt-style timeline view
    of the same data lives on its own page — see Project Calendar.
 
-   Record Status is what drives whether a project sits in the main table
-   or one of its three side lists: Lost (fully marked lost, app-wide),
-   On Hold (paused), or Completed (archived — also closes out its
-   production Stage). Active is the only Record Status that stays here.
+   Record Status is what drives which of the four tabs a project sits in:
+   Open (Active), On Hold (paused), Completed (archived — also closes out
+   its production Stage), or Lost (fully marked lost, app-wide). Only one
+   tab's list is ever on screen at a time.
    ========================================================================== */
 
 function renderProjectTracking(root) {
-  let showLost = false;
-  let showOnHold = false;
-  let showCompleted = false;
+  let activeTab = 'open'; // 'open' | 'on_hold' | 'completed' | 'lost'
   let query = '';
   let filterProjectType = '';
   let filterStatus = '';
@@ -39,26 +37,35 @@ function renderProjectTracking(root) {
     const allProjects = Leads.projects();
     const inProduction = allProjects.filter(l => (l.preconStatus || 'active') === 'active');
     const projects = inProduction.filter(matchesFilters);
-    const totalValue = projects.reduce((s, l) => s + (Number(l.value) || 0), 0);
     const hasFilters = query || filterProjectType || filterStatus;
 
     // A project that was won and later fell through — status flips to
     // 'lost' app-wide, but wonAt stays set, which is what separates it
     // from a never-won lead sitting in the Pipeline's own Lost list.
-    const lostProjects = Leads.all().filter(l => l.status === 'lost' && l.wonAt).filter(matchesFilters);
-    const onHoldProjects = allProjects.filter(l => l.preconStatus === 'on_hold').filter(matchesFilters);
-    const completedProjects = allProjects.filter(l => l.preconStatus === 'complete').filter(matchesFilters);
+    const lostProjectsAll = Leads.all().filter(l => l.status === 'lost' && l.wonAt);
+    const onHoldProjectsAll = allProjects.filter(l => l.preconStatus === 'on_hold');
+    const completedProjectsAll = allProjects.filter(l => l.preconStatus === 'complete');
+    const lostProjects = lostProjectsAll.filter(matchesFilters);
+    const onHoldProjects = onHoldProjectsAll.filter(matchesFilters);
+    const completedProjects = completedProjectsAll.filter(matchesFilters);
+
+    const TABS = [
+      { id: 'open', label: 'Open', count: projects.length, total: inProduction.length },
+      { id: 'on_hold', label: 'On Hold', count: onHoldProjects.length, total: onHoldProjectsAll.length },
+      { id: 'completed', label: 'Completed', count: completedProjects.length, total: completedProjectsAll.length },
+      { id: 'lost', label: 'Lost', count: lostProjects.length, total: lostProjectsAll.length },
+    ];
+    const activeList = activeTab === 'open' ? projects : activeTab === 'on_hold' ? onHoldProjects : activeTab === 'completed' ? completedProjects : lostProjects;
+    const activeValue = activeList.reduce((s, l) => s + (Number(l.value) || 0), 0);
+    const activeWord = activeTab === 'open' ? 'in production' : activeTab === 'on_hold' ? 'on hold' : activeTab === 'completed' ? 'completed' : 'lost';
 
     root.innerHTML = `
       <div class="view-head">
         <div>
           <h1>Project Tracking</h1>
-          <p class="view-sub">${projects.length} project${projects.length === 1 ? '' : 's'}${hasFilters ? ` matching (of ${inProduction.length})` : ' in production'} · ${fmtMoney(totalValue)} total</p>
+          <p class="view-sub">${activeList.length} project${activeList.length === 1 ? '' : 's'}${hasFilters ? ` matching (of ${TABS.find(t => t.id === activeTab).total})` : ` ${activeWord}`} · ${fmtMoney(activeValue)} total</p>
         </div>
         <div class="view-head__actions">
-          <button class="btn btn--ghost" id="toggle-lost-btn">${showLost ? 'Hide' : 'Show'} lost (${lostProjects.length})</button>
-          <button class="btn btn--ghost" id="toggle-onhold-btn">${showOnHold ? 'Hide' : 'Show'} on hold (${onHoldProjects.length})</button>
-          <button class="btn btn--ghost" id="toggle-completed-btn">${showCompleted ? 'Hide' : 'Show'} completed (${completedProjects.length})</button>
           <button class="btn btn--primary" id="new-project-btn">+ New Project</button>
         </div>
       </div>
@@ -72,38 +79,40 @@ function renderProjectTracking(root) {
           <select id="filter-project-type" class="filter-select">${optionList(PROJECT_TYPES, filterProjectType, { blank: 'All project types' })}</select>
           <select id="filter-status" class="filter-select">${optionList(PROJECT_STATUS_OPTIONS, filterStatus, { valueKey: 'id', labelKey: 'label', blank: 'All statuses' })}</select>
           ${hasFilters ? `<button type="button" id="clear-filters-btn" class="link-btn-inline">Clear filters</button>` : ''}
+        </div>
+
+        <div class="view-tabs">
+          ${TABS.map(t => `<button type="button" class="view-tab ${t.id === activeTab ? 'is-active' : ''}" data-tab="${t.id}">${t.label} (${t.count})</button>`).join('')}
+        </div>
+
+        <div class="project-tracking-layout">
+          ${activeTab === 'open' ? listHtml(projects, hasFilters)
+            : activeTab === 'on_hold' ? sideListHtml({
+                items: onHoldProjects, emptyText: 'Nothing on hold.',
+                statusCol: () => `<span class="pill pill--muted">On Hold</span>`,
+                dateCol: l => timeAgo(l.updatedAt), actionAttr: 'data-reactivate', actionLabel: 'Reactivate',
+              })
+            : activeTab === 'completed' ? sideListHtml({
+                items: completedProjects, emptyText: 'Nothing completed yet.',
+                statusCol: () => `<span class="pill pill--green">🏁 Complete</span>`,
+                dateCol: l => timeAgo(l.updatedAt), actionAttr: 'data-reactivate', actionLabel: 'Reactivate',
+              })
+            : sideListHtml({
+                items: lostProjects, emptyText: 'No lost projects. Nice.',
+                statusCol: l => `<span class="pill pill--red">${esc(l.lostReason || 'Other')}</span>`,
+                dateCol: l => timeAgo(l.lostAt), actionAttr: 'data-reopen', actionLabel: 'Reopen',
+              })}
         </div>`}
-
-      <div class="project-tracking-layout">
-        ${listHtml(projects, hasFilters)}
-      </div>
-
-      ${showLost ? sideListHtml({
-        title: `Lost projects (${lostProjects.length})`, items: lostProjects, emptyText: 'No lost projects. Nice.',
-        statusCol: l => `<span class="pill pill--red">${esc(l.lostReason || 'Other')}</span>`,
-        dateCol: l => timeAgo(l.lostAt), actionAttr: 'data-reopen', actionLabel: 'Reopen',
-      }) : ''}
-      ${showOnHold ? sideListHtml({
-        title: `On hold projects (${onHoldProjects.length})`, items: onHoldProjects, emptyText: 'Nothing on hold.',
-        statusCol: () => `<span class="pill pill--muted">On Hold</span>`,
-        dateCol: l => timeAgo(l.updatedAt), actionAttr: 'data-reactivate', actionLabel: 'Reactivate',
-      }) : ''}
-      ${showCompleted ? sideListHtml({
-        title: `Completed projects (${completedProjects.length})`, items: completedProjects, emptyText: 'Nothing completed yet.',
-        statusCol: () => `<span class="pill pill--green">🏁 Complete</span>`,
-        dateCol: l => timeAgo(l.updatedAt), actionAttr: 'data-reactivate', actionLabel: 'Reactivate',
-      }) : ''}
     `;
 
     wire();
   }
 
-  /** One of the three side lists (Lost / On Hold / Completed) — same
-   *  mini-table shape, just different status pill / date / reopen action. */
-  function sideListHtml({ title, items, emptyText, statusCol, dateCol, actionAttr, actionLabel }) {
+  /** The On Hold / Completed / Lost tabs — same mini-table shape, just a
+   *  different status pill / date / reopen-or-reactivate action. */
+  function sideListHtml({ items, emptyText, statusCol, dateCol, actionAttr, actionLabel }) {
     return `
-      <div class="panel mt-lg">
-        <h3>${title}</h3>
+      <div class="panel">
         ${items.length ? `
           <table class="mini-table">
             <thead><tr><th>Project</th><th>Status</th><th>Value</th><th>Updated</th><th></th></tr></thead>
@@ -194,9 +203,7 @@ function renderProjectTracking(root) {
   function wire() {
     qsa('[data-nav]', root).forEach(node => node.addEventListener('click', e => { e.stopPropagation(); Router.navigate(node.dataset.nav); }));
     qs('#new-project-btn', root).addEventListener('click', () => openLeadForm(null, { asProject: true }, () => draw()));
-    qs('#toggle-lost-btn', root).addEventListener('click', () => { showLost = !showLost; draw(); });
-    qs('#toggle-onhold-btn', root).addEventListener('click', () => { showOnHold = !showOnHold; draw(); });
-    qs('#toggle-completed-btn', root).addEventListener('click', () => { showCompleted = !showCompleted; draw(); });
+    qsa('[data-tab]', root).forEach(btn => btn.addEventListener('click', () => { activeTab = btn.dataset.tab; draw(); }));
 
     const searchInput = qs('#project-search', root);
     if (searchInput) {
