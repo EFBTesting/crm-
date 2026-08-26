@@ -86,6 +86,8 @@ function renderLeadDetail(root, { id }) {
             <div><dt>Budget</dt><dd>${fmtMoney(l.value)}</dd></div>
             <div><dt>Est. revenue</dt><dd>${revenue !== null ? `${fmtMoney(revenue)} <span class="muted">(${l.revenuePercent}%)</span>` : '—'}</dd></div>
             <div><dt>Project type</dt><dd>${esc(l.projectType) || '—'}</dd></div>
+            <div><dt>Target start</dt><dd>${l.projectedStartDate ? fmtDateOnly(l.projectedStartDate) : '—'}</dd></div>
+            <div><dt>Target finish</dt><dd>${l.targetCompletionDate ? fmtDateOnly(l.targetCompletionDate) : '—'}</dd></div>
             <div><dt>Lead source</dt><dd>${esc(l.source) || '—'}</dd></div>
             <div><dt>Created</dt><dd>${fmtDate(l.createdAt)}</dd></div>
             <div><dt>Last updated</dt><dd>${timeAgo(l.updatedAt)}</dd></div>
@@ -229,13 +231,13 @@ function preconSectionHtml(l) {
     <div class="panel mb-md">
       <div class="panel__head-row">
         <h3>Pre-Construction Checklist</h3>
-        <button type="button" class="btn btn--ghost btn--sm" id="edit-precon-meta-btn">Edit Details</button>
+        <button type="button" class="btn btn--ghost btn--sm" id="edit-precon-meta-btn">Edit Notes</button>
       </div>
       <div class="precon-summary">
         ${preconStatusPillHtml(progress)}
         <span class="precon-summary__stat">${pct === null ? '—' : `${pct}%`} complete</span>
         <span class="precon-summary__stat">${progress.completed}/${progress.stepsInScope} steps</span>
-        ${l.projectedStartDate ? `<span class="precon-summary__stat">Start ${fmtDateOnly(l.projectedStartDate)}${progress.daysToStart !== null ? ` · ${progress.daysToStart >= 0 ? `${progress.daysToStart}d away` : `${Math.abs(progress.daysToStart)}d overdue`}` : ''}</span>` : ''}
+        ${l.projectedStartDate ? `<span class="precon-summary__stat">Target start ${fmtDateOnly(l.projectedStartDate)}${progress.daysToStart !== null ? ` · ${progress.daysToStart >= 0 ? `${progress.daysToStart}d away` : `${Math.abs(progress.daysToStart)}d overdue`}` : ''}</span>` : ''}
       </div>
       ${progressBarHtml(progress.progressPercent, 'progress-bar--lg')}
       <p class="view-sub mt-sm">Current step: <strong>${esc(progress.currentStep)}</strong></p>

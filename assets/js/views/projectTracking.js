@@ -152,7 +152,7 @@ function renderProjectTracking(root) {
           <thead>
             <tr>
               <th>Project</th><th>Stage</th><th>Progress</th><th>Record Status</th><th>Steps</th><th>Current Step</th>
-              <th>Status</th><th>Projected Start</th><th>Target Completion</th><th>Days</th><th>Value</th>
+              <th>Status</th><th>Target Start</th><th>Target Finish</th><th>Days</th><th>Value</th>
             </tr>
           </thead>
           <tbody>
@@ -193,8 +193,8 @@ function renderProjectTracking(root) {
         <td>
           ${isCompleted ? '' : `<select class="stage-select" data-project-status-select="${l.id}">${optionList(PROJECT_STATUS_OPTIONS, l.projectStatus || 'on_track', { valueKey: 'id', labelKey: 'label', blank: null })}</select>`}
         </td>
-        <td>${l.projectedStartDate ? fmtDateOnly(l.projectedStartDate) : '—'}</td>
-        <td>${l.targetCompletionDate ? fmtDateOnly(l.targetCompletionDate) : '—'}</td>
+        <td><input type="date" class="date-inline-input" data-date-field="projectedStartDate" data-date-lead="${l.id}" value="${esc(l.projectedStartDate || '')}"></td>
+        <td><input type="date" class="date-inline-input" data-date-field="targetCompletionDate" data-date-lead="${l.id}" value="${esc(l.targetCompletionDate || '')}"></td>
         <td>${precon && precon.daysToStart !== null ? (precon.daysToStart >= 0 ? `${precon.daysToStart}d` : `${Math.abs(precon.daysToStart)}d over`) : '—'}</td>
         <td class="cell-title">${fmtMoney(l.value)}</td>
       </tr>`;
@@ -221,6 +221,22 @@ function renderProjectTracking(root) {
     if (statusFilter) statusFilter.addEventListener('change', e => { filterStatus = e.target.value; draw(); });
     const clearBtn = qs('#clear-filters-btn', root);
     if (clearBtn) clearBtn.addEventListener('click', () => { query = ''; filterProjectType = ''; filterStatus = ''; draw(); });
+
+    // Target Start / Target Finish — editable right in the table now; this
+    // is the same field the Lead form sets and Project Calendar edits too,
+    // so a change here shows up everywhere else.
+    qsa('[data-date-field]', root).forEach(input => {
+      input.addEventListener('click', e => e.stopPropagation());
+      input.addEventListener('change', async e => {
+        e.stopPropagation();
+        const id = input.dataset.dateLead;
+        const field = input.dataset.dateField;
+        try {
+          await Leads.updatePreconMeta(id, { [field]: input.value || null });
+          draw();
+        } catch (err) { toast(err.message || 'Could not update the date', 'warn'); }
+      });
+    });
 
     // Lost table's Reopen — full reopen(), restores status='won' too.
     qsa('[data-reopen]', root).forEach(btn => btn.addEventListener('click', async e => {
@@ -258,7 +274,7 @@ function renderProjectTracking(root) {
     });
 
     // Status dropdown — set by hand now (On Track / Delayed / Starting
-    // Soon / Ready to Break Ground / Past Projected Start).
+    // Soon / Ready to Break Ground / Past Target Start).
     qsa('[data-project-status-select]', root).forEach(sel => {
       sel.addEventListener('click', e => e.stopPropagation());
       sel.addEventListener('change', async e => {

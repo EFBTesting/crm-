@@ -174,7 +174,7 @@ function permitSummaryPillHtml(lead) {
 
 /** Pre-Construction status pill — colors mirror the old tracker's color
  *  coding (green = ready to break ground, amber = starting soon, red = past
- *  projected start / lost). `progress` comes from preconProgress(lead). */
+ *  target start / lost). `progress` comes from preconProgress(lead). */
 function preconStatusPillHtml(progress) {
   if (!progress) return `<span class="pill pill--muted">Not started</span>`;
   return `<span class="pill pill--${progress.statusTone}">${esc(progress.statusLabel)}</span>`;

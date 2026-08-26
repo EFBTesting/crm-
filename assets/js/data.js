@@ -68,7 +68,7 @@ const PROJECT_STATUS_OPTIONS = [
   { id: 'delayed', label: 'Delayed' },
   { id: 'starting_soon', label: 'Starting Soon' },
   { id: 'ready_to_break_ground', label: 'Ready to Break Ground' },
-  { id: 'past_projected_start', label: 'Past Projected Start' },
+  { id: 'past_projected_start', label: 'Past Target Start' },
 ];
 
 /** Where a project's permit stands — only meaningful once it's a project. */
@@ -209,7 +209,7 @@ function preconProgress(lead) {
   } else if (!lead.projectedStartDate) {
     statusLabel = 'No target set'; statusTone = 'muted';
   } else if (daysToStart < 0) {
-    statusLabel = 'Past projected start'; statusTone = 'red';
+    statusLabel = 'Past target start'; statusTone = 'red';
   } else if (daysToStart <= 30) {
     statusLabel = 'Starting soon'; statusTone = 'stage';
   } else {
@@ -570,7 +570,10 @@ const Leads = {
   async create(data) {
     const stage = data.stage || STAGES[0].id;
     const history = [{ at: new Date().toISOString(), event: 'created', detail: `Lead created in stage "${stageLabel(stage)}"` }];
-    const row = leadToRow({ ...data, stage, status: 'active', history });
+    // New leads default to Keith as Assigned To so they show up populated
+    // on the Project Calendar right away — changeable any time.
+    const assignedTo = data.assignedTo || 'Hoeing, Keith';
+    const row = leadToRow({ ...data, stage, status: 'active', assignedTo, history });
     const { data: saved, error } = await mustClient().from('leads').insert(row).select().single();
     if (error) throw error;
     const lead = leadFromRow(saved);
@@ -695,19 +698,24 @@ const Leads = {
     const steps = (l.preconSteps || []).filter(s => !(s.phase === phase && s.label === label));
     return this._patch(id, { preconSteps: steps });
   },
-  /** Updates the checklist's projected start / target completion dates,
-   *  record status, and/or notes together — the "Pre-Con Details" box on
-   *  the project page. Start and target completion are what draws each
-   *  project's bar on the Project Calendar's Gantt-style timeline. */
+  /** Updates a lead/project's Target Start / Target Finish dates, Team
+   *  (Assigned To / Estimator / Field Mgr / Designer), Pre-Con record
+   *  status, and/or notes — any subset at a time (undefined fields are
+   *  left untouched). Called from the Project Calendar's inline Team
+   *  dropdowns and date cells, Project Tracking's inline date cells, and
+   *  the Pre-Construction Notes popup. Target Start/Finish are what draws
+   *  a project's bar on the Project Calendar's Gantt-style timeline, and
+   *  it's the single copy of these dates — editing from any page updates
+   *  everywhere else. */
   async updatePreconMeta(id, { projectedStartDate, targetCompletionDate, preconStatus, preconNotes, assignedTo, estimator, fieldManager, designer }) {
     const l = this.get(id);
     if (!l) return null;
     const changes = [];
     if (projectedStartDate !== undefined && (projectedStartDate || '') !== (l.projectedStartDate || '')) {
-      changes.push(`Projected start set to ${projectedStartDate ? fmtDateOnly(projectedStartDate) : '—'}`);
+      changes.push(`Target start set to ${projectedStartDate ? fmtDateOnly(projectedStartDate) : '—'}`);
     }
     if (targetCompletionDate !== undefined && (targetCompletionDate || '') !== (l.targetCompletionDate || '')) {
-      changes.push(`Target completion set to ${targetCompletionDate ? fmtDateOnly(targetCompletionDate) : '—'}`);
+      changes.push(`Target finish set to ${targetCompletionDate ? fmtDateOnly(targetCompletionDate) : '—'}`);
     }
     if (preconStatus !== undefined && preconStatus !== (l.preconStatus || 'active')) {
       changes.push(`Pre-Con status set to "${preconRecordStatusLabel(preconStatus)}"`);

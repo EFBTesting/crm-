@@ -311,17 +311,17 @@ function openLeadForm(existing = null, defaults = {}, onSaved = null) {
         <label class="field"><span>Project stage</span>
           <select name="projectStage">${optionList(PROJECT_STAGES, PROJECT_STAGES[0].id, { valueKey: 'id', labelKey: 'label', blank: null })}</select>
         </label>
-        <label class="field"><span>Projected start</span>
-          <input type="date" name="projectedStartDate">
-        </label>
-        <label class="field"><span>Target completion</span>
-          <input type="date" name="targetCompletionDate">
-        </label>
         ` : `
         <label class="field"><span>Stage</span>
           <select name="stage">${optionList(STAGES, existing?.stage ?? defaults.stage ?? STAGES[0].id, { valueKey: 'id', labelKey: 'label', blank: null })}</select>
         </label>
         `}
+        <label class="field"><span>Target start</span>
+          <input type="date" name="projectedStartDate" value="${esc(existing?.projectedStartDate || '')}">
+        </label>
+        <label class="field"><span>Target finish</span>
+          <input type="date" name="targetCompletionDate" value="${esc(existing?.targetCompletionDate || '')}">
+        </label>
         <label class="field"><span>Budget ($)</span>
           <input type="number" min="0" step="100" name="value" id="lead-value-input" value="${existing?.value ?? ''}" placeholder="25000">
         </label>
@@ -438,13 +438,14 @@ function openLeadForm(existing = null, defaults = {}, onSaved = null) {
         title, value: fd.get('value'), revenuePercent: fd.get('revenuePercent'),
         projectType: fd.get('projectType'), source, notes: fd.get('notes'),
         contactId: contact1Id, secondaryContactId: contact2Id,
+        projectedStartDate: fd.get('projectedStartDate') || null, targetCompletionDate: fd.get('targetCompletionDate') || null,
       };
       // Only the Lead form (new or edit) has a "stage" field — the New
       // Project form has "projectStage" instead, set below.
       if (!asProject) data.stage = fd.get('stage');
       let saved;
       if (existing) saved = await Leads.update(existing.id, data);
-      else if (asProject) saved = await Leads.createProject({ ...data, projectStage: fd.get('projectStage'), projectedStartDate: fd.get('projectedStartDate') || null, targetCompletionDate: fd.get('targetCompletionDate') || null });
+      else if (asProject) saved = await Leads.createProject({ ...data, projectStage: fd.get('projectStage') });
       else saved = await Leads.create(data);
       Modal.close();
       toast(existing ? 'Lead updated' : (asProject ? 'Project created' : 'Lead created'));
@@ -527,41 +528,18 @@ function openProjectMetaForm(lead, onSaved) {
   });
 }
 
-/* --------------------------- Pre-Con details form --------------------------- */
+/* --------------------------- Pre-Con notes form --------------------------- */
 
+/** Target Start/Finish now live on the Lead form (and are editable inline
+ *  on Project Tracking / Project Calendar), and Team is an inline dropdown
+ *  on Project Calendar — so this popup is just Notes now. */
 function openPreconMetaForm(lead, onSaved) {
   Modal.open({
-    title: 'Pre-Construction Details',
-    wide: true,
+    title: 'Pre-Construction Notes',
     bodyHtml: `
-      <datalist id="staff-names-list">${STAFF_NAMES.map(n => `<option value="${esc(n)}">`).join('')}</datalist>
       <form id="precon-meta-form" class="form-grid">
-        <label class="field"><span>Projected start</span>
-          <input type="date" name="projectedStartDate" value="${esc(lead.projectedStartDate || '')}">
-        </label>
-        <label class="field"><span>Target completion</span>
-          <input type="date" name="targetCompletionDate" value="${esc(lead.targetCompletionDate || '')}">
-        </label>
-        <div class="field field--full subform">
-          <div class="subform__head"><span>Team</span></div>
-          <div class="subform-grid">
-            <label class="field"><span>Assigned To</span>
-              <input name="assignedTo" list="staff-names-list" value="${esc(lead.assignedTo || '')}" placeholder="Who's running this project">
-            </label>
-            <label class="field"><span>Estimator</span>
-              <input name="estimator" list="staff-names-list" value="${esc(lead.estimator || '')}">
-            </label>
-            <label class="field"><span>Field Manager</span>
-              <input name="fieldManager" list="staff-names-list" value="${esc(lead.fieldManager || '')}">
-            </label>
-            <label class="field"><span>Designer</span>
-              <input name="designer" list="staff-names-list" value="${esc(lead.designer || '')}">
-            </label>
-          </div>
-        </div>
-
         <label class="field field--full"><span>Notes</span>
-          <textarea name="preconNotes" rows="3" placeholder="Anything worth flagging about this project's pre-con work...">${esc(lead.preconNotes || '')}</textarea>
+          <textarea name="preconNotes" rows="4" placeholder="Anything worth flagging about this project's pre-con work...">${esc(lead.preconNotes || '')}</textarea>
         </label>
         <div class="form-actions">
           <button type="button" class="btn btn--ghost" data-close="1">Cancel</button>
@@ -571,20 +549,11 @@ function openPreconMetaForm(lead, onSaved) {
   });
 
   const form = qs('#precon-meta-form');
-  ['assignedTo', 'estimator', 'fieldManager', 'designer'].forEach(name => bindDatalistReopen(qs(`[name="${name}"]`, form)));
   handleAsyncSubmit(form, {
     onSubmit: async fd => {
-      const saved = await Leads.updatePreconMeta(lead.id, {
-        projectedStartDate: fd.get('projectedStartDate') || null,
-        targetCompletionDate: fd.get('targetCompletionDate') || null,
-        preconNotes: fd.get('preconNotes'),
-        assignedTo: fd.get('assignedTo'),
-        estimator: fd.get('estimator'),
-        fieldManager: fd.get('fieldManager'),
-        designer: fd.get('designer'),
-      });
+      const saved = await Leads.updatePreconMeta(lead.id, { preconNotes: fd.get('preconNotes') });
       Modal.close();
-      toast('Pre-Construction details updated');
+      toast('Notes updated');
       if (onSaved) onSaved(saved);
     },
   });

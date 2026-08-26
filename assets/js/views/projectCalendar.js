@@ -1,23 +1,31 @@
 /* ==========================================================================
-   Project Calendar — a Gantt-style weekly timeline across all active
-   projects, mirroring the old Excel tracker's production schedule sheet.
-   Each project gets a bar from its Projected Start to Target Completion
-   date, with a diamond marking the finish (or a lone diamond if only one
-   of those two dates is set). Projects missing both are listed
-   separately below instead of silently vanishing from the view.
+   Project Calendar — a Gantt-style weekly timeline across every active
+   lead (still in the Pipeline) and won project, mirroring the old Excel
+   tracker's production schedule sheet. Each row gets a bar from its
+   Target Start to Target Finish date, with a diamond marking the finish
+   (or a lone diamond if only one of those two dates is set). Rows missing
+   both are listed separately below instead of silently vanishing from
+   the view. A lead not yet won shows "(LEAD)" next to its name; that
+   drops off automatically once its design contract is signed and it
+   becomes a project.
    ========================================================================== */
 
 /** The sticky "info" columns before the weekly bars — mirrors the old
  *  tracker's Project / Assigned To / Estimator / Field Mgr / Designer
- *  columns. Widths are explicit so header and body cells line up. */
+ *  columns, plus Project Type. Target Start/Finish and the four Team
+ *  fields are editable right in their cells (dates as date pickers, Team
+ *  as dropdowns) — same underlying fields as everywhere else, so a change
+ *  here shows up on the Lead page and Project Tracking too. Widths are
+ *  explicit so header and body cells line up. */
 const GANTT_INFO_COLS = [
   { key: 'title', label: 'Project', width: 190 },
-  { key: 'projectedStartDate', label: 'Projected Start', width: 110, isDate: true },
-  { key: 'targetCompletionDate', label: 'Target Completion', width: 120, isDate: true },
-  { key: 'assignedTo', label: 'Assigned To', width: 110 },
-  { key: 'estimator', label: 'Estimator', width: 100 },
-  { key: 'fieldManager', label: 'Field Mgr', width: 100 },
-  { key: 'designer', label: 'Designer', width: 100 },
+  { key: 'projectType', label: 'Project Type', width: 150 },
+  { key: 'projectedStartDate', label: 'Target Start', width: 120, isDate: true },
+  { key: 'targetCompletionDate', label: 'Target Finish', width: 120, isDate: true },
+  { key: 'assignedTo', label: 'Assigned To', width: 130, isStaff: true },
+  { key: 'estimator', label: 'Estimator', width: 130, isStaff: true },
+  { key: 'fieldManager', label: 'Field Mgr', width: 130, isStaff: true },
+  { key: 'designer', label: 'Designer', width: 130, isStaff: true },
 ];
 const GANTT_INFO_OFFSETS = (() => {
   let acc = 0;
@@ -60,7 +68,12 @@ function renderProjectCalendar(root) {
   }
 
   function draw() {
-    const allProjects = Leads.projects().filter(l => (l.preconStatus || 'active') === 'active');
+    // Won projects still in production, plus every active Pipeline lead —
+    // a lead shows up here as soon as it has a Target Start/Finish date,
+    // labeled "(LEAD)" until it's won (see ganttRowHtml/unscheduled list).
+    const wonProjects = Leads.projects().filter(l => (l.preconStatus || 'active') === 'active');
+    const pipelineLeads = Leads.active();
+    const allProjects = [...wonProjects, ...pipelineLeads];
     const projects = applyFilters(allProjects);
     const plottable = projects.filter(l => l.projectedStartDate || l.targetCompletionDate);
     const unscheduled = projects.filter(l => !l.projectedStartDate && !l.targetCompletionDate);
@@ -93,7 +106,7 @@ function renderProjectCalendar(root) {
           ${hasFilters && !projects.length ? `
             <strong>No projects match these filters.</strong> Try removing one above.
           ` : `
-            <strong>Nothing to plot yet.</strong> Add a Projected Start or Target Completion date to a project (from its Pre-Construction Details on the project page) and it'll show up here.
+            <strong>Nothing to plot yet.</strong> Add a Target Start or Target Finish date to a lead or project (from its own page, or right in this calendar's columns) and it'll show up here.
           `}
         </div>` : ganttHtml(plottable)}
 
@@ -103,8 +116,8 @@ function renderProjectCalendar(root) {
           <ul class="side-panel-list">
             ${unscheduled.map(l => `
               <li class="row-link" data-nav="/leads/${l.id}">
-                <div class="cell-title">${esc(l.title)}</div>
-                <div class="cell-sub">${fmtMoney(l.value)} — add a start or completion date to plot it</div>
+                <div class="cell-title">${esc(l.title)}${l.status !== 'won' ? ' (LEAD)' : ''}</div>
+                <div class="cell-sub">${fmtMoney(l.value)} — add a target start or finish date to plot it</div>
               </li>`).join('')}
           </ul>
         </div>` : ''}
@@ -169,11 +182,27 @@ function renderProjectCalendar(root) {
   function ganttRowHtml(l, weeks) {
     const start = l.projectedStartDate ? dateOnlyToDate(l.projectedStartDate) : null;
     const end = l.targetCompletionDate ? dateOnlyToDate(l.targetCompletionDate) : null;
+    const isLead = l.status !== 'won';
     const infoCells = GANTT_INFO_COLS.map((c, i) => {
-      const val = c.key === 'title' ? l.title : (c.isDate ? fmtDateOnly(l[c.key]) : (l[c.key] || '—'));
       const dividerClass = i === GANTT_INFO_COLS.length - 1 ? ' gantt-info--divider' : '';
-      const nameAttrs = c.key === 'title' ? ' data-nav="' + `/leads/${l.id}` + '" class="gantt-td-info gantt-td--name row-link"' : ` class="gantt-td-info${dividerClass}"`;
-      return `<td${nameAttrs} style="left:${GANTT_INFO_OFFSETS[i]}px; min-width:${c.width}px; max-width:${c.width}px;" title="${esc(val)}">${esc(val)}</td>`;
+      const cellStyle = `style="left:${GANTT_INFO_OFFSETS[i]}px; min-width:${c.width}px; max-width:${c.width}px;"`;
+
+      if (c.key === 'title') {
+        const label = `${l.title}${isLead ? ' (LEAD)' : ''}`;
+        return `<td data-nav="/leads/${l.id}" class="gantt-td-info gantt-td--name row-link" ${cellStyle} title="${esc(label)}">${esc(label)}</td>`;
+      }
+      if (c.isDate) {
+        return `<td class="gantt-td-info${dividerClass}" ${cellStyle}>
+          <input type="date" class="gantt-date-input" data-gantt-date="${c.key}" data-gantt-lead="${l.id}" value="${esc(l[c.key] || '')}">
+        </td>`;
+      }
+      if (c.isStaff) {
+        return `<td class="gantt-td-info${dividerClass}" ${cellStyle}>
+          <select class="gantt-staff-select" data-gantt-staff="${c.key}" data-gantt-lead="${l.id}">${optionList(STAFF_NAMES, l[c.key] || '', { blank: '—' })}</select>
+        </td>`;
+      }
+      const val = l[c.key] || '—';
+      return `<td class="gantt-td-info${dividerClass}" ${cellStyle} title="${esc(val)}">${esc(val)}</td>`;
     }).join('');
     return `
       <tr>
@@ -197,6 +226,26 @@ function renderProjectCalendar(root) {
 
   function wire() {
     qsa('[data-nav]', root).forEach(node => node.addEventListener('click', e => { e.stopPropagation(); Router.navigate(node.dataset.nav); }));
+
+    // Target Start / Target Finish, editable right in the cell — same
+    // underlying field the Lead form sets and Project Tracking edits too.
+    qsa('[data-gantt-date]', root).forEach(input => {
+      input.addEventListener('change', async () => {
+        const id = input.dataset.ganttLead;
+        const field = input.dataset.ganttDate;
+        try { await Leads.updatePreconMeta(id, { [field]: input.value || null }); draw(); }
+        catch (err) { toast(err.message || 'Could not update the date', 'warn'); }
+      });
+    });
+    // Team dropdowns — Assigned To / Estimator / Field Mgr / Designer.
+    qsa('[data-gantt-staff]', root).forEach(sel => {
+      sel.addEventListener('change', async () => {
+        const id = sel.dataset.ganttLead;
+        const field = sel.dataset.ganttStaff;
+        try { await Leads.updatePreconMeta(id, { [field]: sel.value }); draw(); }
+        catch (err) { toast(err.message || 'Could not update that field', 'warn'); }
+      });
+    });
 
     const fieldSelect = qs('#filter-field-select', root);
     if (fieldSelect) fieldSelect.addEventListener('change', e => { pendingField = e.target.value; draw(); });
