@@ -16,16 +16,18 @@
  *  fields are editable right in their cells (dates as date pickers, Team
  *  as dropdowns) — same underlying fields as everywhere else, so a change
  *  here shows up on the Lead page and Project Tracking too. Widths are
- *  explicit so header and body cells line up. */
+ *  explicit so header and body cells line up — kept compact (total ~785px)
+ *  so the timeline itself still has room on a typical laptop screen; a
+ *  wider set here was pushing every actual calendar bar off-screen. */
 const GANTT_INFO_COLS = [
-  { key: 'title', label: 'Project', width: 190 },
-  { key: 'projectType', label: 'Project Type', width: 150 },
-  { key: 'projectedStartDate', label: 'Target Start', width: 120, isDate: true },
-  { key: 'targetCompletionDate', label: 'Target Finish', width: 120, isDate: true },
-  { key: 'assignedTo', label: 'Assigned To', width: 130, isStaff: true },
-  { key: 'estimator', label: 'Estimator', width: 130, isStaff: true },
-  { key: 'fieldManager', label: 'Field Mgr', width: 130, isStaff: true },
-  { key: 'designer', label: 'Designer', width: 130, isStaff: true },
+  { key: 'title', label: 'Project', width: 150 },
+  { key: 'projectType', label: 'Project Type', width: 95 },
+  { key: 'projectedStartDate', label: 'Target Start', width: 85, isDate: true },
+  { key: 'targetCompletionDate', label: 'Target Finish', width: 85, isDate: true },
+  { key: 'assignedTo', label: 'Assigned To', width: 95, isStaff: true },
+  { key: 'estimator', label: 'Estimator', width: 95, isStaff: true },
+  { key: 'fieldManager', label: 'Field Mgr', width: 90, isStaff: true },
+  { key: 'designer', label: 'Designer', width: 90, isStaff: true },
 ];
 const GANTT_INFO_OFFSETS = (() => {
   let acc = 0;
