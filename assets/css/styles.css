@@ -560,3 +560,18 @@ body.modal-open { overflow: hidden; }
   .permit-row__status { flex: 1 1 auto; }
   .detail-list > div { grid-template-columns: 100px 1fr; }
 }
+
+/* ---------------------------- Flatpickr (date fields, brand-matched) ---------------------------- */
+
+.flatpickr-calendar { font-family: inherit; box-shadow: var(--shadow); border-radius: var(--radius); }
+.flatpickr-day.selected, .flatpickr-day.selected:hover,
+.flatpickr-day.startRange, .flatpickr-day.startRange:hover,
+.flatpickr-day.endRange, .flatpickr-day.endRange:hover {
+  background: var(--brand); border-color: var(--brand);
+}
+.flatpickr-day.today { border-color: var(--amber); }
+.flatpickr-day.today:hover { border-color: var(--amber); background: var(--amber); color: #fff; }
+.flatpickr-day:hover { background: rgba(22, 98, 50, 0.1); }
+.flatpickr-months .flatpickr-current-month .flatpickr-monthDropdown-months:hover,
+.flatpickr-current-month input.cur-year:focus { background: rgba(22, 98, 50, 0.08); }
+span.flatpickr-weekday { color: var(--muted); }

@@ -317,10 +317,10 @@ function openLeadForm(existing = null, defaults = {}, onSaved = null) {
         </label>
         `}
         <label class="field"><span>Target start</span>
-          <input type="date" name="projectedStartDate" value="${esc(existing?.projectedStartDate || '')}">
+          <input type="text" class="js-datepicker" name="projectedStartDate" value="${esc(existing?.projectedStartDate || '')}" placeholder="Select a date...">
         </label>
         <label class="field"><span>Target finish</span>
-          <input type="date" name="targetCompletionDate" value="${esc(existing?.targetCompletionDate || '')}">
+          <input type="text" class="js-datepicker" name="targetCompletionDate" value="${esc(existing?.targetCompletionDate || '')}" placeholder="Select a date...">
         </label>
         <label class="field"><span>Budget ($)</span>
           <input type="number" min="0" step="100" name="value" id="lead-value-input" value="${existing?.value ?? ''}" placeholder="25000">
@@ -363,6 +363,7 @@ function openLeadForm(existing = null, defaults = {}, onSaved = null) {
   });
 
   const form = qs('#lead-form');
+  bindDatePickers(form);
   const valueInput = qs('#lead-value-input', form);
   const revenueInput = qs('#lead-revenue-input', form);
   const revenueReadout = qs('#revenue-readout', form);

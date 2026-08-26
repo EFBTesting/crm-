@@ -126,6 +126,32 @@ function bindDatalistReopen(input) {
     delete input.dataset.prevValue;
   });
 }
+/** Wires flatpickr onto every `.js-datepicker` input under `root` — swaps
+ *  the native date UI (fiddly mm/dd/yyyy segments, no way to just type a
+ *  year) for one that's directly typable — e.g. typing "12/4/2027" or just
+ *  "2027" while on the year jumps straight there — plus a calendar
+ *  dropdown. The input keeps holding a plain "YYYY-MM-DD" string (same as
+ *  before, so nothing downstream needs to change), shown to the user in a
+ *  friendlier format via flatpickr's altInput. Pass `onSave(dateStr, input)`
+ *  for fields that should save immediately on change (inline table edits);
+ *  omit it for a field inside a form that saves on submit instead. */
+function bindDatePickers(root, onSave) {
+  if (typeof flatpickr === 'undefined') return;
+  qsa('.js-datepicker', root).forEach(input => {
+    const originalClasses = input.className;
+    const fp = flatpickr(input, {
+      dateFormat: 'Y-m-d',
+      altInput: true,
+      altFormat: 'M j, Y',
+      allowInput: true,
+      onChange: (dates, dateStr) => { if (onSave) onSave(dateStr, input); },
+    });
+    // The visible field is a separate element flatpickr creates (the real
+    // input becomes hidden) — match it to whatever this field was already
+    // styled with (table-cell input, gantt cell input, etc).
+    if (fp.altInput) fp.altInput.className = originalClasses;
+  });
+}
 function bindAutoCapitalize(input) {
   if (!input) return;
   input.addEventListener('input', () => {

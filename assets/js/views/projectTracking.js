@@ -193,8 +193,8 @@ function renderProjectTracking(root) {
         <td>
           ${isCompleted ? '' : `<select class="stage-select" data-project-status-select="${l.id}">${optionList(PROJECT_STATUS_OPTIONS, l.projectStatus || 'on_track', { valueKey: 'id', labelKey: 'label', blank: null })}</select>`}
         </td>
-        <td><input type="date" class="date-inline-input" data-date-field="projectedStartDate" data-date-lead="${l.id}" value="${esc(l.projectedStartDate || '')}"></td>
-        <td><input type="date" class="date-inline-input" data-date-field="targetCompletionDate" data-date-lead="${l.id}" value="${esc(l.targetCompletionDate || '')}"></td>
+        <td><input type="text" class="date-inline-input js-datepicker" data-date-field="projectedStartDate" data-date-lead="${l.id}" value="${esc(l.projectedStartDate || '')}" placeholder="—"></td>
+        <td><input type="text" class="date-inline-input js-datepicker" data-date-field="targetCompletionDate" data-date-lead="${l.id}" value="${esc(l.targetCompletionDate || '')}" placeholder="—"></td>
         <td>${precon && precon.daysToStart !== null ? (precon.daysToStart >= 0 ? `${precon.daysToStart}d` : `${Math.abs(precon.daysToStart)}d over`) : '—'}</td>
         <td class="cell-title">${fmtMoney(l.value)}</td>
       </tr>`;
@@ -225,17 +225,16 @@ function renderProjectTracking(root) {
     // Target Start / Target Finish — editable right in the table now; this
     // is the same field the Lead form sets and Project Calendar edits too,
     // so a change here shows up everywhere else.
+    bindDatePickers(root, async (dateStr, input) => {
+      const id = input.dataset.dateLead;
+      const field = input.dataset.dateField;
+      try { await Leads.updatePreconMeta(id, { [field]: dateStr || null }); draw(); }
+      catch (err) { toast(err.message || 'Could not update the date', 'warn'); }
+    });
     qsa('[data-date-field]', root).forEach(input => {
       input.addEventListener('click', e => e.stopPropagation());
-      input.addEventListener('change', async e => {
-        e.stopPropagation();
-        const id = input.dataset.dateLead;
-        const field = input.dataset.dateField;
-        try {
-          await Leads.updatePreconMeta(id, { [field]: input.value || null });
-          draw();
-        } catch (err) { toast(err.message || 'Could not update the date', 'warn'); }
-      });
+      const fp = input._flatpickr;
+      if (fp && fp.altInput) fp.altInput.addEventListener('click', e => e.stopPropagation());
     });
 
     // Lost table's Reopen — full reopen(), restores status='won' too.

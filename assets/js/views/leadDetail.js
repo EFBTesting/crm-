@@ -190,7 +190,7 @@ function contactedSectionHtml(progress) {
               <input type="checkbox" data-contacted-done ${item.done ? 'checked' : ''}>
               <span>${esc(item.label)}</span>
             </label>
-            ${item.hasDate ? `<input type="date" class="contacted-row__date" data-contacted-date value="${esc(item.date || '')}">` : ''}
+            ${item.hasDate ? `<input type="text" class="contacted-row__date js-datepicker" data-contacted-date value="${esc(item.date || '')}" placeholder="Select a date...">` : ''}
             ${item.overdue ? `<span class="contacted-row__flag">🔴 Overdue — was due ${fmtDate(item.dueDate)}</span>`
               : (item.dueDate ? `<span class="contacted-row__due muted">Due ${fmtDate(item.dueDate)}</span>` : '')}
           </div>`).join('')}
@@ -206,11 +206,11 @@ function wireContactedSection(root, l, draw) {
       try { await Leads.setContactedStep(l.id, key, { done: checkbox.checked }); draw(); }
       catch (err) { toast(err.message || 'Could not update that step', 'warn'); }
     });
-    const dateInput = qs('[data-contacted-date]', row);
-    if (dateInput) dateInput.addEventListener('change', async () => {
-      try { await Leads.setContactedStep(l.id, key, { date: dateInput.value || null }); draw(); }
-      catch (err) { toast(err.message || 'Could not update that date', 'warn'); }
-    });
+  });
+  bindDatePickers(root, async (dateStr, input) => {
+    const key = input.closest('[data-contacted-key]').dataset.contactedKey;
+    try { await Leads.setContactedStep(l.id, key, { date: dateStr || null }); draw(); }
+    catch (err) { toast(err.message || 'Could not update that date', 'warn'); }
   });
 }
 

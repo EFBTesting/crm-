@@ -127,11 +127,21 @@ function renderProjectCalendar(root) {
   }
 
   function ganttHtml(projects) {
+    // A single mistyped year (e.g. "0027" instead of "2027") would blow the
+    // range out to tens of thousands of weeks and hang the whole page — so
+    // only plausible dates (within ~5 years back / 15 years out) count
+    // toward the timeline's span. A row with an implausible date still
+    // shows up (title, Target Start/Finish, Team), it just won't draw a
+    // bar for that one date, making the bad value easy to spot and fix.
+    const todayYear = new Date().getFullYear();
+    const isPlausibleDate = d => d instanceof Date && !isNaN(d) && d.getFullYear() >= todayYear - 5 && d.getFullYear() <= todayYear + 15;
+
     const dates = [];
     projects.forEach(l => {
-      if (l.projectedStartDate) dates.push(dateOnlyToDate(l.projectedStartDate));
-      if (l.targetCompletionDate) dates.push(dateOnlyToDate(l.targetCompletionDate));
+      if (l.projectedStartDate) { const d = dateOnlyToDate(l.projectedStartDate); if (isPlausibleDate(d)) dates.push(d); }
+      if (l.targetCompletionDate) { const d = dateOnlyToDate(l.targetCompletionDate); if (isPlausibleDate(d)) dates.push(d); }
     });
+    if (!dates.length) dates.push(new Date());
     // A couple weeks of breathing room on either side of the real range.
     const earliest = addDays(new Date(Math.min(...dates)), -14);
     const latest = addDays(new Date(Math.max(...dates)), 28);
@@ -193,7 +203,7 @@ function renderProjectCalendar(root) {
       }
       if (c.isDate) {
         return `<td class="gantt-td-info${dividerClass}" ${cellStyle}>
-          <input type="date" class="gantt-date-input" data-gantt-date="${c.key}" data-gantt-lead="${l.id}" value="${esc(l[c.key] || '')}">
+          <input type="text" class="gantt-date-input js-datepicker" data-gantt-date="${c.key}" data-gantt-lead="${l.id}" value="${esc(l[c.key] || '')}" placeholder="—">
         </td>`;
       }
       if (c.isStaff) {
@@ -229,13 +239,11 @@ function renderProjectCalendar(root) {
 
     // Target Start / Target Finish, editable right in the cell — same
     // underlying field the Lead form sets and Project Tracking edits too.
-    qsa('[data-gantt-date]', root).forEach(input => {
-      input.addEventListener('change', async () => {
-        const id = input.dataset.ganttLead;
-        const field = input.dataset.ganttDate;
-        try { await Leads.updatePreconMeta(id, { [field]: input.value || null }); draw(); }
-        catch (err) { toast(err.message || 'Could not update the date', 'warn'); }
-      });
+    bindDatePickers(root, async (dateStr, input) => {
+      const id = input.dataset.ganttLead;
+      const field = input.dataset.ganttDate;
+      try { await Leads.updatePreconMeta(id, { [field]: dateStr || null }); draw(); }
+      catch (err) { toast(err.message || 'Could not update the date', 'warn'); }
     });
     // Team dropdowns — Assigned To / Estimator / Field Mgr / Designer.
     qsa('[data-gantt-staff]', root).forEach(sel => {
