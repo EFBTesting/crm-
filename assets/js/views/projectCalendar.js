@@ -74,7 +74,16 @@ function renderProjectCalendar(root) {
     // a lead shows up here as soon as it has a Target Start/Finish date,
     // labeled "(LEAD)" until it's won (see ganttRowHtml/unscheduled list).
     const wonProjects = Leads.projects().filter(l => (l.preconStatus || 'active') === 'active');
-    const pipelineLeads = Leads.active();
+    const rawPipelineLeads = Leads.active();
+    // Any lead still missing an Assigned To (e.g. it existed before the
+    // "default to Keith" behavior was added) defaults to Keith the moment
+    // it shows up here — persisted in the background so it's consistent
+    // everywhere (Team filter, sorting, Project Tracking), not just a
+    // visual default on this page.
+    rawPipelineLeads.filter(l => !l.assignedTo).forEach(l => {
+      Leads.updatePreconMeta(l.id, { assignedTo: 'Hoeing, Keith' }).catch(() => {});
+    });
+    const pipelineLeads = rawPipelineLeads.map(l => l.assignedTo ? l : { ...l, assignedTo: 'Hoeing, Keith' });
     const allProjects = [...wonProjects, ...pipelineLeads];
     const projects = applyFilters(allProjects);
     const plottable = projects.filter(l => l.projectedStartDate || l.targetCompletionDate);
