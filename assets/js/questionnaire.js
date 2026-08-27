@@ -26,9 +26,10 @@ function qEsc(str) {
   return String(str ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
+/** Each question is its own card, stacked one per row — the Google/
+ *  Microsoft Forms look, instead of a dense multi-column grid. */
 function qFieldHtml(field) {
   const req = field.required ? 'required' : '';
-  const wrapClass = (field.type === 'textarea' || field.type === 'radio') ? 'field field--full' : 'field';
   let control;
   if (field.type === 'textarea') {
     control = `<textarea name="${field.key}" rows="3" ${req}></textarea>`;
@@ -44,7 +45,10 @@ function qFieldHtml(field) {
   } else {
     control = `<input type="${field.type}" name="${field.key}" ${req}>`;
   }
-  return `<label class="${wrapClass}"><span>${qEsc(field.label)}${field.required ? ' *' : ''}</span>${control}</label>`;
+  return `<div class="qf-question-card">
+    <label class="qf-question-label">${qEsc(field.label)}${field.required ? ' <span class="qf-required">*</span>' : ''}</label>
+    ${control}
+  </div>`;
 }
 
 function showError(message) {
