@@ -561,6 +561,52 @@ body.modal-open { overflow: hidden; }
   .detail-list > div { grid-template-columns: 100px 1fr; }
 }
 
+/* ---------------------------- Client Questionnaire (public, standalone page) ---------------------------- */
+
+.questionnaire-page {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(180deg, var(--brand-dark), var(--brand)); padding: 24px;
+}
+.questionnaire-card {
+  background: #fff; border-radius: 14px; padding: 36px; width: 100%; max-width: 640px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+}
+.questionnaire-card .brand__logo { height: 64px; }
+.questionnaire-card h1 { margin-bottom: 4px; }
+#q-fields { display: contents; }
+.questionnaire-radio-group { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 2px; }
+.questionnaire-radio-group label {
+  display: flex; align-items: center; gap: 6px; font-weight: 400; font-size: 0.86rem;
+  color: var(--ink); cursor: pointer;
+}
+.questionnaire-radio-group input { width: 15px; height: 15px; accent-color: var(--brand); cursor: pointer; margin: 0; }
+.questionnaire-success { text-align: center; padding: 12px 0 4px; }
+@media (max-width: 600px) {
+  .questionnaire-card { padding: 24px; }
+}
+
+/* ---------------------------- Client Questionnaire (staff-side tracker) ---------------------------- */
+
+.q-name-cell { display: flex; align-items: center; gap: 8px; }
+.q-indicator {
+  display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+  border: 2px solid var(--line); background: transparent;
+}
+.q-indicator.is-answered { background: var(--green); border-color: var(--green); }
+
+.btn:disabled { opacity: 0.6; cursor: not-allowed; filter: none !important; }
+.btn--answered { background: rgba(63, 143, 95, 0.14); color: var(--green); border-color: transparent; }
+
+.q-response-section { margin-bottom: 20px; }
+.q-response-section:last-of-type { margin-bottom: 0; }
+.q-response-section__head {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+  margin-bottom: 10px; border-bottom: 1px solid var(--line); padding-bottom: 8px;
+}
+.q-response-list { display: flex; flex-direction: column; gap: 14px; margin: 0; }
+.q-response-list dt { font-size: 0.82rem; font-weight: 700; color: var(--ink-soft); margin-bottom: 3px; }
+.q-response-list dd { margin: 0; font-size: 0.9rem; color: var(--ink); white-space: pre-wrap; }
+
 /* ---------------------------- Flatpickr (date fields, brand-matched) ---------------------------- */
 
 .flatpickr-calendar { font-family: inherit; box-shadow: var(--shadow); border-radius: var(--radius); }

@@ -237,7 +237,7 @@ function permitStatusLabel(id) {
 }
 
 /* ---- in-memory cache, kept in sync with Supabase ---- */
-const cache = { contacts: [], companies: [], leads: [] };
+const cache = { contacts: [], companies: [], leads: [], questionnaireStatus: [], questionnaireResponses: [] };
 
 /** Set by app.js — called whenever a remote change (from another tab or
  *  teammate) updates the cache, so the current view can redraw. */
@@ -373,6 +373,22 @@ function diffPermits(oldPermits, newPermits) {
   return changes;
 }
 
+function questionnaireStatusFromRow(r) {
+  return {
+    id: r.id, leadId: r.lead_id,
+    quickSentAt: r.quick_sent_at, quickAnsweredAt: r.quick_answered_at,
+    detailedSentAt: r.detailed_sent_at, detailedAnsweredAt: r.detailed_answered_at,
+    createdAt: r.created_at, updatedAt: r.updated_at,
+  };
+}
+function questionnaireResponseFromRow(r) {
+  return {
+    id: r.id, leadId: r.lead_id, questionnaireType: r.questionnaire_type,
+    answers: r.answers || {}, submittedAt: r.submitted_at,
+    createdAt: r.created_at, updatedAt: r.updated_at,
+  };
+}
+
 /* =========================== Cache boot + realtime =========================== */
 
 async function loadAllData() {
@@ -388,6 +404,20 @@ async function loadAllData() {
   cache.companies = companiesRes.data.map(companyFromRow);
   cache.contacts = contactsRes.data.map(contactFromRow);
   cache.leads = leadsRes.data.map(leadFromRow);
+
+  // Soft-fail: the Client Questionnaire feature needs its own schema
+  // update (see supabase/schema.sql, questionnaire_status/_responses) —
+  // if that hasn't been run yet on this project, the rest of the app
+  // should still load normally rather than the whole CRM breaking on
+  // these two newer, optional tables.
+  const [qStatusRes, qResponsesRes] = await Promise.all([
+    client.from('questionnaire_status').select('*'),
+    client.from('questionnaire_responses').select('*'),
+  ]);
+  if (qStatusRes.error) console.warn('questionnaire_status not available yet — run the latest supabase/schema.sql', qStatusRes.error);
+  if (qResponsesRes.error) console.warn('questionnaire_responses not available yet — run the latest supabase/schema.sql', qResponsesRes.error);
+  cache.questionnaireStatus = qStatusRes.error ? [] : qStatusRes.data.map(questionnaireStatusFromRow);
+  cache.questionnaireResponses = qResponsesRes.error ? [] : qResponsesRes.data.map(questionnaireResponseFromRow);
 }
 
 const debouncedNotify = debounce(() => notifyChange(), 250);
@@ -399,6 +429,8 @@ function subscribeRealtime() {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'companies' }, () => refreshTableThen('companies'))
     .on('postgres_changes', { event: '*', schema: 'public', table: 'contacts' }, () => refreshTableThen('contacts'))
     .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, () => refreshTableThen('leads'))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'questionnaire_status' }, () => refreshTableThen('questionnaire_status'))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'questionnaire_responses' }, () => refreshTableThen('questionnaire_responses'))
     .subscribe();
 }
 
@@ -410,6 +442,8 @@ async function refreshTableThen(table) {
     if (table === 'companies') cache.companies = data.map(companyFromRow);
     if (table === 'contacts') cache.contacts = data.map(contactFromRow);
     if (table === 'leads') cache.leads = data.map(leadFromRow);
+    if (table === 'questionnaire_status') cache.questionnaireStatus = data.map(questionnaireStatusFromRow);
+    if (table === 'questionnaire_responses') cache.questionnaireResponses = data.map(questionnaireResponseFromRow);
     debouncedNotify();
   } catch (e) {
     console.error('Realtime refresh failed for', table, e);
@@ -803,5 +837,56 @@ const Leads = {
     const i = cache.leads.findIndex(l => l.id === id);
     if (i !== -1) cache.leads[i] = lead;
     return lead;
+  },
+};
+
+/* =========================== Client Questionnaires =========================== */
+
+const Questionnaires = {
+  statusFor(leadId) {
+    return cache.questionnaireStatus.find(s => s.leadId === leadId) || null;
+  },
+  /** All submitted responses for a lead, newest first. */
+  responsesFor(leadId) {
+    return cache.questionnaireResponses
+      .filter(r => r.leadId === leadId)
+      .sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
+  },
+  /** Most recent response of one type, if any — a lead could in theory
+   *  be re-sent a link and submit twice; the newest one is what counts. */
+  latestResponse(leadId, type) {
+    return this.responsesFor(leadId).find(r => r.questionnaireType === type) || null;
+  },
+  /** Everything the Client Questionnaire page needs to know about one
+   *  lead's send/answer state, computed together so the view doesn't
+   *  have to re-derive it. notSentTab/waitingTab drive the page's tabs;
+   *  fullyAnswered drives the sort (answered leads sink to the bottom). */
+  progressFor(leadId) {
+    const status = this.statusFor(leadId);
+    const quickSent = !!(status && status.quickSentAt);
+    const quickAnswered = !!(status && status.quickAnsweredAt);
+    const detailedSent = !!(status && status.detailedSentAt);
+    const detailedAnswered = !!(status && status.detailedAnsweredAt);
+    return {
+      status, quickSent, quickAnswered, detailedSent, detailedAnswered,
+      notSentTab: !quickSent || !detailedSent,
+      waitingTab: quickSent && detailedSent && !(quickAnswered && detailedAnswered),
+      fullyAnswered: quickAnswered && detailedAnswered,
+    };
+  },
+  /** Marks one questionnaire "sent" — the Client Questionnaire page's
+   *  Send button. Upserts by lead_id so the first send for a lead
+   *  creates its status row; a later send for the other type only
+   *  touches that one column, leaving everything else on the row alone. */
+  async markSent(leadId, type) {
+    const field = type === 'quick' ? 'quick_sent_at' : 'detailed_sent_at';
+    const { data, error } = await mustClient().from('questionnaire_status')
+      .upsert({ lead_id: leadId, [field]: new Date().toISOString() }, { onConflict: 'lead_id' })
+      .select().single();
+    if (error) throw error;
+    const status = questionnaireStatusFromRow(data);
+    const i = cache.questionnaireStatus.findIndex(s => s.id === status.id);
+    if (i !== -1) cache.questionnaireStatus[i] = status; else cache.questionnaireStatus.push(status);
+    return status;
   },
 };

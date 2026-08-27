@@ -588,6 +588,48 @@ function openLostReasonPrompt(lead, onDone) {
   });
 }
 
+/* --------------------------- Questionnaire responses --------------------------- */
+
+/** Read-only view of a lead's submitted questionnaire answers — shown
+ *  from the Client Questionnaire page by clicking a lead's name, once
+ *  they've answered at least one. Question labels come from
+ *  QUESTIONNAIRE_SETS (assets/js/questionnaire-questions.js) so this
+ *  always matches whatever the public form actually asked. */
+function openQuestionnaireResponses(lead) {
+  if (!lead) return;
+
+  function sectionHtml(type, label) {
+    const response = Questionnaires.latestResponse(lead.id, type);
+    if (!response) return '';
+    const set = QUESTIONNAIRE_SETS[type];
+    return `
+      <div class="q-response-section">
+        <div class="q-response-section__head">
+          <h3>${esc(label)} Questionnaire</h3>
+          <span class="muted">Submitted ${fmtDateTime(response.submittedAt)}</span>
+        </div>
+        <dl class="q-response-list">
+          ${set.fields.map(f => `
+            <div>
+              <dt>${esc(f.label)}</dt>
+              <dd>${esc(response.answers[f.key]) || '—'}</dd>
+            </div>`).join('')}
+        </dl>
+      </div>`;
+  }
+
+  Modal.open({
+    title: `${lead.title} — Questionnaire Responses`,
+    wide: true,
+    bodyHtml: `
+      ${sectionHtml('quick', 'Quick')}
+      ${sectionHtml('detailed', 'Detailed')}
+      <div class="form-actions">
+        <button type="button" class="btn btn--ghost" data-close="1">Close</button>
+      </div>`,
+  });
+}
+
 /* --------------------------- Confirm dialog --------------------------- */
 
 function openConfirm({ title = 'Are you sure?', message = '', confirmLabel = 'Delete', danger = true }, onConfirm) {

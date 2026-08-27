@@ -20,6 +20,7 @@
   Router.register('/companies', () => mount(renderCompanies));
   Router.register('/companies/:id', params => mount(renderCompanyDetail, params));
   Router.register('/pipeline', () => mount(renderPipeline));
+  Router.register('/questionnaire', () => mount(renderQuestionnaires));
   Router.register('/projects', () => mount(renderProjectTracking));
   Router.register('/calendar', () => mount(renderProjectCalendar));
   Router.register('/leads/:id', params => mount(renderLeadDetail, params));
