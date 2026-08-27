@@ -563,16 +563,26 @@ body.modal-open { overflow: hidden; }
 
 /* ---------------------------- Client Questionnaire (public, standalone page) ---------------------------- */
 
-.questionnaire-page {
-  min-height: 100vh; display: flex; align-items: center; justify-content: center;
-  background: linear-gradient(180deg, var(--brand-dark), var(--brand)); padding: 24px;
+/* Full-bleed split layout — a branded panel and the form panel each fill
+   the full page height side by side, so the page reads as one intentional
+   whole instead of a small card floating in empty space. Stacks to a
+   banner-on-top layout below 860px (tablet/phone). */
+.questionnaire-page { min-height: 100vh; background: var(--paper); }
+.questionnaire-shell { min-height: 100vh; display: grid; grid-template-columns: minmax(280px, 38%) 1fr; }
+
+.questionnaire-brand-panel {
+  background: linear-gradient(160deg, var(--brand-dark), var(--brand)); color: #fff;
+  display: flex; flex-direction: column; justify-content: center; gap: 16px;
+  padding: 56px 48px;
 }
-.questionnaire-card {
-  background: #fff; border-radius: 14px; padding: 36px; width: 100%; max-width: 640px;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.35);
-}
-.questionnaire-card .brand__logo { height: 64px; }
-.questionnaire-card h1 { margin-bottom: 4px; }
+.questionnaire-brand-panel .brand__logo { height: 68px; margin-bottom: 8px; }
+.questionnaire-brand-panel h1 { color: #fff; font-size: 1.7rem; letter-spacing: -0.01em; }
+.questionnaire-brand-panel p { color: rgba(255, 255, 255, 0.85); font-size: 0.95rem; line-height: 1.6; margin: 0; }
+
+.questionnaire-form-panel { display: flex; align-items: center; padding: 56px 48px; }
+.questionnaire-form-inner { width: 100%; max-width: 620px; margin: 0 auto; }
+.questionnaire-form-inner #q-loading { text-align: center; }
+
 #q-fields { display: contents; }
 .questionnaire-radio-group { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 2px; }
 .questionnaire-radio-group label {
@@ -580,9 +590,16 @@ body.modal-open { overflow: hidden; }
   color: var(--ink); cursor: pointer;
 }
 .questionnaire-radio-group input { width: 15px; height: 15px; accent-color: var(--brand); cursor: pointer; margin: 0; }
-.questionnaire-success { text-align: center; padding: 12px 0 4px; }
-@media (max-width: 600px) {
-  .questionnaire-card { padding: 24px; }
+.questionnaire-success { padding: 12px 0 4px; }
+
+@media (max-width: 860px) {
+  .questionnaire-shell { grid-template-columns: 1fr; }
+  .questionnaire-brand-panel { padding: 40px 28px; text-align: center; align-items: center; }
+  .questionnaire-form-panel { padding: 36px 24px; }
+}
+@media (max-width: 480px) {
+  .questionnaire-brand-panel { padding: 32px 20px; }
+  .questionnaire-form-panel { padding: 28px 16px; }
 }
 
 /* ---------------------------- Client Questionnaire (staff-side tracker) ---------------------------- */
