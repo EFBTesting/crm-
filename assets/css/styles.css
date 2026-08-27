@@ -563,45 +563,62 @@ body.modal-open { overflow: hidden; }
 
 /* ---------------------------- Client Questionnaire (public, standalone page) ---------------------------- */
 
-/* A plain document look — one bordered "sheet" holding the company name,
-   title, intro, and every question as a numbered line with an underline
-   blank or a checkbox-style choice list, instead of a boxed web-form. */
+/* A plain printed-document look, matching a standard questionnaire
+   template: bordered sheet, bold company name + subtitle, dividers
+   between the header/intro/each section, section headings with an
+   optional italic note, short answers inline ("1. Name: ___"), and
+   square checkbox-style choices instead of native dropdowns. */
 .qf-page { min-height: 100vh; background: #e9e5da; padding: 40px 20px; }
 .qf-sheet {
-  max-width: 800px; margin: 0 auto; background: #fff; border: 1px solid var(--line);
-  border-radius: 6px; box-shadow: var(--shadow); padding: 48px 56px;
+  max-width: 760px; margin: 0 auto; background: #fff; border: 1px solid var(--line);
+  border-radius: 6px; box-shadow: var(--shadow); padding: 44px 52px;
 }
-.qf-sheet__header { display: flex; align-items: center; gap: 14px; margin-bottom: 2px; }
-.qf-logo { height: 44px; width: auto; display: block; }
-.qf-sheet h1 { font-size: 1.3rem; }
-.qf-intro { color: var(--ink-soft); font-size: 0.9rem; line-height: 1.6; margin: 14px 0 0; }
-.qf-divider { border: none; border-top: 1px solid var(--line); margin: 24px 0; }
-#q-success h2 { font-size: 1.3rem; margin-bottom: 8px; }
+.qf-sheet__company { font-weight: 800; font-size: 1.05rem; color: var(--ink); }
+.qf-sheet__title { font-size: 0.95rem; font-weight: 400; color: var(--ink-soft); margin: 2px 0 0; }
+.qf-intro { color: var(--ink-soft); font-size: 0.88rem; line-height: 1.6; margin: 0; }
+.qf-divider { border: none; border-top: 1px solid var(--line); margin: 18px 0; }
+#q-success h2 { font-size: 1.2rem; margin-bottom: 8px; }
 
-#q-fields { display: flex; flex-direction: column; gap: 22px; }
-.qf-q__label { font-weight: 600; font-size: 0.92rem; color: var(--ink); margin-bottom: 8px; }
-.qf-required { color: var(--red); }
+.qf-section + .qf-divider { margin: 24px 0; }
+.qf-section__heading { font-size: 1rem; margin-bottom: 4px; }
+.qf-section__note { font-style: italic; color: var(--muted); font-size: 0.8rem; margin: 0 0 16px; }
+.qf-section__fields { display: flex; flex-direction: column; gap: 16px; margin-top: 14px; }
+
+.qf-q__label { font-weight: 600; font-size: 0.88rem; color: var(--ink); margin-bottom: 8px; }
+.qf-required { color: var(--red); font-weight: 400; }
+
+.qf-q--inline { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; }
+.qf-q--inline .qf-q__label { margin-bottom: 0; white-space: nowrap; }
+.qf-q--inline .qf-q__underline { flex: 1; min-width: 140px; }
+
 .qf-q__underline {
-  width: 100%; font-family: inherit; font-size: 0.9rem; color: var(--ink);
-  border: none; border-bottom: 1px solid var(--line); border-radius: 0; padding: 4px 2px; background: transparent;
+  font-family: inherit; font-size: 0.88rem; color: var(--ink);
+  border: none; border-bottom: 1px solid var(--line); border-radius: 0; padding: 3px 2px; background: transparent;
 }
-.qf-q__underline:focus { outline: none; border-bottom: 2px solid var(--brand); padding-bottom: 3px; }
-textarea.qf-q__underline { border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; resize: vertical; }
-textarea.qf-q__underline:focus { border-color: var(--brand); padding: 8px 10px; }
+.qf-q__underline:focus { outline: none; border-bottom: 2px solid var(--brand); padding-bottom: 2px; }
+div.qf-q > textarea.qf-q__underline {
+  width: 100%; border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; resize: vertical;
+}
+div.qf-q > textarea.qf-q__underline:focus { border-color: var(--brand); }
 
-.qf-q__choices { display: flex; flex-direction: column; gap: 8px; }
+.qf-q__choices { display: flex; flex-direction: column; gap: 9px; }
 .qf-q__choices label {
-  display: flex; align-items: center; gap: 8px; font-weight: 400; font-size: 0.88rem;
+  display: flex; align-items: center; gap: 9px; font-weight: 400; font-size: 0.86rem;
   color: var(--ink); cursor: pointer;
 }
-.qf-q__choices input { width: 15px; height: 15px; accent-color: var(--brand); cursor: pointer; margin: 0; }
+/* Square checkbox-style, even though these are single-choice (radio)
+   fields under the hood — matches the reference template's ☐ options. */
+.qf-q__choices input {
+  appearance: none; -webkit-appearance: none; width: 15px; height: 15px; flex-shrink: 0;
+  border: 1.5px solid var(--muted); border-radius: 3px; background: #fff; cursor: pointer; margin: 0;
+}
+.qf-q__choices input:checked { background: var(--brand); border-color: var(--brand); }
 
 .qf-submit-row { margin-top: 32px; display: flex; justify-content: flex-end; }
 .qf-submit-row .btn { padding: 11px 28px; }
 
 @media (max-width: 600px) {
   .qf-sheet { padding: 32px 24px; }
-  .qf-sheet__header { flex-direction: column; align-items: flex-start; gap: 10px; }
 }
 
 /* ---------------------------- Client Questionnaire (staff-side tracker) ---------------------------- */

@@ -7,7 +7,8 @@
    Supabase client) and questionnaire-questions.js (the question content).
 
    Reads `lead` and `type` from the URL query string, renders the
-   matching question set, and on submit inserts one row into
+   matching question set (grouped into sections — see
+   questionnaire-questions.js), and on submit inserts one row into
    questionnaire_responses — the only table an anonymous visitor can
    write to anywhere in this database (see supabase/schema.sql). A
    database trigger there handles marking it "answered" in
@@ -26,27 +27,50 @@ function qEsc(str) {
   return String(str ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
-/** Plain numbered document style — "1. Question text" with an underline
- *  blank for a typed answer, or a checkbox-style list of options — rather
- *  than a boxed card per question. `select` renders the same way as
- *  `radio` here (a plain choice list reads better on a document-style
- *  page than a native dropdown); it's still a single-choice field either
- *  way, so no data/behavior difference. */
+/** All fields across every section, in document order — used both for
+ *  numbering questions continuously across section breaks and for
+ *  collecting answers on submit. */
+function allFields(set) {
+  return set.sections.flatMap(s => s.fields);
+}
+
+/** Short-answer fields render inline — "1. Full Name: ___" on one line.
+ *  Everything else (choices, long answers) puts the label on its own
+ *  line above the control, like the reference document. */
 function qFieldHtml(field, number) {
   const req = field.required ? 'required' : '';
+  const isInline = field.type === 'text' || field.type === 'tel' || field.type === 'email';
+
+  if (isInline) {
+    return `<div class="qf-q qf-q--inline">
+      <label class="qf-q__label">${number}. ${qEsc(field.label)}${field.required ? ' <span class="qf-required">*</span>' : ''}:</label>
+      <input class="qf-q__underline" type="${field.type}" name="${field.key}" ${req}>
+    </div>`;
+  }
+
   let control;
   if (field.type === 'textarea') {
     control = `<textarea class="qf-q__underline" name="${field.key}" rows="2" ${req}></textarea>`;
-  } else if (field.type === 'select' || field.type === 'radio') {
+  } else {
+    // 'select' and 'radio' both render as a checkbox-style choice list —
+    // still a single answer either way, 'select' just implies more options.
     control = `<div class="qf-q__choices">
       ${field.options.map(o => `<label><input type="radio" name="${field.key}" value="${qEsc(o)}" ${req}> ${qEsc(o)}</label>`).join('')}
     </div>`;
-  } else {
-    control = `<input class="qf-q__underline" type="${field.type}" name="${field.key}" ${req}>`;
   }
   return `<div class="qf-q">
     <div class="qf-q__label">${number}. ${qEsc(field.label)}${field.required ? ' <span class="qf-required">*</span>' : ''}</div>
     ${control}
+  </div>`;
+}
+
+function qSectionHtml(section, startNumber) {
+  let n = startNumber;
+  const fieldsHtml = section.fields.map(f => qFieldHtml(f, n++)).join('');
+  return `<div class="qf-section">
+    <h2 class="qf-section__heading">${qEsc(section.heading)}</h2>
+    ${section.note ? `<p class="qf-section__note">${qEsc(section.note)}</p>` : ''}
+    <div class="qf-section__fields">${fieldsHtml}</div>
   </div>`;
 }
 
@@ -76,7 +100,14 @@ function init() {
   const formEl = document.getElementById('q-form');
   document.getElementById('q-title').textContent = set.title;
   document.getElementById('q-intro').textContent = set.intro;
-  document.getElementById('q-fields').innerHTML = set.fields.map((f, i) => qFieldHtml(f, i + 1)).join('');
+
+  let n = 1;
+  const sectionsHtml = set.sections.map(section => {
+    const html = qSectionHtml(section, n);
+    n += section.fields.length;
+    return html;
+  }).join('<hr class="qf-divider">');
+  document.getElementById('q-sections').innerHTML = sectionsHtml;
   formEl.hidden = false;
 
   formEl.addEventListener('submit', async e => {
@@ -87,7 +118,7 @@ function init() {
 
     const fd = new FormData(formEl);
     const answers = {};
-    set.fields.forEach(f => { answers[f.key] = fd.get(f.key) || ''; });
+    allFields(set).forEach(f => { answers[f.key] = fd.get(f.key) || ''; });
 
     const { error } = await supabaseClient.from('questionnaire_responses').insert({
       lead_id: leadId, questionnaire_type: type, answers,
