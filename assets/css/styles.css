@@ -574,13 +574,13 @@ body.modal-open { overflow: hidden; }
   border-radius: 6px; box-shadow: var(--shadow); padding: 44px 52px;
 }
 .qf-logo { height: 88px; width: auto; display: block; margin-bottom: 10px; }
-.qf-sheet__title { font-size: 0.95rem; font-weight: 400; color: var(--ink-soft); margin: 2px 0 0; }
+.qf-sheet__title { font-size: 1.2rem; font-weight: 800; color: var(--ink); margin: 2px 0 0; }
 .qf-intro { color: var(--ink-soft); font-size: 0.88rem; line-height: 1.6; margin: 0; }
-.qf-divider { border: none; border-top: 1px solid var(--line); margin: 18px 0; }
+.qf-divider { border: none; border-top: 2px solid var(--brand); margin: 18px 0; }
 #q-success h2 { font-size: 1.2rem; margin-bottom: 8px; }
 
 .qf-section + .qf-divider { margin: 24px 0; }
-.qf-section__heading { font-size: 1rem; margin-bottom: 4px; }
+.qf-section__heading { font-size: 1.2rem; font-weight: 800; margin-bottom: 4px; }
 .qf-section__note { font-style: italic; color: var(--muted); font-size: 0.8rem; margin: 0 0 16px; }
 .qf-section__fields { display: flex; flex-direction: column; gap: 16px; margin-top: 14px; }
 

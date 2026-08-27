@@ -25,8 +25,8 @@
 
 const QUESTIONNAIRE_SETS = {
   quick: {
-    title: 'Quick Questionnaire',
-    intro: "Thanks for reaching out to Erwin Forest Builders! This takes about 2 minutes and helps us prep for your first conversation.",
+    title: "Let's Get To Know You",
+    intro: "Thanks for joining the EFB family! This questionnaire takes about a couple minutes to fill out and this helps us get to know you ahead of our first in person meeting.",
     sections: [
       {
         heading: 'Contact Details',
