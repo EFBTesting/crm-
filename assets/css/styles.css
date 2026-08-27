@@ -563,52 +563,45 @@ body.modal-open { overflow: hidden; }
 
 /* ---------------------------- Client Questionnaire (public, standalone page) ---------------------------- */
 
-/* Google/Microsoft Forms style — a muted page background, a header card
-   with a colored top accent, and every question as its own stacked white
-   card in a single centered column. */
-.qf-page { min-height: 100vh; background: #efece4; padding: 40px 16px 80px; }
-.qf-container { max-width: 740px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+/* A plain document look — one bordered "sheet" holding the company name,
+   title, intro, and every question as a numbered line with an underline
+   blank or a checkbox-style choice list, instead of a boxed web-form. */
+.qf-page { min-height: 100vh; background: #e9e5da; padding: 40px 20px; }
+.qf-sheet {
+  max-width: 800px; margin: 0 auto; background: #fff; border: 1px solid var(--line);
+  border-radius: 6px; box-shadow: var(--shadow); padding: 48px 56px;
+}
+.qf-sheet__header { display: flex; align-items: center; gap: 14px; margin-bottom: 2px; }
+.qf-logo { height: 44px; width: auto; display: block; }
+.qf-sheet h1 { font-size: 1.3rem; }
+.qf-intro { color: var(--ink-soft); font-size: 0.9rem; line-height: 1.6; margin: 14px 0 0; }
+.qf-divider { border: none; border-top: 1px solid var(--line); margin: 24px 0; }
+#q-success h2 { font-size: 1.3rem; margin-bottom: 8px; }
 
-.qf-card { background: #fff; border-radius: 10px; box-shadow: var(--shadow); overflow: hidden; }
-.qf-header-card__accent { height: 10px; background: var(--brand); }
-.qf-header-card__body { padding: 28px 32px 32px; }
-.qf-header-card__body--center { text-align: center; }
-.qf-logo { height: 40px; width: auto; display: block; margin-bottom: 18px; }
-.qf-header-card h1, .qf-header-card h2 { font-size: 1.4rem; margin-bottom: 8px; }
-.qf-header-card__body p { color: var(--ink-soft); font-size: 0.92rem; line-height: 1.5; margin: 0; }
-
-#q-fields { display: flex; flex-direction: column; gap: 18px; }
-.qf-question-card { padding: 22px 28px; }
-.qf-question-label { display: block; font-size: 0.95rem; font-weight: 600; color: var(--ink); margin-bottom: 14px; }
+#q-fields { display: flex; flex-direction: column; gap: 22px; }
+.qf-q__label { font-weight: 600; font-size: 0.92rem; color: var(--ink); margin-bottom: 8px; }
 .qf-required { color: var(--red); }
-.qf-question-card input[type="text"], .qf-question-card input[type="tel"], .qf-question-card input[type="email"],
-.qf-question-card select {
-  width: 100%; font-family: inherit; font-size: 0.92rem; color: var(--ink);
-  border: none; border-bottom: 1px solid var(--line); border-radius: 0; padding: 6px 2px; background: transparent;
+.qf-q__underline {
+  width: 100%; font-family: inherit; font-size: 0.9rem; color: var(--ink);
+  border: none; border-bottom: 1px solid var(--line); border-radius: 0; padding: 4px 2px; background: transparent;
 }
-.qf-question-card input[type="text"]:focus, .qf-question-card input[type="tel"]:focus,
-.qf-question-card input[type="email"]:focus, .qf-question-card select:focus {
-  outline: none; border-bottom: 2px solid var(--brand); padding-bottom: 5px;
-}
-.qf-question-card textarea {
-  width: 100%; font-family: inherit; font-size: 0.92rem; color: var(--ink); resize: vertical;
-  border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; background: transparent;
-}
-.qf-question-card textarea:focus { outline: none; border-color: var(--brand); }
+.qf-q__underline:focus { outline: none; border-bottom: 2px solid var(--brand); padding-bottom: 3px; }
+textarea.qf-q__underline { border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; resize: vertical; }
+textarea.qf-q__underline:focus { border-color: var(--brand); padding: 8px 10px; }
 
-.qf-submit-row { display: flex; justify-content: flex-end; padding: 4px; }
-.qf-submit-row .btn { padding: 11px 28px; }
-
-.questionnaire-radio-group { display: flex; flex-direction: column; gap: 12px; }
-.questionnaire-radio-group label {
-  display: flex; align-items: center; gap: 8px; font-weight: 400; font-size: 0.9rem;
+.qf-q__choices { display: flex; flex-direction: column; gap: 8px; }
+.qf-q__choices label {
+  display: flex; align-items: center; gap: 8px; font-weight: 400; font-size: 0.88rem;
   color: var(--ink); cursor: pointer;
 }
-.questionnaire-radio-group input { width: 16px; height: 16px; accent-color: var(--brand); cursor: pointer; margin: 0; }
+.qf-q__choices input { width: 15px; height: 15px; accent-color: var(--brand); cursor: pointer; margin: 0; }
+
+.qf-submit-row { margin-top: 32px; display: flex; justify-content: flex-end; }
+.qf-submit-row .btn { padding: 11px 28px; }
 
 @media (max-width: 600px) {
-  .qf-header-card__body { padding: 22px 20px 26px; }
-  .qf-question-card { padding: 18px 20px; }
+  .qf-sheet { padding: 32px 24px; }
+  .qf-sheet__header { flex-direction: column; align-items: flex-start; gap: 10px; }
 }
 
 /* ---------------------------- Client Questionnaire (staff-side tracker) ---------------------------- */

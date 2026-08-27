@@ -5,23 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Client Questionnaire — Erwin Forest Builders</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%23166232%22/><text x=%2250%22 y=%2266%22 font-size=%2255%22 text-anchor=%22middle%22 fill=%22%23ffffff%22 font-family=%22Georgia,serif%22 font-weight=%22bold%22>E</text></svg>">
-  <link rel="stylesheet" href="assets/css/styles.css?v=61">
+  <link rel="stylesheet" href="assets/css/styles.css?v=63">
 </head>
 <body>
 
   <div class="qf-page">
-    <div class="qf-container">
-
-      <div class="qf-card qf-header-card">
-        <div class="qf-header-card__accent"></div>
-        <div class="qf-header-card__body">
-          <img src="assets/img/logo-green.png?v=61" alt="Erwin Forest Builders" class="qf-logo">
-          <h1 id="q-title">Client Questionnaire</h1>
-          <p id="q-intro">A few quick questions to help us get started on your project.</p>
-        </div>
+    <div class="qf-sheet">
+      <div class="qf-sheet__header">
+        <img src="assets/img/logo-green.png?v=63" alt="Erwin Forest Builders" class="qf-logo">
+        <h1 id="q-title">Client Questionnaire</h1>
       </div>
+      <p id="q-intro" class="qf-intro">A few quick questions to help us get started on your project.</p>
+      <hr class="qf-divider">
 
-      <p id="q-loading" class="muted" style="text-align:center;">Loading...</p>
+      <p id="q-loading" class="muted">Loading...</p>
       <p id="q-error" class="login-error" hidden></p>
 
       <form id="q-form" hidden>
@@ -31,20 +28,16 @@
         </div>
       </form>
 
-      <div id="q-success" class="qf-card qf-header-card" hidden>
-        <div class="qf-header-card__accent"></div>
-        <div class="qf-header-card__body qf-header-card__body--center">
-          <h2>Thank you!</h2>
-          <p class="view-sub">Your answers have been submitted — we'll be in touch soon.</p>
-        </div>
+      <div id="q-success" hidden>
+        <h2>Thank you!</h2>
+        <p class="view-sub">Your answers have been submitted — we'll be in touch soon.</p>
       </div>
-
     </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <script src="assets/js/config.js?v=61"></script>
-  <script src="assets/js/questionnaire-questions.js?v=61"></script>
-  <script src="assets/js/questionnaire.js?v=61"></script>
+  <script src="assets/js/config.js?v=63"></script>
+  <script src="assets/js/questionnaire-questions.js?v=63"></script>
+  <script src="assets/js/questionnaire.js?v=63"></script>
 </body>
 </html>

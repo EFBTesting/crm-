@@ -26,27 +26,26 @@ function qEsc(str) {
   return String(str ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
-/** Each question is its own card, stacked one per row — the Google/
- *  Microsoft Forms look, instead of a dense multi-column grid. */
-function qFieldHtml(field) {
+/** Plain numbered document style — "1. Question text" with an underline
+ *  blank for a typed answer, or a checkbox-style list of options — rather
+ *  than a boxed card per question. `select` renders the same way as
+ *  `radio` here (a plain choice list reads better on a document-style
+ *  page than a native dropdown); it's still a single-choice field either
+ *  way, so no data/behavior difference. */
+function qFieldHtml(field, number) {
   const req = field.required ? 'required' : '';
   let control;
   if (field.type === 'textarea') {
-    control = `<textarea name="${field.key}" rows="3" ${req}></textarea>`;
-  } else if (field.type === 'select') {
-    control = `<select name="${field.key}" ${req}>
-      <option value="">— Select —</option>
-      ${field.options.map(o => `<option value="${qEsc(o)}">${qEsc(o)}</option>`).join('')}
-    </select>`;
-  } else if (field.type === 'radio') {
-    control = `<div class="questionnaire-radio-group">
+    control = `<textarea class="qf-q__underline" name="${field.key}" rows="2" ${req}></textarea>`;
+  } else if (field.type === 'select' || field.type === 'radio') {
+    control = `<div class="qf-q__choices">
       ${field.options.map(o => `<label><input type="radio" name="${field.key}" value="${qEsc(o)}" ${req}> ${qEsc(o)}</label>`).join('')}
     </div>`;
   } else {
-    control = `<input type="${field.type}" name="${field.key}" ${req}>`;
+    control = `<input class="qf-q__underline" type="${field.type}" name="${field.key}" ${req}>`;
   }
-  return `<div class="qf-question-card">
-    <label class="qf-question-label">${qEsc(field.label)}${field.required ? ' <span class="qf-required">*</span>' : ''}</label>
+  return `<div class="qf-q">
+    <div class="qf-q__label">${number}. ${qEsc(field.label)}${field.required ? ' <span class="qf-required">*</span>' : ''}</div>
     ${control}
   </div>`;
 }
@@ -77,7 +76,7 @@ function init() {
   const formEl = document.getElementById('q-form');
   document.getElementById('q-title').textContent = set.title;
   document.getElementById('q-intro').textContent = set.intro;
-  document.getElementById('q-fields').innerHTML = set.fields.map(qFieldHtml).join('');
+  document.getElementById('q-fields').innerHTML = set.fields.map((f, i) => qFieldHtml(f, i + 1)).join('');
   formEl.hidden = false;
 
   formEl.addEventListener('submit', async e => {
