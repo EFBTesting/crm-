@@ -48,7 +48,7 @@ const QUESTIONNAIRE_SETS = {
   // should also be carried into the Construction form when it's built.
   quick: {
     title: "Let's Get To Know You",
-    intro: "Thanks for joining the EFB family! This questionnaire takes about a couple minutes to fill out and this helps us get to know you ahead of our first in person meeting.",
+    intro: "Thanks for joining the EFB family! This questionnaire takes about 10–15 minutes to fill out and helps us get to know you ahead of our first in-person meeting.",
     sections: [
       {
         heading: 'Contact Details',
