@@ -34,6 +34,29 @@ function allFields(set) {
   return set.sections.flatMap(s => s.fields);
 }
 
+/** Display numbers for every field, in document order: "1", "2", ... —
+ *  except a field with `sub: true`, which continues the previous field's
+ *  number as a lettered sub-question ("4a", "4b", ...) instead of
+ *  advancing to the next number. Used for questions that are really
+ *  parts of the one before them (e.g. a name/phone/email trio under one
+ *  "who else is involved?" question). */
+function qNumbers(set) {
+  const numbers = [];
+  let n = 0;
+  let letter = 0;
+  allFields(set).forEach(f => {
+    if (f.sub && numbers.length) {
+      letter += 1;
+      numbers.push(`${n}${String.fromCharCode(96 + letter)}`);
+    } else {
+      n += 1;
+      letter = 0;
+      numbers.push(String(n));
+    }
+  });
+  return numbers;
+}
+
 /** Short-answer fields render inline — "1. Full Name: ___" on one line —
  *  by default for text/tel/email; a field with a longer label can opt out
  *  with `inline: false` to stack instead, since a long question crammed
@@ -74,9 +97,8 @@ function qFieldHtml(field, number) {
   </div>`;
 }
 
-function qSectionHtml(section, startNumber) {
-  let n = startNumber;
-  const fieldsHtml = section.fields.map(f => qFieldHtml(f, n++)).join('');
+function qSectionHtml(section, numbers) {
+  const fieldsHtml = section.fields.map((f, i) => qFieldHtml(f, numbers[i])).join('');
   return `<div class="qf-section">
     <h2 class="qf-section__heading">${qEsc(section.heading)}</h2>
     ${section.note ? `<p class="qf-section__note">${qEsc(section.note)}</p>` : ''}
@@ -111,10 +133,11 @@ function init() {
   document.getElementById('q-title').textContent = set.title;
   document.getElementById('q-intro').textContent = set.intro;
 
-  let n = 1;
+  const numbers = qNumbers(set);
+  let idx = 0;
   const sectionsHtml = set.sections.map(section => {
-    const html = qSectionHtml(section, n);
-    n += section.fields.length;
+    const html = qSectionHtml(section, numbers.slice(idx, idx + section.fields.length));
+    idx += section.fields.length;
     return html;
   }).join('<hr class="qf-divider">');
   document.getElementById('q-sections').innerHTML = sectionsHtml;

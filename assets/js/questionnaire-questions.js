@@ -10,7 +10,7 @@
    Each questionnaire is a list of sections (a plain heading + optional
    italic note, like "Personal Details" / "Note: ..."), and each section
    is a list of fields:
-     { key, label, type, required?, options?, hint? }
+     { key, label, type, required?, options?, hint?, sub? }
        - key: becomes the property name in the saved `answers` JSON.
          Keep it stable once real answers exist — renaming a key orphans
          whatever was already saved under the old one.
@@ -23,6 +23,9 @@
          either way, 'select' just implies a longer option list)
        - hint: optional small italic line under the question, e.g. an
          example answer or "if yes, tell us more" instruction
+       - sub: true marks this field as really a part of the question right
+         before it — instead of getting its own number, it's labeled as a
+         lettered sub-question of the previous one ("4" then "4a", "4b", ...)
    ========================================================================== */
 
 const QUESTIONNAIRE_SETS = {
@@ -47,8 +50,8 @@ const QUESTIONNAIRE_SETS = {
         heading: 'Project Details',
         fields: [
           { key: 'otherDecisionMakerName', label: 'Other Decision-Maker (if any) — Full Name', type: 'text' },
-          { key: 'otherDecisionMakerPhone', label: 'Their Phone #', type: 'tel' },
-          { key: 'otherDecisionMakerEmail', label: 'Their Email', type: 'email' },
+          { key: 'otherDecisionMakerPhone', label: 'Their Phone #', type: 'tel', sub: true },
+          { key: 'otherDecisionMakerEmail', label: 'Their Email', type: 'email', sub: true },
           { key: 'timeline', label: 'Do you have a general timeline or target move-in date in mind?', type: 'text', inline: false,
             hint: 'e.g. Spring 2027, as soon as possible, flexible' },
           { key: 'vision', label: "In a few sentences, tell us what you're envisioning.", type: 'textarea',
