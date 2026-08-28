@@ -4,7 +4,7 @@
    PLACEHOLDER CONTENT: the sections, questions, and wording below are a
    starting point so the feature has something real to test end-to-end —
    they are NOT the actual Microsoft Forms questions. Edit everything in
-   this file freely to match your real "quick" and "detailed" forms; you
+   this file freely to match your real "quick" and "construction" forms; you
    shouldn't need to touch questionnaire.js just to change what's asked.
 
    Each questionnaire is a list of sections (a plain heading + optional
@@ -32,8 +32,8 @@ const QUESTIONNAIRE_SETS = {
   // "Let's Get Started" — Keith's Pre-Con review, Aug 2026: kept every
   // question marked Pre Con, in the order he reviewed them. Questions 5/6
   // (Con) and 7/8/10 (Delete) from that review are intentionally not here
-  // — 5/6 belong on the Detailed/Con-stage form instead (not yet added,
-  // pending a similar review pass for that one), 7/8/10 are gone for good.
+  // — 5/6 belong on the Construction/Con-stage form instead, and are now
+  // there (see below); 7/8/10 are gone for good.
   //
   // Second pass, Aug 2026: Keith also reviewed the *Construction* form
   // (Form 2, "Now Let's Really Get to Know You") and cross-marked several
@@ -125,29 +125,78 @@ const QUESTIONNAIRE_SETS = {
       },
     ],
   },
-  detailed: {
-    title: 'Detailed Questionnaire',
-    intro: 'A few more details on your project — this helps us put together an accurate estimate.',
+  // Construction questionnaire — Keith's review of Form 2, Aug 2026: built
+  // from everything marked "Con" on that review, plus 2 questions (#5/#6)
+  // marked "Con" on the Form 1/Pre-Con review that had nowhere to go until
+  // now. Its own #30/#31 were marked BOTH Pre Con and Con, so those two
+  // also live on the Pre-Con questionnaire above. NOTE: the internal set
+  // key is `construction`, but the database's questionnaire_status table
+  // still stores its sent/answered timestamps in columns literally named
+  // `detailed_sent_at`/`detailed_answered_at` — that's legacy naming kept
+  // on purpose to avoid a column-rename migration; it doesn't need to
+  // match this key, see supabase/schema.sql.
+  construction: {
+    title: "Now Let's Really Get to Know You!",
+    intro: "Your contract's signed and we're so excited to get started! This helps us fine-tune the details as we head into construction.",
     sections: [
       {
-        heading: 'Project Overview',
+        heading: 'Contact Details',
         fields: [
-          { key: 'projectDescription', label: 'Describe your project in a few sentences', type: 'textarea', required: true },
-          { key: 'roomsAffected', label: 'Which rooms or areas are affected?', type: 'text' },
-          { key: 'hasPlans', label: 'Do you already have architectural plans?', type: 'radio', options: ['Yes', 'No', 'In progress'] },
+          { key: 'fullName', label: 'First Name & Last Name', type: 'text', required: true },
+          { key: 'phone', label: 'Phone #', type: 'tel', required: true },
+          { key: 'email', label: 'Email Address', type: 'email', required: true },
         ],
       },
       {
-        heading: 'Logistics',
-        note: 'Note: This helps us plan the right team and schedule for your project.',
+        heading: 'Contact Preferences',
         fields: [
-          { key: 'contractorPreference', label: 'Any specific requirements for your contractor team?', type: 'textarea' },
-          { key: 'financing', label: 'How do you plan to finance this project?', type: 'select', options: [
-            'Cash', 'Loan', 'Home Equity (HELOC)', 'Not sure yet',
+          { key: 'bestTimeToReach', label: 'Best time to reach you?', type: 'select', options: ['Morning', 'Evening', 'Night', 'Whenever'] },
+          { key: 'preferredCommunication', label: 'Preferred method of communication', type: 'select', options: ['Text', 'Phone Call', 'Email', 'In Person'] },
+        ],
+      },
+      {
+        heading: 'Scheduling & Availability',
+        fields: [
+          { key: 'unavailablePeriods', label: "Are there any time periods during the project when you'll be unavailable?", type: 'textarea',
+            hint: 'Travel, family commitments, busy seasons at work — anything we should plan around.' },
+          { key: 'keyDatesOrMilestones', label: 'Any key dates or milestones we should keep in mind for scheduling?', type: 'textarea',
+            hint: 'Holidays, school start dates, family events, target move-in.' },
+          { key: 'bestMeetingTimes', label: 'Are there specific days or times that work best for meetings and walkthroughs?', type: 'textarea' },
+          { key: 'decisionContact', label: 'Who should we reach out to for decisions and approvals during the project?', type: 'select', options: [
+            'Myself', 'My partner', 'Both of us',
           ] },
-          { key: 'siteAccess', label: "Anything we should know about accessing the property (gate code, pets, parking, etc.)?", type: 'textarea' },
-          { key: 'communicationPreference', label: 'Preferred way for us to reach you', type: 'select', options: ['Phone call', 'Text message', 'Email'] },
-          { key: 'additionalNotes', label: "Anything else you'd like us to know?", type: 'textarea' },
+        ],
+      },
+      {
+        heading: 'How You Like to Work',
+        fields: [
+          { key: 'involvementLevel', label: 'How do you prefer to stay involved throughout the project?', type: 'select', required: true, options: [
+            'I want to be involved in every decision and get regular updates',
+            'I prefer to only weigh in on major decisions — trust you with the rest',
+            'I like clear updates on a schedule (weekly check-ins, quick recaps)',
+            "I'll let you know when I want to check in — otherwise let's keep things moving",
+          ] },
+          { key: 'budgetInvolvement', label: 'When it comes to budget decisions and project progress, how involved would you like to be?', type: 'select', required: true, options: [
+            'Very hands on — I want to be involved in every decision and stay updated throughout',
+            "Balanced — I'd like regular updates and to weigh in on big-picture decisions",
+            'Light involvement — I trust the team and only want updates at major milestones',
+          ] },
+          { key: 'atEase', label: 'I feel more at ease when...', type: 'select', options: [
+            'I have a clear plan ahead of me',
+            'I can ask questions freely as they come up',
+            'I am updated often, even on small things',
+            "I trust the experts and don't have to manage details",
+          ] },
+          { key: 'infoPreference', label: 'Any specific preferences around how we present information to you?', type: 'select', options: [
+            'Visual examples and renderings', 'Clear next steps after each meeting', 'Email summaries', 'In-person or phone conversations', 'Written checklists or timelines', 'No preference — trust your process',
+          ] },
+        ],
+      },
+      {
+        heading: 'Wrap-Up',
+        fields: [
+          { key: 'anythingElse', label: "Is there anything else you'd like us to keep in mind as we move forward?", type: 'textarea' },
+          { key: 'teamSupport', label: 'Is there anything we can do as a team to make this experience easier, more enjoyable, or less overwhelming for you?', type: 'textarea' },
         ],
       },
     ],

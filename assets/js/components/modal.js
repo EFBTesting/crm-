@@ -624,7 +624,7 @@ function openQuestionnaireResponses(lead) {
     wide: true,
     bodyHtml: `
       ${sectionHtml('quick', 'Quick')}
-      ${sectionHtml('detailed', 'Detailed')}
+      ${sectionHtml('construction', 'Construction')}
       <div class="form-actions">
         <button type="button" class="btn btn--ghost" data-close="1">Close</button>
       </div>`,

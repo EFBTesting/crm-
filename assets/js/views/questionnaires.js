@@ -1,6 +1,6 @@
 /* ==========================================================================
-   Client Questionnaire — tracks sending/answering the Quick and Detailed
-   questionnaires per lead. The actual public-facing form a lead fills out
+   Client Questionnaire — tracks sending/answering the Quick and
+   Construction questionnaires per lead. The actual public-facing form a lead fills out
    lives at questionnaire.html in the repo root (a separate, unauthenticated
    page — see its own comments); this view is the staff-facing tracker and
    response viewer.
@@ -76,7 +76,7 @@ function renderQuestionnaires(root) {
     return `
       <div class="table-wrap">
         <table class="data-table">
-          <thead><tr><th>Lead</th><th>Quick</th><th>Detailed</th></tr></thead>
+          <thead><tr><th>Lead</th><th>Quick</th><th>Construction</th></tr></thead>
           <tbody>${rows.map(x => rowHtml(x.lead, x.progress)).join('')}</tbody>
         </table>
       </div>`;
@@ -97,12 +97,12 @@ function renderQuestionnaires(root) {
           <div class="q-name-cell">
             <span class="cell-title${canOpen ? ' row-link' : ''}" ${canOpen ? `data-open-responses="${l.id}"` : ''}>${esc(l.title)}</span>
             ${indicatorHtml(progress.quickAnswered, 'Quick')}
-            ${indicatorHtml(progress.detailedAnswered, 'Detailed')}
+            ${indicatorHtml(progress.detailedAnswered, 'Construction')}
           </div>
           <div class="cell-sub">${esc(who)}</div>
         </td>
         <td>${buttonHtml(l, 'quick', progress)}</td>
-        <td>${buttonHtml(l, 'detailed', progress)}</td>
+        <td>${buttonHtml(l, 'construction', progress)}</td>
       </tr>`;
   }
 
@@ -144,7 +144,7 @@ function renderQuestionnaires(root) {
       toast('This lead has no email on file — add one on their Contact first.', 'warn');
       return;
     }
-    const typeLabel = type === 'quick' ? 'Quick' : 'Detailed';
+    const typeLabel = type === 'quick' ? 'Quick' : 'Construction';
     const link = questionnaireLink(leadId, type);
     const subject = encodeURIComponent(`${typeLabel} Questionnaire — Erwin Forrest Builders`);
     const body = encodeURIComponent(`Hi ${contact.firstName},\n\nCould you take a few minutes to fill out this short questionnaire? It helps us prep for your project.\n\n${link}\n\nThanks!\nErwin Forrest Builders`);

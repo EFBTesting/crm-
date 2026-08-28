@@ -97,7 +97,7 @@ create table if not exists leads (
 
 -- ---------------------------------------------------------------------
 -- Client Questionnaires — public, no-login forms a lead fills out (a
--- short "quick" pre-contract one and a longer "detailed" one). The lead
+-- short "quick" pre-contract one and a longer "construction" one). The lead
 -- never signs in; questionnaire.html at the repo root submits with just
 -- the anon key, so questionnaire_responses is the one table anonymous
 -- visitors can write to anywhere in this database (insert-only — see
@@ -127,7 +127,7 @@ create table if not exists questionnaire_status (
 create table if not exists questionnaire_responses (
   id uuid primary key default gen_random_uuid(),
   lead_id uuid not null references leads(id) on delete cascade,
-  questionnaire_type text not null check (questionnaire_type in ('quick', 'detailed')),
+  questionnaire_type text not null check (questionnaire_type in ('quick', 'construction')),
   answers jsonb not null default '{}',
   submitted_at timestamptz not null default now(),
   created_at timestamptz not null default now(),
@@ -201,6 +201,11 @@ create trigger questionnaire_responses_set_updated_at before update on questionn
 -- questionnaire_responses; this is a server-side side effect of that,
 -- not a second client-side write.
 -- ---------------------------------------------------------------------
+-- NOTE: the app's second questionnaire is called "construction" (was
+-- "detailed" until Aug 2026), but the column names below stay
+-- `detailed_sent_at`/`detailed_answered_at` on purpose — renaming a
+-- column here would need a migration, and nothing requires the column
+-- name to match the questionnaire_type value it's tracking.
 create or replace function mark_questionnaire_answered()
 returns trigger as $$
 begin
@@ -208,11 +213,11 @@ begin
   values (
     new.lead_id,
     case when new.questionnaire_type = 'quick' then new.submitted_at else null end,
-    case when new.questionnaire_type = 'detailed' then new.submitted_at else null end
+    case when new.questionnaire_type = 'construction' then new.submitted_at else null end
   )
   on conflict (lead_id) do update set
     quick_answered_at = case when new.questionnaire_type = 'quick' then new.submitted_at else questionnaire_status.quick_answered_at end,
-    detailed_answered_at = case when new.questionnaire_type = 'detailed' then new.submitted_at else questionnaire_status.detailed_answered_at end,
+    detailed_answered_at = case when new.questionnaire_type = 'construction' then new.submitted_at else questionnaire_status.detailed_answered_at end,
     updated_at = now();
   return new;
 end;
@@ -259,7 +264,7 @@ create policy "authenticated full access" on questionnaire_responses
 drop policy if exists "anon insert only" on questionnaire_responses;
 create policy "anon insert only" on questionnaire_responses
   for insert to anon
-  with check (questionnaire_type in ('quick', 'detailed'));
+  with check (questionnaire_type in ('quick', 'construction'));
 
 -- ---------------------------------------------------------------------
 -- Realtime — lets every open browser tab see changes made by teammates
