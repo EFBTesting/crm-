@@ -199,6 +199,23 @@ const QUESTIONNAIRE_SETS = {
           { key: 'teamSupport', label: 'Is there anything we can do as a team to make this experience easier, more enjoyable, or less overwhelming for you?', type: 'textarea' },
         ],
       },
+      {
+        // Keith's note on his Form 2 review: "We need to work in some fun
+        // answers. Favorite drink? Color? What is your spirit animal?" —
+        // expanded to 8 light, quick questions per user request, Aug 2026.
+        heading: 'Just for Fun',
+        note: "Just a few fun ones to help us get to know you better — no wrong answers here!",
+        fields: [
+          { key: 'funDrink', label: "What's your go-to drink?", type: 'text', hint: 'Coffee order, favorite cocktail, whatever comes to mind.' },
+          { key: 'funColor', label: 'Favorite color?', type: 'text' },
+          { key: 'funSpiritAnimal', label: 'If you had a spirit animal, what would it be?', type: 'text' },
+          { key: 'funBeachOrMountains', label: 'Beach, mountains, or somewhere else entirely?', type: 'text' },
+          { key: 'funSaturday', label: 'Favorite way to spend a Saturday?', type: 'text' },
+          { key: 'funVacation', label: 'Dream vacation destination?', type: 'text' },
+          { key: 'funMovie', label: 'Favorite movie or TV show right now?', type: 'text' },
+          { key: 'funSuperpower', label: 'If you could have any superpower, what would it be?', type: 'text' },
+        ],
+      },
     ],
   },
 };
