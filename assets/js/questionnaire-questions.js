@@ -10,7 +10,7 @@
    Each questionnaire is a list of sections (a plain heading + optional
    italic note, like "Personal Details" / "Note: ..."), and each section
    is a list of fields:
-     { key, label, type, required?, options? }
+     { key, label, type, required?, options?, hint? }
        - key: becomes the property name in the saved `answers` JSON.
          Keep it stable once real answers exist — renaming a key orphans
          whatever was already saved under the old one.
@@ -21,9 +21,16 @@
        - options: array of strings — required for 'select' and 'radio'
          (both render as a checkbox-style list — it's still one answer
          either way, 'select' just implies a longer option list)
+       - hint: optional small italic line under the question, e.g. an
+         example answer or "if yes, tell us more" instruction
    ========================================================================== */
 
 const QUESTIONNAIRE_SETS = {
+  // "Let's Get Started" — Keith's Pre-Con review, Aug 2026: kept every
+  // question marked Pre Con, in the order he reviewed them. Questions 5/6
+  // (Con) and 7/8/10 (Delete) from that review are intentionally not here
+  // — 5/6 belong on the Detailed/Con-stage form instead (not yet added,
+  // pending a similar review pass for that one), 7/8/10 are gone for good.
   quick: {
     title: "Let's Get To Know You",
     intro: "Thanks for joining the EFB family! This questionnaire takes about a couple minutes to fill out and this helps us get to know you ahead of our first in person meeting.",
@@ -31,27 +38,23 @@ const QUESTIONNAIRE_SETS = {
       {
         heading: 'Contact Details',
         fields: [
-          { key: 'fullName', label: 'Full Name', type: 'text', required: true },
-          { key: 'phone', label: 'Best Phone Number', type: 'tel', required: true },
-          { key: 'address', label: 'Property Address', type: 'text', required: true },
+          { key: 'fullName', label: 'First Name & Last Name', type: 'text', required: true },
+          { key: 'phone', label: 'Phone #', type: 'tel', required: true },
+          { key: 'email', label: 'Email Address', type: 'email', required: true },
         ],
       },
       {
         heading: 'Project Details',
         fields: [
-          { key: 'projectType', label: 'What type of project are you considering?', type: 'select', required: true, options: [
-            'Kitchen Remodel', 'Bathroom Remodel', 'Room Addition', 'Whole-Home Renovation', 'New Construction', 'Other',
+          { key: 'otherDecisionMakers', label: 'Will anyone else be involved in decisions on this project?', type: 'textarea',
+            hint: 'If yes, please provide their full name and best contact info.' },
+          { key: 'timeline', label: 'Do you have a general timeline or target move-in date in mind?', type: 'text', inline: false,
+            hint: 'e.g. Spring 2027, as soon as possible, flexible' },
+          { key: 'vision', label: "In a few sentences, tell us what you're envisioning.", type: 'textarea',
+            hint: "No need to have it all figured out — just share where your head is at right now." },
+          { key: 'source', label: 'How did you hear about Erwin Forest Builders?', type: 'select', options: [
+            'Friends', 'Family', 'Word of mouth', 'Referral', 'Website', 'Google Search', 'Social Media (Facebook/Instagram)', 'Repeat Client', 'Other',
           ] },
-          { key: 'budgetRange', label: 'Estimated budget range', type: 'select', options: [
-            'Under $50,000', '$50,000 – $150,000', '$150,000 – $500,000', '$500,000+', 'Not sure yet',
-          ] },
-          { key: 'timeline', label: 'When would you like to start?', type: 'select', options: [
-            'As soon as possible', 'Within 3 months', '3–6 months', '6–12 months', 'Just exploring',
-          ] },
-          { key: 'source', label: 'How did you hear about us?', type: 'select', options: [
-            'Referral', 'Website', 'Google Search', 'Angi / HomeAdvisor', 'Facebook / Instagram', 'Repeat Client', 'Signage / Drive-by', 'Other',
-          ] },
-          { key: 'notes', label: 'Anything else we should know?', type: 'textarea' },
         ],
       },
     ],

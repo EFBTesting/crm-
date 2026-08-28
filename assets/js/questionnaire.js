@@ -34,23 +34,32 @@ function allFields(set) {
   return set.sections.flatMap(s => s.fields);
 }
 
-/** Short-answer fields render inline — "1. Full Name: ___" on one line.
- *  Everything else (choices, long answers) puts the label on its own
- *  line above the control, like the reference document. */
+/** Short-answer fields render inline — "1. Full Name: ___" on one line —
+ *  by default for text/tel/email; a field with a longer label can opt out
+ *  with `inline: false` to stack instead, since a long question crammed
+ *  onto one line with a short blank looks wrong. Everything else
+ *  (choices, long answers) always stacks, label above the control, like
+ *  the reference document. */
 function qFieldHtml(field, number) {
   const req = field.required ? 'required' : '';
-  const isInline = field.type === 'text' || field.type === 'tel' || field.type === 'email';
+  const isInline = (field.type === 'text' || field.type === 'tel' || field.type === 'email') && field.inline !== false;
+  const hintHtml = field.hint ? `<p class="qf-q__hint">${qEsc(field.hint)}</p>` : '';
 
   if (isInline) {
-    return `<div class="qf-q qf-q--inline">
-      <label class="qf-q__label">${number}. ${qEsc(field.label)}${field.required ? ' <span class="qf-required">*</span>' : ''}:</label>
-      <input class="qf-q__underline" type="${field.type}" name="${field.key}" ${req}>
+    return `<div class="qf-q">
+      <div class="qf-q--inline">
+        <label class="qf-q__label">${number}. ${qEsc(field.label)}${field.required ? ' <span class="qf-required">*</span>' : ''}:</label>
+        <input class="qf-q__underline" type="${field.type}" name="${field.key}" ${req}>
+      </div>
+      ${hintHtml}
     </div>`;
   }
 
   let control;
-  if (field.type === 'textarea') {
-    control = `<textarea class="qf-q__underline" name="${field.key}" rows="2" ${req}></textarea>`;
+  if (field.type === 'textarea' || field.type === 'text' || field.type === 'tel' || field.type === 'email') {
+    control = field.type === 'textarea'
+      ? `<textarea class="qf-q__underline" name="${field.key}" rows="2" ${req}></textarea>`
+      : `<input class="qf-q__underline" type="${field.type}" name="${field.key}" ${req}>`;
   } else {
     // 'select' and 'radio' both render as a checkbox-style choice list —
     // still a single answer either way, 'select' just implies more options.
@@ -60,6 +69,7 @@ function qFieldHtml(field, number) {
   }
   return `<div class="qf-q">
     <div class="qf-q__label">${number}. ${qEsc(field.label)}${field.required ? ' <span class="qf-required">*</span>' : ''}</div>
+    ${hintHtml}
     ${control}
   </div>`;
 }
