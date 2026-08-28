@@ -623,7 +623,7 @@ function openQuestionnaireResponses(lead) {
   function detailHtml(s) {
     const fields = QUESTIONNAIRE_SETS[s.type].sections.flatMap(sec => sec.fields);
     return `<div class="q-response-section" data-pane="${s.type}" hidden>
-      ${sections.length > 1 ? '<button type="button" class="q-response-back" data-back-to-picker>← Back to questionnaires</button>' : ''}
+      <button type="button" class="q-response-back" data-back-to-picker>← Back to questionnaires</button>
       <div class="q-response-section__head">
         <h3>${esc(s.label)} Questionnaire</h3>
         <span class="muted">Submitted ${fmtDateTime(s.response.submittedAt)}</span>
