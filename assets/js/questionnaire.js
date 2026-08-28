@@ -85,9 +85,14 @@ function qFieldHtml(field, number) {
       : `<input class="qf-q__underline" type="${field.type}" name="${field.key}" ${req}>`;
   } else {
     // 'select' and 'radio' both render as a checkbox-style choice list —
-    // still a single answer either way, 'select' just implies more options.
+    // a single answer either way, unless `multiple: true` lets more than
+    // one be picked, in which case they're real (multi-select) checkboxes
+    // instead of radios. `required` isn't applied to multi-select choices
+    // since the browser would then demand every box be checked, not just
+    // one — none of the current multi-select fields need it anyway.
+    const inputType = field.multiple ? 'checkbox' : 'radio';
     control = `<div class="qf-q__choices">
-      ${field.options.map(o => `<label><input type="radio" name="${field.key}" value="${qEsc(o)}" ${req}> ${qEsc(o)}</label>`).join('')}
+      ${field.options.map(o => `<label><input type="${inputType}" name="${field.key}" value="${qEsc(o)}" ${field.multiple ? '' : req}> ${qEsc(o)}</label>`).join('')}
     </div>`;
   }
   return `<div class="qf-q">
@@ -151,7 +156,9 @@ function init() {
 
     const fd = new FormData(formEl);
     const answers = {};
-    allFields(set).forEach(f => { answers[f.key] = fd.get(f.key) || ''; });
+    allFields(set).forEach(f => {
+      answers[f.key] = f.multiple ? fd.getAll(f.key).join(', ') : (fd.get(f.key) || '');
+    });
 
     const { error } = await supabaseClient.from('questionnaire_responses').insert({
       lead_id: leadId, questionnaire_type: type, answers,

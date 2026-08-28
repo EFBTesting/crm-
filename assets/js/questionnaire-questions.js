@@ -10,7 +10,7 @@
    Each questionnaire is a list of sections (a plain heading + optional
    italic note, like "Personal Details" / "Note: ..."), and each section
    is a list of fields:
-     { key, label, type, required?, options?, hint?, sub? }
+     { key, label, type, required?, options?, hint?, sub?, multiple? }
        - key: becomes the property name in the saved `answers` JSON.
          Keep it stable once real answers exist — renaming a key orphans
          whatever was already saved under the old one.
@@ -26,6 +26,9 @@
        - sub: true marks this field as really a part of the question right
          before it — instead of getting its own number, it's labeled as a
          lettered sub-question of the previous one ("4" then "4a", "4b", ...)
+       - multiple: true on a 'select'/'radio' field lets more than one
+         choice be checked (real checkboxes instead of radios); the saved
+         answer is a comma-separated string of everything picked
    ========================================================================== */
 
 const QUESTIONNAIRE_SETS = {
@@ -150,8 +153,8 @@ const QUESTIONNAIRE_SETS = {
       {
         heading: 'Contact Preferences',
         fields: [
-          { key: 'bestTimeToReach', label: 'Best time to reach you?', type: 'select', options: ['Morning', 'Evening', 'Night', 'Whenever'] },
-          { key: 'preferredCommunication', label: 'Preferred method of communication', type: 'select', options: ['Text', 'Phone Call', 'Email', 'In Person'] },
+          { key: 'bestTimeToReach', label: 'Best time to reach you?', type: 'select', multiple: true, options: ['Morning', 'Evening', 'Night', 'Whenever'] },
+          { key: 'preferredCommunication', label: 'Preferred method of communication', type: 'select', multiple: true, options: ['Text', 'Phone Call', 'Email', 'In Person'] },
         ],
       },
       {
