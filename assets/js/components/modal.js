@@ -594,40 +594,61 @@ function openLostReasonPrompt(lead, onDone) {
  *  from the Client Questionnaire page by clicking a lead's name, once
  *  they've answered at least one. Question labels come from
  *  QUESTIONNAIRE_SETS (assets/js/questionnaire-questions.js) so this
- *  always matches whatever the public form actually asked. */
+ *  always matches whatever the public form actually asked.
+ *
+ *  If both questionnaires have responses, they're shown one at a time
+ *  behind tabs (reusing the same .view-tabs/.view-tab styling as the
+ *  Questionnaires list page) instead of one long stacked scroll. If only
+ *  one has a response, its answers just show directly, no tabs needed. */
 function openQuestionnaireResponses(lead) {
   if (!lead) return;
 
-  function sectionHtml(type, label) {
-    const response = Questionnaires.latestResponse(lead.id, type);
-    if (!response) return '';
-    const set = QUESTIONNAIRE_SETS[type];
-    const fields = set.sections.flatMap(s => s.fields);
+  const sections = [
+    { type: 'quick', label: 'Pre-Construction' },
+    { type: 'construction', label: 'Construction' },
+  ].map(s => ({ ...s, response: Questionnaires.latestResponse(lead.id, s.type) }))
+    .filter(s => s.response);
+  if (!sections.length) return;
+
+  function paneHtml(s, i) {
+    const fields = QUESTIONNAIRE_SETS[s.type].sections.flatMap(sec => sec.fields);
     return `
-      <div class="q-response-section">
+      <div class="q-response-section" data-pane="${s.type}" ${i === 0 ? '' : 'hidden'}>
         <div class="q-response-section__head">
-          <h3>${esc(label)} Questionnaire</h3>
-          <span class="muted">Submitted ${fmtDateTime(response.submittedAt)}</span>
+          ${sections.length === 1 ? `<h3>${esc(s.label)} Questionnaire</h3>` : ''}
+          <span class="muted">Submitted ${fmtDateTime(s.response.submittedAt)}</span>
         </div>
         <dl class="q-response-list">
           ${fields.map(f => `
             <div>
               <dt>${esc(f.label)}</dt>
-              <dd>${esc(response.answers[f.key]) || '—'}</dd>
+              <dd>${esc(s.response.answers[f.key]) || '—'}</dd>
             </div>`).join('')}
         </dl>
       </div>`;
   }
 
-  Modal.open({
+  const tabsHtml = sections.length > 1 ? `
+    <div class="view-tabs">
+      ${sections.map((s, i) => `<button type="button" class="view-tab ${i === 0 ? 'is-active' : ''}" data-response-tab="${s.type}">${esc(s.label)}</button>`).join('')}
+    </div>` : '';
+
+  const r = Modal.open({
     title: `${lead.title} — Questionnaire Responses`,
     wide: true,
     bodyHtml: `
-      ${sectionHtml('quick', 'Pre-Construction')}
-      ${sectionHtml('construction', 'Construction')}
+      ${tabsHtml}
+      ${sections.map(paneHtml).join('')}
       <div class="form-actions">
         <button type="button" class="btn btn--ghost" data-close="1">Close</button>
       </div>`,
+  });
+
+  r.querySelectorAll('[data-response-tab]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      r.querySelectorAll('[data-response-tab]').forEach(b => b.classList.toggle('is-active', b === btn));
+      r.querySelectorAll('[data-pane]').forEach(p => { p.hidden = p.dataset.pane !== btn.dataset.responseTab; });
+    });
   });
 }
 
