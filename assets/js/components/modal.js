@@ -602,6 +602,7 @@ function openQuestionnaireResponses(lead) {
     const response = Questionnaires.latestResponse(lead.id, type);
     if (!response) return '';
     const set = QUESTIONNAIRE_SETS[type];
+    const fields = set.sections.flatMap(s => s.fields);
     return `
       <div class="q-response-section">
         <div class="q-response-section__head">
@@ -609,7 +610,7 @@ function openQuestionnaireResponses(lead) {
           <span class="muted">Submitted ${fmtDateTime(response.submittedAt)}</span>
         </div>
         <dl class="q-response-list">
-          ${set.fields.map(f => `
+          ${fields.map(f => `
             <div>
               <dt>${esc(f.label)}</dt>
               <dd>${esc(response.answers[f.key]) || '—'}</dd>
