@@ -596,10 +596,10 @@ function openLostReasonPrompt(lead, onDone) {
  *  QUESTIONNAIRE_SETS (assets/js/questionnaire-questions.js) so this
  *  always matches whatever the public form actually asked.
  *
- *  If both questionnaires have responses, they're shown one at a time
- *  behind tabs (reusing the same .view-tabs/.view-tab styling as the
- *  Questionnaires list page) instead of one long stacked scroll. If only
- *  one has a response, its answers just show directly, no tabs needed. */
+ *  Opens on a plain picker — one row per questionnaire that's actually
+ *  been answered — with no answers shown yet, even if there's only one
+ *  row. Clicking a row is what reveals that questionnaire's full answer
+ *  list; "← Back to questionnaires" returns to the picker. */
 function openQuestionnaireResponses(lead) {
   if (!lead) return;
 
@@ -610,44 +610,55 @@ function openQuestionnaireResponses(lead) {
     .filter(s => s.response);
   if (!sections.length) return;
 
-  function paneHtml(s, i) {
-    const fields = QUESTIONNAIRE_SETS[s.type].sections.flatMap(sec => sec.fields);
-    return `
-      <div class="q-response-section" data-pane="${s.type}" ${i === 0 ? '' : 'hidden'}>
-        <div class="q-response-section__head">
-          ${sections.length === 1 ? `<h3>${esc(s.label)} Questionnaire</h3>` : ''}
+  function pickerHtml() {
+    return `<div data-view="picker">
+      ${sections.map(s => `
+        <button type="button" class="q-response-pick" data-view-response="${s.type}">
+          <span>${esc(s.label)} Questionnaire</span>
           <span class="muted">Submitted ${fmtDateTime(s.response.submittedAt)}</span>
-        </div>
-        <dl class="q-response-list">
-          ${fields.map(f => `
-            <div>
-              <dt>${esc(f.label)}</dt>
-              <dd>${esc(s.response.answers[f.key]) || '—'}</dd>
-            </div>`).join('')}
-        </dl>
-      </div>`;
+        </button>`).join('')}
+    </div>`;
   }
 
-  const tabsHtml = sections.length > 1 ? `
-    <div class="view-tabs">
-      ${sections.map((s, i) => `<button type="button" class="view-tab ${i === 0 ? 'is-active' : ''}" data-response-tab="${s.type}">${esc(s.label)}</button>`).join('')}
-    </div>` : '';
+  function detailHtml(s) {
+    const fields = QUESTIONNAIRE_SETS[s.type].sections.flatMap(sec => sec.fields);
+    return `<div class="q-response-section" data-pane="${s.type}" hidden>
+      ${sections.length > 1 ? '<button type="button" class="q-response-back" data-back-to-picker>← Back to questionnaires</button>' : ''}
+      <div class="q-response-section__head">
+        <h3>${esc(s.label)} Questionnaire</h3>
+        <span class="muted">Submitted ${fmtDateTime(s.response.submittedAt)}</span>
+      </div>
+      <dl class="q-response-list">
+        ${fields.map(f => `
+          <div>
+            <dt>${esc(f.label)}</dt>
+            <dd>${esc(s.response.answers[f.key]) || '—'}</dd>
+          </div>`).join('')}
+      </dl>
+    </div>`;
+  }
 
   const r = Modal.open({
     title: `${lead.title} — Questionnaire Responses`,
     wide: true,
     bodyHtml: `
-      ${tabsHtml}
-      ${sections.map(paneHtml).join('')}
+      ${pickerHtml()}
+      ${sections.map(detailHtml).join('')}
       <div class="form-actions">
         <button type="button" class="btn btn--ghost" data-close="1">Close</button>
       </div>`,
   });
 
-  r.querySelectorAll('[data-response-tab]').forEach(btn => {
+  r.querySelectorAll('[data-view-response]').forEach(btn => {
     btn.addEventListener('click', () => {
-      r.querySelectorAll('[data-response-tab]').forEach(b => b.classList.toggle('is-active', b === btn));
-      r.querySelectorAll('[data-pane]').forEach(p => { p.hidden = p.dataset.pane !== btn.dataset.responseTab; });
+      r.querySelector('[data-view="picker"]').hidden = true;
+      r.querySelectorAll('[data-pane]').forEach(p => { p.hidden = p.dataset.pane !== btn.dataset.viewResponse; });
+    });
+  });
+  r.querySelectorAll('[data-back-to-picker]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      r.querySelectorAll('[data-pane]').forEach(p => { p.hidden = true; });
+      r.querySelector('[data-view="picker"]').hidden = false;
     });
   });
 }

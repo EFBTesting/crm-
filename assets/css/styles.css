@@ -633,6 +633,20 @@ div.qf-q > textarea.qf-q__underline:focus { border-color: var(--brand); }
 .btn:disabled { opacity: 0.6; cursor: not-allowed; filter: none !important; }
 .btn--answered { background: rgba(63, 143, 95, 0.14); color: var(--green); border-color: transparent; }
 
+.q-response-pick {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  width: 100%; padding: 14px 16px; margin-bottom: 10px; font: inherit; text-align: left;
+  background: #fff; border: 1px solid var(--line); border-radius: 10px; cursor: pointer;
+}
+.q-response-pick:last-child { margin-bottom: 0; }
+.q-response-pick:hover { border-color: var(--brand); }
+.q-response-pick span:first-child { font-weight: 700; }
+
+.q-response-back {
+  display: inline-block; margin-bottom: 14px; padding: 0; font: inherit; font-weight: 600;
+  color: var(--brand); background: none; border: none; cursor: pointer;
+}
+
 .q-response-section { margin-bottom: 20px; }
 .q-response-section:last-of-type { margin-bottom: 0; }
 .q-response-section__head {
