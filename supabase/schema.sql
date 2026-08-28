@@ -64,8 +64,8 @@ create table if not exists leads (
   contact_id uuid references contacts(id) on delete set null,
   secondary_contact_id uuid references contacts(id) on delete set null,
   company_id uuid references companies(id) on delete set null,
-  stage text not null default 'new_lead',
-  status text not null default 'active',       -- active | won | lost
+  stage text not null default 'new_lead' check (stage in ('new_lead', 'site_visit', 'estimate_sent', 'negotiation', 'design_contract_signed')),
+  status text not null default 'active' check (status in ('active', 'on_hold', 'won', 'lost')),
   value numeric not null default 0,            -- "Budget" in the UI
   revenue_percent numeric,                     -- % of budget expected as revenue
   project_type text,
@@ -74,8 +74,8 @@ create table if not exists leads (
   notes text,
   lost_reason text,
   history jsonb not null default '[]',          -- activity timeline, same shape as before
-  project_stage text,                          -- design | pre_con | construction | completed (only once won)
-  project_status text,                         -- on_track | delayed (only once won)
+  project_stage text check (project_stage in ('design', 'pre_con', 'construction', 'completed')), -- only once won
+  project_status text check (project_status in ('on_track', 'delayed', 'starting_soon', 'ready_to_break_ground', 'past_projected_start')), -- only once won
   permit_status text,                          -- deprecated: superseded by `permits` (a project can have many)
   permit_township text,                        -- one township per project — all its permits are filed there
   permits jsonb not null default '[]',          -- [{ type: 'Electrical', status: 'submitted' }, ...]
@@ -85,7 +85,8 @@ create table if not exists leads (
   estimator text,
   field_manager text,
   designer text,
-  precon_status text,                          -- active | on_hold | lost | complete (Pre-Con "Record status")
+  precon_status text check (precon_status in ('active', 'on_hold', 'lost', 'complete')), -- Pre-Con "Record status"
+  precon_status_before_lost text check (precon_status_before_lost in ('active', 'on_hold', 'complete')), -- what precon_status was right before markLost() overwrote it to 'lost' — reopen() restores from here instead of always resetting to 'active'
   precon_steps jsonb not null default '[]',    -- [{ phase: 'lead_up'|'pre_construction', label, status }, ...]
   precon_notes text,                            -- free-text notes on the Pre-Con checklist
   contacted_steps jsonb not null default '[]', -- [{ key, done, date }, ...] — the "Contacted" follow-up checklist
@@ -159,6 +160,49 @@ alter table leads add column if not exists precon_status text;
 alter table leads add column if not exists precon_steps jsonb not null default '[]';
 alter table leads add column if not exists precon_notes text;
 alter table leads add column if not exists contacted_steps jsonb not null default '[]';
+alter table leads add column if not exists precon_status_before_lost text;
+
+-- ---------------------------------------------------------------------
+-- Retroactive CHECK constraints. IMPORTANT: `create table if not exists`
+-- above is a complete no-op once a table already exists — Postgres does
+-- not diff column/constraint definitions against an existing table, so
+-- adding a `check (...)` to a column in the CREATE TABLE text only takes
+-- effect for a brand-new install. An already-existing table (which is
+-- what every real install has, since these tables were created long ago)
+-- needs the constraint applied explicitly here, the same drop-then-add
+-- pattern already used above for companies_primary_contact_fk.
+-- ---------------------------------------------------------------------
+alter table leads drop constraint if exists leads_stage_check;
+alter table leads add constraint leads_stage_check
+  check (stage in ('new_lead', 'site_visit', 'estimate_sent', 'negotiation', 'design_contract_signed'));
+alter table leads drop constraint if exists leads_status_check;
+alter table leads add constraint leads_status_check
+  check (status in ('active', 'on_hold', 'won', 'lost'));
+alter table leads drop constraint if exists leads_project_stage_check;
+alter table leads add constraint leads_project_stage_check
+  check (project_stage in ('design', 'pre_con', 'construction', 'completed'));
+alter table leads drop constraint if exists leads_project_status_check;
+alter table leads add constraint leads_project_status_check
+  check (project_status in ('on_track', 'delayed', 'starting_soon', 'ready_to_break_ground', 'past_projected_start'));
+alter table leads drop constraint if exists leads_precon_status_check;
+alter table leads add constraint leads_precon_status_check
+  check (precon_status in ('active', 'on_hold', 'lost', 'complete'));
+alter table leads drop constraint if exists leads_precon_status_before_lost_check;
+alter table leads add constraint leads_precon_status_before_lost_check
+  check (precon_status_before_lost in ('active', 'on_hold', 'complete'));
+
+-- Same story for questionnaire_responses.questionnaire_type: today's
+-- 'detailed' -> 'construction' rename earlier this session updated the
+-- RLS policy correctly (policies ARE replaced on every re-run, via
+-- drop-then-create), but questionnaire_responses already existed as a
+-- table before that rename, so its own CHECK constraint — baked in once,
+-- back when the table was first created with 'detailed' — was never
+-- actually updated by re-running the file. Without this, a real
+-- Construction questionnaire submission would fail against a
+-- still-'detailed' constraint despite everything else looking fixed.
+alter table questionnaire_responses drop constraint if exists questionnaire_responses_questionnaire_type_check;
+alter table questionnaire_responses add constraint questionnaire_responses_questionnaire_type_check
+  check (questionnaire_type in ('quick', 'construction'));
 
 -- ---------------------------------------------------------------------
 -- Keep updated_at fresh automatically
@@ -261,10 +305,20 @@ drop policy if exists "authenticated full access" on questionnaire_responses;
 create policy "authenticated full access" on questionnaire_responses
   for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
 
+-- The `submitted_at` bound below matters because the anon key is
+-- necessarily visible in questionnaire.html's page source — without it,
+-- anyone could POST directly to the REST endpoint (bypassing the JS app
+-- entirely, which never sets submitted_at itself and just relies on the
+-- column default) with a fabricated timestamp, falsifying when a lead
+-- "answered" in the CRM's tracker. A ±1 day window comfortably covers
+-- real clock skew/timezone weirdness on a visitor's device.
 drop policy if exists "anon insert only" on questionnaire_responses;
 create policy "anon insert only" on questionnaire_responses
   for insert to anon
-  with check (questionnaire_type in ('quick', 'construction'));
+  with check (
+    questionnaire_type in ('quick', 'construction')
+    and submitted_at between now() - interval '1 day' and now() + interval '1 day'
+  );
 
 -- ---------------------------------------------------------------------
 -- Realtime — lets every open browser tab see changes made by teammates

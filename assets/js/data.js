@@ -292,7 +292,7 @@ function leadFromRow(r) {
     projectStatus: r.project_status || null, permitTownship: r.permit_township || '', permits: r.permits || [],
     projectedStartDate: r.projected_start_date || '', targetCompletionDate: r.target_completion_date || '',
     assignedTo: r.assigned_to || '', estimator: r.estimator || '', fieldManager: r.field_manager || '', designer: r.designer || '',
-    preconStatus: r.precon_status || 'active',
+    preconStatus: r.precon_status || 'active', preconStatusBeforeLost: r.precon_status_before_lost || null,
     preconSteps: r.precon_steps || [], preconNotes: r.precon_notes || '',
     contactedSteps: r.contacted_steps || [],
     wonAt: r.won_at, lostAt: r.lost_at, createdAt: r.created_at, updatedAt: r.updated_at,
@@ -320,6 +320,7 @@ function leadToRow(d) {
   if (d.fieldManager !== undefined) row.field_manager = (d.fieldManager || '').trim();
   if (d.designer !== undefined) row.designer = (d.designer || '').trim();
   if (d.preconStatus !== undefined) row.precon_status = d.preconStatus;
+  if (d.preconStatusBeforeLost !== undefined) row.precon_status_before_lost = d.preconStatusBeforeLost;
   if (d.preconSteps !== undefined) row.precon_steps = d.preconSteps;
   if (d.contactedSteps !== undefined) row.contacted_steps = d.contactedSteps;
   if (d.preconNotes !== undefined) row.precon_notes = (d.preconNotes || '').trim();
@@ -775,8 +776,10 @@ const Leads = {
     const history = [...l.history, { at: now, event: 'lost', detail: `Marked as Lost (${lostReason})` }];
     const patch = { status: 'lost', lostReason, lostAt: now, history };
     // Keep a project's Record Status in sync — it's now the same "lost"
-    // app-wide, just reached from either page.
-    if (l.wonAt) patch.preconStatus = 'lost';
+    // app-wide, just reached from either page. Stash whatever it actually
+    // was (e.g. 'complete') so reopen() can restore it instead of just
+    // resetting to 'active'.
+    if (l.wonAt) { patch.preconStatusBeforeLost = l.preconStatus || 'active'; patch.preconStatus = 'lost'; }
     return this._patch(id, patch);
   },
   /** Reopens a lost/on-hold lead OR a lost project. A project that gets
@@ -789,7 +792,10 @@ const Leads = {
     const restoredStatus = l.wonAt ? 'won' : 'active';
     const history = [...l.history, { at: new Date().toISOString(), event: 'reopened', detail: restoredStatus === 'won' ? 'Project reopened' : 'Lead reopened' }];
     const patch = { status: restoredStatus, lostReason: '', history };
-    if (l.wonAt) patch.preconStatus = 'active';
+    // Restore whatever Record Status the project actually had before being
+    // marked Lost (e.g. a finished Pre-Con checklist stays 'complete')
+    // instead of always resetting to 'active'.
+    if (l.wonAt) { patch.preconStatus = l.preconStatusBeforeLost || 'active'; patch.preconStatusBeforeLost = null; }
     return this._patch(id, patch);
   },
   /** Marks a project's Record Status Complete — also closes out its

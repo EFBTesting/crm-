@@ -9,27 +9,30 @@ const CONTACT_STATUS_FILTERS = [
   { id: 'none', label: 'No projects yet' },
 ];
 
-function renderContacts(root) {
-  let query = '';
-  let filterStatus = '';
+// Hoisted to module scope (like dashboard.js's dashboardActiveTab) so a
+// realtime-triggered re-render (any teammate's edit, anywhere in the app —
+// see Router.rerender()) doesn't silently wipe an in-progress search/filter.
+let contactsQuery = '';
+let contactsFilterStatus = '';
 
+function renderContacts(root) {
   function matchesStatusFilter(c) {
-    if (!filterStatus) return true;
+    if (!contactsFilterStatus) return true;
     const info = Contacts.statusFor(c.id);
-    if (filterStatus === 'open') return info.kind === 'open';
-    if (filterStatus === 'none') return info.kind === 'none';
-    return info.kind === 'previous' && info.outcome === filterStatus;
+    if (contactsFilterStatus === 'open') return info.kind === 'open';
+    if (contactsFilterStatus === 'none') return info.kind === 'none';
+    return info.kind === 'previous' && info.outcome === contactsFilterStatus;
   }
 
   function draw() {
     const all = Contacts.all();
-    const hasFilters = query || filterStatus;
+    const hasFilters = contactsQuery || contactsFilterStatus;
     const filtered = all
       .filter(matchesStatusFilter)
       .filter(c => {
-        if (!query) return true;
+        if (!contactsQuery) return true;
         const hay = `${fullName(c)} ${c.email} ${c.phone} ${c.title} ${Companies.get(c.companyId)?.name || ''}`.toLowerCase();
-        return hay.includes(query.toLowerCase());
+        return hay.includes(contactsQuery.toLowerCase());
       });
 
     root.innerHTML = `
@@ -39,13 +42,13 @@ function renderContacts(root) {
           <p class="view-sub">${all.length} total contact${all.length === 1 ? '' : 's'}</p>
         </div>
         <div class="view-head__actions">
-          <input id="contact-search" class="search-input" type="search" placeholder="Search contacts..." value="${esc(query)}">
+          <input id="contact-search" class="search-input" type="search" placeholder="Search contacts..." value="${esc(contactsQuery)}">
           <button class="btn btn--primary" id="new-contact-btn">+ New Contact</button>
         </div>
       </div>
 
       <div class="filter-bar">
-        <select id="filter-status" class="filter-select">${optionList(CONTACT_STATUS_FILTERS, filterStatus, { valueKey: 'id', labelKey: 'label', blank: 'All statuses' })}</select>
+        <select id="filter-status" class="filter-select">${optionList(CONTACT_STATUS_FILTERS, contactsFilterStatus, { valueKey: 'id', labelKey: 'label', blank: 'All statuses' })}</select>
         ${hasFilters ? `<button type="button" id="clear-filters-btn" class="link-btn-inline">Clear filters</button>` : ''}
       </div>
 
@@ -85,15 +88,22 @@ function renderContacts(root) {
     qs('#new-contact-btn', root).addEventListener('click', () => openContactForm(null, () => draw()));
     const search = qs('#contact-search', root);
     search.addEventListener('input', debounce(e => {
-      query = e.target.value;
+      contactsQuery = e.target.value;
       draw();
       const el = qs('#contact-search', root);
       el.focus();
       el.setSelectionRange(el.value.length, el.value.length);
     }, 200));
-    qs('#filter-status', root).addEventListener('change', e => { filterStatus = e.target.value; draw(); });
+    qs('#filter-status', root).addEventListener('change', e => { contactsFilterStatus = e.target.value; draw(); });
     const clearBtn = qs('#clear-filters-btn', root);
-    if (clearBtn) clearBtn.addEventListener('click', () => { query = ''; filterStatus = ''; draw(); });
+    if (clearBtn) clearBtn.addEventListener('click', () => { contactsQuery = ''; contactsFilterStatus = ''; draw(); });
+    // Attached here (inside draw(), on the just-rendered button) rather
+    // than once on the persistent #app-root — see the removed outer
+    // root.addEventListener at the bottom of this function's old version;
+    // that pattern added a new permanent duplicate listener to #app-root
+    // on every re-render (including every realtime-triggered rerender).
+    const emptyBtn = qs('#empty-new-contact', root);
+    if (emptyBtn) emptyBtn.addEventListener('click', () => openContactForm(null, () => draw()));
   }
 
   function emptyState(hasFilters) {
@@ -107,7 +117,4 @@ function renderContacts(root) {
   }
 
   draw();
-  root.addEventListener('click', e => {
-    if (e.target && e.target.id === 'empty-new-contact') openContactForm(null, () => draw());
-  });
 }

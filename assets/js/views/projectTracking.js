@@ -14,21 +14,24 @@
    tab's list is ever on screen at a time.
    ========================================================================== */
 
-function renderProjectTracking(root) {
-  let activeTab = 'open'; // 'open' | 'on_hold' | 'completed' | 'lost'
-  let query = '';
-  let filterProjectType = '';
-  let filterStatus = '';
+// Hoisted to module scope (like dashboard.js's dashboardActiveTab) so a
+// realtime-triggered re-render (any teammate's edit, anywhere in the app —
+// see Router.rerender()) doesn't silently wipe an in-progress search/filter/tab.
+let projectTrackingActiveTab = 'open'; // 'open' | 'on_hold' | 'completed' | 'lost'
+let projectTrackingQuery = '';
+let projectTrackingFilterProjectType = '';
+let projectTrackingFilterStatus = '';
 
+function renderProjectTracking(root) {
   function matchesFilters(l) {
-    if (filterProjectType && l.projectType !== filterProjectType) return false;
-    if (filterStatus && (l.projectStatus || 'on_track') !== filterStatus) return false;
-    if (query) {
+    if (projectTrackingFilterProjectType && l.projectType !== projectTrackingFilterProjectType) return false;
+    if (projectTrackingFilterStatus && (l.projectStatus || 'on_track') !== projectTrackingFilterStatus) return false;
+    if (projectTrackingQuery) {
       const contact = Contacts.get(l.contactId);
       const secondary = Contacts.get(l.secondaryContactId);
       const company = Companies.get(l.companyId);
       const hay = `${l.title} ${contact ? fullName(contact) : ''} ${secondary ? fullName(secondary) : ''} ${company ? company.name : ''}`.toLowerCase();
-      if (!hay.includes(query.toLowerCase())) return false;
+      if (!hay.includes(projectTrackingQuery.toLowerCase())) return false;
     }
     return true;
   }
@@ -37,7 +40,7 @@ function renderProjectTracking(root) {
     const allProjects = Leads.projects();
     const inProduction = allProjects.filter(l => (l.preconStatus || 'active') === 'active');
     const projects = inProduction.filter(matchesFilters);
-    const hasFilters = query || filterProjectType || filterStatus;
+    const hasFilters = projectTrackingQuery || projectTrackingFilterProjectType || projectTrackingFilterStatus;
 
     // A project that was won and later fell through — status flips to
     // 'lost' app-wide, but wonAt stays set, which is what separates it
@@ -55,15 +58,15 @@ function renderProjectTracking(root) {
       { id: 'completed', label: 'Completed', count: completedProjects.length, total: completedProjectsAll.length },
       { id: 'lost', label: 'Lost', count: lostProjects.length, total: lostProjectsAll.length },
     ];
-    const activeList = activeTab === 'open' ? projects : activeTab === 'on_hold' ? onHoldProjects : activeTab === 'completed' ? completedProjects : lostProjects;
+    const activeList = projectTrackingActiveTab === 'open' ? projects : projectTrackingActiveTab === 'on_hold' ? onHoldProjects : projectTrackingActiveTab === 'completed' ? completedProjects : lostProjects;
     const activeValue = activeList.reduce((s, l) => s + (Number(l.value) || 0), 0);
-    const activeWord = activeTab === 'open' ? 'in production' : activeTab === 'on_hold' ? 'on hold' : activeTab === 'completed' ? 'completed' : 'lost';
+    const activeWord = projectTrackingActiveTab === 'open' ? 'in production' : projectTrackingActiveTab === 'on_hold' ? 'on hold' : projectTrackingActiveTab === 'completed' ? 'completed' : 'lost';
 
     root.innerHTML = `
       <div class="view-head">
         <div>
           <h1>Project Tracking</h1>
-          <p class="view-sub">${activeList.length} project${activeList.length === 1 ? '' : 's'}${hasFilters ? ` matching (of ${TABS.find(t => t.id === activeTab).total})` : ` ${activeWord}`} · ${fmtMoney(activeValue)} total</p>
+          <p class="view-sub">${activeList.length} project${activeList.length === 1 ? '' : 's'}${hasFilters ? ` matching (of ${TABS.find(t => t.id === projectTrackingActiveTab).total})` : ` ${activeWord}`} · ${fmtMoney(activeValue)} total</p>
         </div>
         <div class="view-head__actions">
           <button class="btn btn--primary" id="new-project-btn">+ New Project</button>
@@ -75,24 +78,24 @@ function renderProjectTracking(root) {
           <strong>No projects yet.</strong> Once a lead is marked <strong>Won</strong> on the Lead Pipeline, it shows up here automatically to track through production.
         </div>` : `
         <div class="filter-bar">
-          <input type="search" id="project-search" class="search-input" placeholder="Search projects, contacts, companies..." value="${esc(query)}">
-          <select id="filter-project-type" class="filter-select">${optionList(PROJECT_TYPES, filterProjectType, { blank: 'All project types' })}</select>
-          <select id="filter-status" class="filter-select">${optionList(PROJECT_STATUS_OPTIONS, filterStatus, { valueKey: 'id', labelKey: 'label', blank: 'All statuses' })}</select>
+          <input type="search" id="project-search" class="search-input" placeholder="Search projects, contacts, companies..." value="${esc(projectTrackingQuery)}">
+          <select id="filter-project-type" class="filter-select">${optionList(PROJECT_TYPES, projectTrackingFilterProjectType, { blank: 'All project types' })}</select>
+          <select id="filter-status" class="filter-select">${optionList(PROJECT_STATUS_OPTIONS, projectTrackingFilterStatus, { valueKey: 'id', labelKey: 'label', blank: 'All statuses' })}</select>
           ${hasFilters ? `<button type="button" id="clear-filters-btn" class="link-btn-inline">Clear filters</button>` : ''}
         </div>
 
-        <div class="view-tabs">
-          ${TABS.map(t => `<button type="button" class="view-tab ${t.id === activeTab ? 'is-active' : ''}" data-tab="${t.id}">${t.label} (${t.count})</button>`).join('')}
+        <div class="view-tab-bar">
+          ${TABS.map(t => `<button type="button" class="view-tab ${t.id === projectTrackingActiveTab ? 'is-active' : ''}" data-tab="${t.id}">${t.label} (${t.count})</button>`).join('')}
         </div>
 
         <div class="project-tracking-layout">
-          ${activeTab === 'open' ? listHtml(projects, hasFilters)
-            : activeTab === 'on_hold' ? sideListHtml({
+          ${projectTrackingActiveTab === 'open' ? listHtml(projects, hasFilters)
+            : projectTrackingActiveTab === 'on_hold' ? sideListHtml({
                 items: onHoldProjects, emptyText: 'Nothing on hold.',
                 statusCol: () => `<span class="pill pill--muted">On Hold</span>`,
                 dateCol: l => timeAgo(l.updatedAt), actionAttr: 'data-reactivate', actionLabel: 'Reactivate',
               })
-            : activeTab === 'completed' ? sideListHtml({
+            : projectTrackingActiveTab === 'completed' ? sideListHtml({
                 items: completedProjects, emptyText: 'Nothing completed yet.',
                 statusCol: () => `<span class="pill pill--green">🏁 Complete</span>`,
                 dateCol: l => timeAgo(l.updatedAt), actionAttr: 'data-reactivate', actionLabel: 'Reactivate',
@@ -203,12 +206,12 @@ function renderProjectTracking(root) {
   function wire() {
     qsa('[data-nav]', root).forEach(node => node.addEventListener('click', e => { e.stopPropagation(); Router.navigate(node.dataset.nav); }));
     qs('#new-project-btn', root).addEventListener('click', () => openLeadForm(null, { asProject: true }, () => draw()));
-    qsa('[data-tab]', root).forEach(btn => btn.addEventListener('click', () => { activeTab = btn.dataset.tab; draw(); }));
+    qsa('[data-tab]', root).forEach(btn => btn.addEventListener('click', () => { projectTrackingActiveTab = btn.dataset.tab; draw(); }));
 
     const searchInput = qs('#project-search', root);
     if (searchInput) {
       searchInput.addEventListener('input', debounce(e => {
-        query = e.target.value;
+        projectTrackingQuery = e.target.value;
         draw();
         const el = qs('#project-search', root);
         el.focus();
@@ -216,11 +219,11 @@ function renderProjectTracking(root) {
       }, 200));
     }
     const typeFilter = qs('#filter-project-type', root);
-    if (typeFilter) typeFilter.addEventListener('change', e => { filterProjectType = e.target.value; draw(); });
+    if (typeFilter) typeFilter.addEventListener('change', e => { projectTrackingFilterProjectType = e.target.value; draw(); });
     const statusFilter = qs('#filter-status', root);
-    if (statusFilter) statusFilter.addEventListener('change', e => { filterStatus = e.target.value; draw(); });
+    if (statusFilter) statusFilter.addEventListener('change', e => { projectTrackingFilterStatus = e.target.value; draw(); });
     const clearBtn = qs('#clear-filters-btn', root);
-    if (clearBtn) clearBtn.addEventListener('click', () => { query = ''; filterProjectType = ''; filterStatus = ''; draw(); });
+    if (clearBtn) clearBtn.addEventListener('click', () => { projectTrackingQuery = ''; projectTrackingFilterProjectType = ''; projectTrackingFilterStatus = ''; draw(); });
 
     // Target Start / Target Finish — editable right in the table now; this
     // is the same field the Lead form sets and Project Calendar edits too,

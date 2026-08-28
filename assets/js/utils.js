@@ -150,6 +150,10 @@ function bindDatePickers(root, onSave) {
     // input becomes hidden) — match it to whatever this field was already
     // styled with (table-cell input, gantt cell input, etc).
     if (fp.altInput) fp.altInput.className = originalClasses;
+    // flatpickr appends its calendar popup to document.body, outside this
+    // modal's own DOM — closing the modal (which just wipes its innerHTML)
+    // would otherwise leave that popup and its listeners behind forever.
+    if (typeof Modal !== 'undefined' && Modal.onClose) Modal.onClose(() => fp.destroy());
   });
 }
 function bindAutoCapitalize(input) {

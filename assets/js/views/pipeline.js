@@ -5,21 +5,24 @@
    on Project Tracking instead, so there's nothing sitting in two places.
    ========================================================================== */
 
-function renderPipeline(root) {
-  let showLost = false;
-  let query = '';
-  let filterProjectType = '';
-  let filterSource = '';
+// Hoisted to module scope (like dashboard.js's dashboardActiveTab) so a
+// realtime-triggered re-render (any teammate's edit, anywhere in the app —
+// see Router.rerender()) doesn't silently wipe an in-progress search/filter.
+let pipelineShowLost = false;
+let pipelineQuery = '';
+let pipelineFilterProjectType = '';
+let pipelineFilterSource = '';
 
+function renderPipeline(root) {
   function matchesFilters(l) {
-    if (filterProjectType && l.projectType !== filterProjectType) return false;
-    if (filterSource && l.source !== filterSource) return false;
-    if (query) {
+    if (pipelineFilterProjectType && l.projectType !== pipelineFilterProjectType) return false;
+    if (pipelineFilterSource && l.source !== pipelineFilterSource) return false;
+    if (pipelineQuery) {
       const contact = Contacts.get(l.contactId);
       const secondary = Contacts.get(l.secondaryContactId);
       const company = Companies.get(l.companyId);
       const hay = `${l.title} ${contact ? fullName(contact) : ''} ${secondary ? fullName(secondary) : ''} ${company ? company.name : ''}`.toLowerCase();
-      if (!hay.includes(query.toLowerCase())) return false;
+      if (!hay.includes(pipelineQuery.toLowerCase())) return false;
     }
     return true;
   }
@@ -30,7 +33,7 @@ function renderPipeline(root) {
     // and later lost shows up on Project Tracking's own Lost list instead.
     const inactive = Leads.all().filter(l => l.status === 'on_hold' || (l.status === 'lost' && !l.wonAt)).filter(matchesFilters);
     const totalActiveValue = active.reduce((s, l) => s + (Number(l.value) || 0), 0);
-    const hasFilters = query || filterProjectType || filterSource;
+    const hasFilters = pipelineQuery || pipelineFilterProjectType || pipelineFilterSource;
 
     root.innerHTML = `
       <div class="view-head">
@@ -39,21 +42,21 @@ function renderPipeline(root) {
           <p class="view-sub">${active.length} active lead${active.length === 1 ? '' : 's'} · ${fmtMoney(totalActiveValue)} in motion</p>
         </div>
         <div class="view-head__actions">
-          <button class="btn btn--ghost" id="toggle-lost-btn">${showLost ? 'Hide' : 'Show'} lost / on hold leads (${inactive.length})</button>
+          <button class="btn btn--ghost" id="toggle-lost-btn">${pipelineShowLost ? 'Hide' : 'Show'} lost / on hold leads (${inactive.length})</button>
           <button class="btn btn--primary" id="new-lead-btn">+ New Lead</button>
         </div>
       </div>
 
       <div class="filter-bar">
-        <input type="search" id="pipeline-search" class="search-input" placeholder="Search leads, contacts, companies..." value="${esc(query)}">
-        <select id="filter-project-type" class="filter-select">${optionList(PROJECT_TYPES, filterProjectType, { blank: 'All project types' })}</select>
-        <select id="filter-source" class="filter-select">${optionList(LEAD_SOURCES, filterSource, { blank: 'All sources' })}</select>
+        <input type="search" id="pipeline-search" class="search-input" placeholder="Search leads, contacts, companies..." value="${esc(pipelineQuery)}">
+        <select id="filter-project-type" class="filter-select">${optionList(PROJECT_TYPES, pipelineFilterProjectType, { blank: 'All project types' })}</select>
+        <select id="filter-source" class="filter-select">${optionList(LEAD_SOURCES, pipelineFilterSource, { blank: 'All sources' })}</select>
         ${hasFilters ? `<button type="button" id="clear-filters-btn" class="link-btn-inline">Clear filters</button>` : ''}
       </div>
 
       ${listHtml(active, hasFilters)}
 
-      ${showLost ? `
+      ${pipelineShowLost ? `
         <div class="panel mt-lg">
           <h3>Lost / On Hold leads (${inactive.length})</h3>
           ${inactive.length ? `
@@ -127,20 +130,20 @@ function renderPipeline(root) {
   function wire() {
     qsa('[data-nav]', root).forEach(node => node.addEventListener('click', e => { e.stopPropagation(); Router.navigate(node.dataset.nav); }));
     qs('#new-lead-btn', root).addEventListener('click', () => openLeadForm(null, {}, () => draw()));
-    qs('#toggle-lost-btn', root).addEventListener('click', () => { showLost = !showLost; draw(); });
+    qs('#toggle-lost-btn', root).addEventListener('click', () => { pipelineShowLost = !pipelineShowLost; draw(); });
 
     const searchInput = qs('#pipeline-search', root);
     searchInput.addEventListener('input', debounce(e => {
-      query = e.target.value;
+      pipelineQuery = e.target.value;
       draw();
       const el = qs('#pipeline-search', root);
       el.focus();
       el.setSelectionRange(el.value.length, el.value.length);
     }, 200));
-    qs('#filter-project-type', root).addEventListener('change', e => { filterProjectType = e.target.value; draw(); });
-    qs('#filter-source', root).addEventListener('change', e => { filterSource = e.target.value; draw(); });
+    qs('#filter-project-type', root).addEventListener('change', e => { pipelineFilterProjectType = e.target.value; draw(); });
+    qs('#filter-source', root).addEventListener('change', e => { pipelineFilterSource = e.target.value; draw(); });
     const clearBtn = qs('#clear-filters-btn', root);
-    if (clearBtn) clearBtn.addEventListener('click', () => { query = ''; filterProjectType = ''; filterSource = ''; draw(); });
+    if (clearBtn) clearBtn.addEventListener('click', () => { pipelineQuery = ''; pipelineFilterProjectType = ''; pipelineFilterSource = ''; draw(); });
 
     // Stage dropdown — reaching the last stage (Design Contract Signed)
     // wins the lead automatically and it drops off this table.

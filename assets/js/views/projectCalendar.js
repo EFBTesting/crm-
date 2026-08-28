@@ -44,12 +44,22 @@ const CALENDAR_FILTER_FIELDS = [
   { key: 'designer', label: 'Designer' },
 ];
 
-function renderProjectCalendar(root) {
-  let activeFilters = {}; // { [fieldKey]: '' (any name) | 'Some, Name' }
-  let pendingField = '';
+// Hoisted to module scope (like dashboard.js's dashboardActiveTab) so a
+// realtime-triggered re-render (any teammate's edit, anywhere in the app —
+// see Router.rerender()) doesn't silently wipe an in-progress team filter.
+let calendarActiveFilters = {}; // { [fieldKey]: '' (any name) | 'Some, Name' }
+let calendarPendingField = '';
 
+// Tracks which leads we've already sent the one-time "default Assigned To
+// to Keith" backfill write for (see draw() below), so a realtime-triggered
+// re-render doesn't re-fire the same write over and over before the cache
+// has caught up with it — each lead id only gets attempted once per page
+// load, not once per render.
+const calendarBackfilledAssignedTo = new Set();
+
+function renderProjectCalendar(root) {
   function applyFilters(projects) {
-    const entries = Object.entries(activeFilters);
+    const entries = Object.entries(calendarActiveFilters);
     if (!entries.length) return projects;
     return projects.filter(l => entries.every(([field, value]) => {
       const val = l[field];
@@ -80,15 +90,16 @@ function renderProjectCalendar(root) {
     // it shows up here — persisted in the background so it's consistent
     // everywhere (Team filter, sorting, Project Tracking), not just a
     // visual default on this page.
-    rawPipelineLeads.filter(l => !l.assignedTo).forEach(l => {
-      Leads.updatePreconMeta(l.id, { assignedTo: 'Hoeing, Keith' }).catch(() => {});
+    rawPipelineLeads.filter(l => !l.assignedTo && !calendarBackfilledAssignedTo.has(l.id)).forEach(l => {
+      calendarBackfilledAssignedTo.add(l.id);
+      Leads.updatePreconMeta(l.id, { assignedTo: 'Hoeing, Keith' }).catch(() => { calendarBackfilledAssignedTo.delete(l.id); });
     });
     const pipelineLeads = rawPipelineLeads.map(l => l.assignedTo ? l : { ...l, assignedTo: 'Hoeing, Keith' });
     const allProjects = [...wonProjects, ...pipelineLeads];
     const projects = applyFilters(allProjects);
     const plottable = projects.filter(l => l.projectedStartDate || l.targetCompletionDate);
     const unscheduled = projects.filter(l => !l.projectedStartDate && !l.targetCompletionDate);
-    const hasFilters = Object.keys(activeFilters).length > 0;
+    const hasFilters = Object.keys(calendarActiveFilters).length > 0;
 
     root.innerHTML = `
       <div class="view-head">
@@ -99,14 +110,14 @@ function renderProjectCalendar(root) {
       </div>
 
       <div class="filter-bar">
-        <select id="filter-field-select" class="filter-select">${optionList(CALENDAR_FILTER_FIELDS, pendingField, { valueKey: 'key', labelKey: 'label', blank: 'Filter by team...' })}</select>
-        <select id="filter-value-select" class="filter-select" ${pendingField ? '' : 'disabled'}>${optionList(fieldValueOptions(pendingField, allProjects), '', { blank: 'Any name' })}</select>
-        <button type="button" class="btn btn--ghost btn--sm" id="add-filter-btn" ${pendingField ? '' : 'disabled'}>Search filter</button>
+        <select id="filter-field-select" class="filter-select">${optionList(CALENDAR_FILTER_FIELDS, calendarPendingField, { valueKey: 'key', labelKey: 'label', blank: 'Filter by team...' })}</select>
+        <select id="filter-value-select" class="filter-select" ${calendarPendingField ? '' : 'disabled'}>${optionList(fieldValueOptions(calendarPendingField, allProjects), '', { blank: 'Any name' })}</select>
+        <button type="button" class="btn btn--ghost btn--sm" id="add-filter-btn" ${calendarPendingField ? '' : 'disabled'}>Search filter</button>
         ${hasFilters ? `<button type="button" class="link-btn-inline" id="clear-filters-btn">Clear all</button>` : ''}
       </div>
       ${hasFilters ? `
         <div class="filter-chips mb-md">
-          ${Object.entries(activeFilters).map(([field, value]) => `
+          ${Object.entries(calendarActiveFilters).map(([field, value]) => `
             <span class="filter-chip">${esc(fieldLabel(field))}${value ? `: ${esc(value)}` : ''}
               <button type="button" class="filter-chip__remove" data-remove-filter="${esc(field)}" title="Remove filter">✕</button>
             </span>`).join('')}
@@ -267,22 +278,22 @@ function renderProjectCalendar(root) {
     });
 
     const fieldSelect = qs('#filter-field-select', root);
-    if (fieldSelect) fieldSelect.addEventListener('change', e => { pendingField = e.target.value; draw(); });
+    if (fieldSelect) fieldSelect.addEventListener('change', e => { calendarPendingField = e.target.value; draw(); });
 
     const addBtn = qs('#add-filter-btn', root);
     if (addBtn) addBtn.addEventListener('click', () => {
-      if (!pendingField) return;
+      if (!calendarPendingField) return;
       const valueSelect = qs('#filter-value-select', root);
-      activeFilters[pendingField] = valueSelect ? valueSelect.value : '';
-      pendingField = '';
+      calendarActiveFilters[calendarPendingField] = valueSelect ? valueSelect.value : '';
+      calendarPendingField = '';
       draw();
     });
 
     const clearBtn = qs('#clear-filters-btn', root);
-    if (clearBtn) clearBtn.addEventListener('click', () => { activeFilters = {}; pendingField = ''; draw(); });
+    if (clearBtn) clearBtn.addEventListener('click', () => { calendarActiveFilters = {}; calendarPendingField = ''; draw(); });
 
     qsa('[data-remove-filter]', root).forEach(btn => btn.addEventListener('click', () => {
-      delete activeFilters[btn.dataset.removeFilter];
+      delete calendarActiveFilters[btn.dataset.removeFilter];
       draw();
     }));
   }

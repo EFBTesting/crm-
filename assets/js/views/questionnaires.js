@@ -8,17 +8,20 @@
    response viewer.
    ========================================================================== */
 
-function renderQuestionnaires(root) {
-  let activeTab = 'all'; // 'all' | 'not_sent' | 'waiting'
-  let query = '';
+// Hoisted to module scope (like dashboard.js's dashboardActiveTab) so a
+// realtime-triggered re-render (any teammate's edit, anywhere in the app —
+// see Router.rerender()) doesn't silently wipe an in-progress search/tab.
+let questionnairesActiveTab = 'all'; // 'all' | 'not_sent' | 'waiting'
+let questionnairesQuery = '';
 
+function renderQuestionnaires(root) {
   function matchesQuery(l) {
-    if (!query) return true;
+    if (!questionnairesQuery) return true;
     const contact = Contacts.get(l.contactId);
     const secondary = Contacts.get(l.secondaryContactId);
     const company = Companies.get(l.companyId);
     const hay = `${l.title} ${contact ? fullName(contact) : ''} ${secondary ? fullName(secondary) : ''} ${company ? company.name : ''}`.toLowerCase();
-    return hay.includes(query.toLowerCase());
+    return hay.includes(questionnairesQuery.toLowerCase());
   }
 
   function draw() {
@@ -31,7 +34,7 @@ function renderQuestionnaires(root) {
       { id: 'not_sent', label: 'Not Sent', count: notSent.length },
       { id: 'waiting', label: 'Waiting on Response', count: waiting.length },
     ];
-    const activeRows = activeTab === 'not_sent' ? notSent : activeTab === 'waiting' ? waiting : rows;
+    const activeRows = questionnairesActiveTab === 'not_sent' ? notSent : questionnairesActiveTab === 'waiting' ? waiting : rows;
     const sorted = sortByProgress(activeRows);
 
     root.innerHTML = `
@@ -43,11 +46,11 @@ function renderQuestionnaires(root) {
       </div>
 
       <div class="filter-bar">
-        <input type="search" id="q-search" class="search-input" placeholder="Search leads, contacts, companies..." value="${esc(query)}">
+        <input type="search" id="q-search" class="search-input" placeholder="Search leads, contacts, companies..." value="${esc(questionnairesQuery)}">
       </div>
 
-      <div class="view-tabs">
-        ${TABS.map(t => `<button type="button" class="view-tab ${t.id === activeTab ? 'is-active' : ''}" data-tab="${t.id}">${t.label} (${t.count})</button>`).join('')}
+      <div class="view-tab-bar">
+        ${TABS.map(t => `<button type="button" class="view-tab ${t.id === questionnairesActiveTab ? 'is-active' : ''}" data-tab="${t.id}">${t.label} (${t.count})</button>`).join('')}
       </div>
 
       ${listHtml(sorted)}
@@ -72,7 +75,7 @@ function renderQuestionnaires(root) {
     if (!rows.length) {
       return `<div class="table-wrap"><div class="empty-state">
         <p><strong>Nothing here.</strong></p>
-        <p class="muted">${query ? 'Try a different search.' : 'No leads match this filter.'}</p>
+        <p class="muted">${questionnairesQuery ? 'Try a different search.' : 'No leads match this filter.'}</p>
       </div></div>`;
     }
     return `
@@ -120,7 +123,7 @@ function renderQuestionnaires(root) {
     const searchInput = qs('#q-search', root);
     if (searchInput) {
       searchInput.addEventListener('input', debounce(e => {
-        query = e.target.value;
+        questionnairesQuery = e.target.value;
         draw();
         const el = qs('#q-search', root);
         el.focus();
@@ -128,7 +131,7 @@ function renderQuestionnaires(root) {
       }, 200));
     }
 
-    qsa('[data-tab]', root).forEach(btn => btn.addEventListener('click', () => { activeTab = btn.dataset.tab; draw(); }));
+    qsa('[data-tab]', root).forEach(btn => btn.addEventListener('click', () => { questionnairesActiveTab = btn.dataset.tab; draw(); }));
     qsa('[data-open-responses]', root).forEach(el => el.addEventListener('click', () => openQuestionnaireResponses(Leads.get(el.dataset.openResponses))));
     qsa('[data-send]', root).forEach(btn => btn.addEventListener('click', () => sendQuestionnaire(btn.dataset.send, btn.dataset.sendType)));
   }

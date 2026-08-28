@@ -141,7 +141,7 @@ p { margin: 0; }
 }
 .filter-bar .search-input { flex: 1; min-width: 200px; max-width: 320px; }
 
-.view-tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid var(--line); }
+.view-tab-bar { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid var(--line); }
 .view-tab {
   border: none; background: none; font-family: inherit; cursor: pointer;
   padding: 9px 16px; font-size: 0.86rem; font-weight: 700; color: var(--ink-soft);

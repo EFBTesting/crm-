@@ -4,15 +4,25 @@
 
 const Modal = (() => {
   const root = () => qs('#modal-root');
+  let cleanupFns = [];
+
+  /** Registers a function to run when this modal closes — for anything a
+   *  form wires up that outlives the modal's own DOM (a document-level
+   *  listener, a flatpickr instance whose popup lives in document.body,
+   *  etc). Wiping the modal's innerHTML alone doesn't clean those up. */
+  function onClose(fn) { cleanupFns.push(fn); }
 
   function close() {
     const r = root();
+    cleanupFns.forEach(fn => { try { fn(); } catch (e) { console.error(e); } });
+    cleanupFns = [];
     r.innerHTML = '';
     r.classList.remove('is-open');
     document.body.classList.remove('modal-open');
   }
 
   function open({ title, bodyHtml, wide = false }) {
+    cleanupFns = []; // defensive — a prior modal should have already cleared these via close()
     const r = root();
     r.innerHTML = `
       <div class="modal-overlay" data-close="1">
@@ -40,7 +50,7 @@ const Modal = (() => {
     if (e.key === 'Escape' && root()?.classList.contains('is-open')) close();
   });
 
-  return { open, close };
+  return { open, close, onClose };
 })();
 
 /** Wires a form's submit event to an async save function, disabling the
@@ -68,15 +78,28 @@ function handleAsyncSubmit(form, { onSubmit, busyLabel = 'Saving…' }) {
  *  shows a dropdown of matching existing contacts underneath `anchorEl`;
  *  clicking one calls `fill(contact)` to autofill the form and `onPick(contact)`
  *  so the caller can bind the form to that contact's id (so saving updates
- *  them instead of creating a duplicate). `onClear()` fires whenever the
- *  name is emptied back out, so the caller can unbind. */
+ *  them instead of creating a duplicate).
+ *
+ *  `onClear(reason)` fires to tell the caller to unbind — either because
+ *  the name field was emptied out ('emptied'), or because a match had been
+ *  picked and the name was then edited away from it ('diverged'). That
+ *  second case matters: without it, picking a match and then typing over
+ *  the name with someone else entirely would leave the form silently still
+ *  bound to the original person, and saving would overwrite their real
+ *  record instead of creating a new one. */
 function wireContactAutocomplete({ anchorEl, nameGetter, phoneInput, excludeIds = [], triggerInputs, fill, onPick, onClear }) {
   const dropdown = el('<div class="autocomplete-dropdown" hidden></div>');
   anchorEl.appendChild(dropdown);
+  let pickedName = null; // the exact trimmed name we filled in when a match was last picked
 
   function search() {
     const nameVal = nameGetter().trim();
-    if (!nameVal && onClear) onClear();
+    if (pickedName !== null && nameVal !== pickedName) {
+      pickedName = null;
+      if (onClear) onClear('diverged');
+    } else if (!nameVal && onClear) {
+      onClear('emptied');
+    }
     const phoneVal = phoneInput ? phoneInput.value : '';
     const matches = Contacts.search(nameVal, phoneVal, { excludeIds });
     if (!matches.length) { dropdown.hidden = true; dropdown.innerHTML = ''; return; }
@@ -94,6 +117,7 @@ function wireContactAutocomplete({ anchorEl, nameGetter, phoneInput, excludeIds 
         const contact = Contacts.get(item.dataset.id);
         if (!contact) return;
         fill(contact);
+        pickedName = nameGetter().trim();
         dropdown.hidden = true;
         if (onPick) onPick(contact);
       });
@@ -102,9 +126,9 @@ function wireContactAutocomplete({ anchorEl, nameGetter, phoneInput, excludeIds 
 
   const debouncedSearch = debounce(search, 150);
   triggerInputs.filter(Boolean).forEach(inp => inp.addEventListener('input', debouncedSearch));
-  document.addEventListener('mousedown', e => {
-    if (!anchorEl.contains(e.target)) dropdown.hidden = true;
-  });
+  const onDocMousedown = e => { if (!anchorEl.contains(e.target)) dropdown.hidden = true; };
+  document.addEventListener('mousedown', onDocMousedown);
+  if (typeof Modal !== 'undefined' && Modal.onClose) Modal.onClose(() => document.removeEventListener('mousedown', onDocMousedown));
 }
 
 function optionList(items, selected, { valueKey = null, labelKey = null, blank = '— None —' } = {}) {
@@ -412,7 +436,10 @@ function openLeadForm(existing = null, defaults = {}, onSaved = null) {
         bestTimeSelect.value = contact.bestTimeToContact || '';
       },
       onPick: contact => { setExistingId(contact.id); toast(`Linked to existing contact: ${fullName(contact)}`); },
-      onClear: () => setExistingId(null),
+      onClear: reason => {
+        setExistingId(null);
+        if (reason === 'diverged') toast('Unlinked from that contact — saving will create a new one instead');
+      },
     });
   }
   wireLeadContactAutocomplete('contact1', () => contact1ExistingId, v => { contact1ExistingId = v; });
