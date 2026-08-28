@@ -46,8 +46,9 @@ const QUESTIONNAIRE_SETS = {
       {
         heading: 'Project Details',
         fields: [
-          { key: 'otherDecisionMakers', label: 'Will anyone else be involved in decisions on this project?', type: 'textarea',
-            hint: 'If yes, please provide their full name and best contact info.' },
+          { key: 'otherDecisionMakerName', label: 'Other Decision-Maker (if any) — Full Name', type: 'text' },
+          { key: 'otherDecisionMakerPhone', label: 'Their Phone #', type: 'tel' },
+          { key: 'otherDecisionMakerEmail', label: 'Their Email', type: 'email' },
           { key: 'timeline', label: 'Do you have a general timeline or target move-in date in mind?', type: 'text', inline: false,
             hint: 'e.g. Spring 2027, as soon as possible, flexible' },
           { key: 'vision', label: "In a few sentences, tell us what you're envisioning.", type: 'textarea',
