@@ -52,7 +52,7 @@ const QUESTIONNAIRE_SETS = {
             hint: 'e.g. Spring 2027, as soon as possible, flexible' },
           { key: 'vision', label: "In a few sentences, tell us what you're envisioning.", type: 'textarea',
             hint: "No need to have it all figured out — just share where your head is at right now." },
-          { key: 'source', label: 'How did you hear about Erwin Forest Builders?', type: 'select', options: [
+          { key: 'source', label: 'How did you hear about Erwin Forrest Builders?', type: 'select', options: [
             'Friends', 'Family', 'Word of mouth', 'Referral', 'Website', 'Google Search', 'Social Media (Facebook/Instagram)', 'Repeat Client', 'Other',
           ] },
         ],

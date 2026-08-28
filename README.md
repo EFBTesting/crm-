@@ -1,8 +1,8 @@
-# Erwin Forest Builders — CRM
+# Erwin Forrest Builders — CRM
 
 **Live app:** https://efbtesting.github.io/erwin-forest-crm/
 
-A lightweight CRM built for Erwin Forest Builders: contacts, company profiles,
+A lightweight CRM built for Erwin Forrest Builders: contacts, company profiles,
 a 5-stage lead pipeline, and a high-level analytics dashboard.
 
 **No build step, no backend.** It's plain HTML/CSS/JS and runs entirely in the

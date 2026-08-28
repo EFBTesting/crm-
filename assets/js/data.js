@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Erwin Forest Builders CRM — Data Layer
+   Erwin Forrest Builders CRM — Data Layer
    Backed by Supabase (real Postgres, shared across every device/teammate).
    Reads stay synchronous (served from an in-memory cache); writes are
    async and update the cache + Supabase together. A realtime subscription

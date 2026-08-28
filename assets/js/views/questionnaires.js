@@ -146,8 +146,8 @@ function renderQuestionnaires(root) {
     }
     const typeLabel = type === 'quick' ? 'Quick' : 'Detailed';
     const link = questionnaireLink(leadId, type);
-    const subject = encodeURIComponent(`${typeLabel} Questionnaire — Erwin Forest Builders`);
-    const body = encodeURIComponent(`Hi ${contact.firstName},\n\nCould you take a few minutes to fill out this short questionnaire? It helps us prep for your project.\n\n${link}\n\nThanks!\nErwin Forest Builders`);
+    const subject = encodeURIComponent(`${typeLabel} Questionnaire — Erwin Forrest Builders`);
+    const body = encodeURIComponent(`Hi ${contact.firstName},\n\nCould you take a few minutes to fill out this short questionnaire? It helps us prep for your project.\n\n${link}\n\nThanks!\nErwin Forrest Builders`);
 
     try {
       await Questionnaires.markSent(leadId, type);

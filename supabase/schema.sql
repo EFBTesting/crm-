@@ -1,5 +1,5 @@
 -- ==========================================================================
--- Erwin Forest Builders CRM — Supabase schema
+-- Erwin Forrest Builders CRM — Supabase schema
 --
 -- How to use: open your Supabase project -> SQL Editor -> New query ->
 -- paste this whole file -> Run. Safe to run once on a fresh project.

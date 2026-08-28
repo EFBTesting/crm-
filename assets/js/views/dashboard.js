@@ -128,7 +128,7 @@ function renderDashboard(root) {
     <div class="view-head">
       <div>
         <h1>Business Overview</h1>
-        <p class="view-sub">Erwin Forest Builders — everything happening across the CRM, at a glance.</p>
+        <p class="view-sub">Erwin Forrest Builders — everything happening across the CRM, at a glance.</p>
       </div>
       <div class="view-tabs" id="dashboard-tabs">
         <button class="view-tabs__btn ${dashboardActiveTab === 'sales' ? 'is-active' : ''}" data-tab="sales">Sales</button>
