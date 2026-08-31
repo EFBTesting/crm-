@@ -144,7 +144,15 @@ function bindDatePickers(root, onSave) {
       altInput: true,
       altFormat: 'M j, Y',
       allowInput: true,
-      onChange: (dates, dateStr) => { if (onSave) onSave(dateStr, input); },
+      // onClose (not onChange!) — with allowInput enabled, flatpickr fires
+      // onChange on every keystroke it can parse as a partial date while
+      // typing, not just on a finished selection. That was causing every
+      // half-typed date to actually save to Supabase and get logged to the
+      // lead's history (e.g. "Target start set to Oct 4, 2" then "Oct 4,
+      // 27" then "Oct 4, 202" ... seconds apart, from one person typing one
+      // date). onClose only fires once, when the calendar closes or the
+      // field loses focus, so it captures the final typed/picked value.
+      onClose: (dates, dateStr) => { if (onSave) onSave(dateStr, input); },
     });
     // The visible field is a separate element flatpickr creates (the real
     // input becomes hidden) — match it to whatever this field was already
