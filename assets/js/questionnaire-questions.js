@@ -154,7 +154,7 @@ const QUESTIONNAIRE_SETS = {
   // match this key, see supabase/schema.sql.
   construction: {
     title: "Now Let's Really Get to Know You!",
-    intro: "Your contract's signed and we're so excited to get started! This helps us fine-tune the details as we head into construction.",
+    intro: "We're excited to begin your project. This questionnaire helps us better understand your preferences and fine-tune the details before construction begins.",
     sections: [
       {
         heading: 'Contact Details',
