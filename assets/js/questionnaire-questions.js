@@ -126,6 +126,20 @@ const QUESTIONNAIRE_SETS = {
           { key: 'teamSupport', label: 'Is there anything we can do as a team to make this experience easier, more enjoyable, or less overwhelming for you?', type: 'textarea' },
         ],
       },
+      {
+        // Moved from the Construction questionnaire's "Just for Fun" section
+        // by user request, Aug 2026 (funDrink/funColor/funSuperpower/
+        // funSaturday), plus one brand-new question (funSnackDrinkCombo).
+        heading: 'Just for Fun',
+        note: "Just a few fun ones to help us get to know you better — no wrong answers here!",
+        fields: [
+          { key: 'funDrink', label: "What's your go-to drink?", type: 'text', hint: 'Coffee order, favorite cocktail, whatever comes to mind.' },
+          { key: 'funColor', label: 'Favorite color?', type: 'text' },
+          { key: 'funSuperpower', label: 'If you could have any superpower, what would it be?', type: 'text' },
+          { key: 'funSaturday', label: 'Favorite way to spend a Saturday?', type: 'text' },
+          { key: 'funSnackDrinkCombo', label: "What's your favorite snack and drink combo?", type: 'text' },
+        ],
+      },
     ],
   },
   // Construction questionnaire — Keith's review of Form 2, Aug 2026: built
@@ -209,14 +223,10 @@ const QUESTIONNAIRE_SETS = {
         heading: 'Just for Fun',
         note: "Just a few fun ones to help us get to know you better — no wrong answers here!",
         fields: [
-          { key: 'funDrink', label: "What's your go-to drink?", type: 'text', hint: 'Coffee order, favorite cocktail, whatever comes to mind.' },
-          { key: 'funColor', label: 'Favorite color?', type: 'text' },
           { key: 'funSpiritAnimal', label: 'If you had a spirit animal, what would it be?', type: 'text' },
           { key: 'funBeachOrMountains', label: 'Beach, mountains, or somewhere else entirely?', type: 'text' },
-          { key: 'funSaturday', label: 'Favorite way to spend a Saturday?', type: 'text' },
           { key: 'funVacation', label: 'Dream vacation destination?', type: 'text' },
           { key: 'funMovie', label: 'Favorite movie or TV show right now?', type: 'text' },
-          { key: 'funSuperpower', label: 'If you could have any superpower, what would it be?', type: 'text' },
         ],
       },
     ],
