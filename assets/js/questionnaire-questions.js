@@ -119,7 +119,7 @@ const QUESTIONNAIRE_SETS = {
           { key: 'whatToDoDifferently', label: 'What would you do differently this time?', type: 'textarea' },
           { key: 'oneThingToNail', label: "If there's one thing you want us to absolutely nail on this project, what is it?", type: 'textarea' },
           { key: 'nonNegotiables', label: 'Are there any non-negotiables or must-haves for this project?', type: 'textarea' },
-          { key: 'concerns', label: 'Are there any anxieties or concerns we should know about going into this?', type: 'select', options: [
+          { key: 'concerns', label: 'Are there any anxieties or concerns we should know about going into this?', type: 'select', multiple: true, options: [
             "Timeline — I'm worried about delays", "Budget — I'm nervous about unexpected costs", 'Communication — I want to stay in the loop', 'Decision fatigue — there are a lot of choices to make', 'Quality — I want to make sure things are done right', "No major concerns — I'm just excited",
           ] },
           { key: 'anythingElse', label: "Is there anything else you'd like us to keep in mind as we move forward?", type: 'textarea' },
