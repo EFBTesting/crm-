@@ -152,12 +152,11 @@ function renderQuestionnaires(root) {
     const typeLabel = type === 'quick' ? 'Pre-Construction' : 'Construction';
     const link = questionnaireLink(leadId, type);
     const subject = encodeURIComponent(`${typeLabel} Questionnaire — Erwin Forrest Builders`);
-    // Pre-Con and Construction currently have separate wording by design —
-    // Pre-Con's was finalized 2026-08-31; Construction's still uses the
-    // original generic wording until its own gets written.
+    // Pre-Con and Construction have separate wording by design — both
+    // finalized 2026-08-31.
     const body = encodeURIComponent(type === 'quick'
       ? `Hi ${contact.firstName},\n\nAs we prepare for your upcoming project journey, we'd appreciate it if you could take a few moments to complete the questionnaire below. Your responses will help us get to know you better and ensure we're fully prepared for our upcoming meetings together.\n\nWe're excited to partner with you and look forward to sharing this experience with you!\n\nQuestionnaire Link:\n${link}\n\nBest,\nErwin Forrest Builders`
-      : `Hi ${contact.firstName},\n\nCould you take a few minutes to fill out this short questionnaire? It helps us prep for your project.\n\n${link}\n\nThanks!\nErwin Forrest Builders`);
+      : `Hi ${contact.firstName},\n\nAs we continue preparing for your upcoming construction experience, we'd appreciate it if you could take a few moments to complete the questionnaire below. Your responses will help us better understand your goals, priorities, and expectations as we move into the next phase together.\n\nThank you for your continued engagement. We're excited to keep moving forward with you and look forward to our upcoming conversations!\n\nQuestionnaire Link:\n${link}\n\nBest,\nErwin Forrest Builders`);
 
     try {
       await Questionnaires.markSent(leadId, type);
