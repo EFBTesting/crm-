@@ -895,4 +895,21 @@ const Questionnaires = {
     if (i !== -1) cache.questionnaireStatus[i] = status; else cache.questionnaireStatus.push(status);
     return status;
   },
+  /** Undoes markSent — clears the sent timestamp so the Client
+   *  Questionnaire page shows "Send" again instead of a locked "Sent"
+   *  button. Only meant for the not-yet-answered state (a mis-click, or
+   *  resending during testing); once there's a real answered response tied
+   *  to it, the UI doesn't offer this. */
+  async resetSent(leadId, type) {
+    const field = type === 'quick' ? 'quick_sent_at' : 'detailed_sent_at';
+    const { data, error } = await mustClient().from('questionnaire_status')
+      .update({ [field]: null })
+      .eq('lead_id', leadId)
+      .select().single();
+    if (error) throw error;
+    const status = questionnaireStatusFromRow(data);
+    const i = cache.questionnaireStatus.findIndex(s => s.id === status.id);
+    if (i !== -1) cache.questionnaireStatus[i] = status; else cache.questionnaireStatus.push(status);
+    return status;
+  },
 };

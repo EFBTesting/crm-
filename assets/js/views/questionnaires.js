@@ -115,7 +115,11 @@ function renderQuestionnaires(root) {
     const sentAt = type === 'quick' ? progress.status?.quickSentAt : progress.status?.detailedSentAt;
     const answeredAt = type === 'quick' ? progress.status?.quickAnsweredAt : progress.status?.detailedAnsweredAt;
     if (answeredAt) return `<button type="button" class="btn btn--answered btn--sm" disabled>Answered ${fmtDate(answeredAt)}</button>`;
-    if (sentAt) return `<button type="button" class="btn btn--ghost btn--sm" disabled>Sent ${fmtDate(sentAt)}</button>`;
+    // Not disabled — clicking a "Sent" button (that hasn't been answered
+    // yet) offers to reset it back to "Send", for a mis-click or a resend
+    // during testing. Once it's Answered there's a real response tied to
+    // it, so that state stays locked.
+    if (sentAt) return `<button type="button" class="btn btn--ghost btn--sm" data-reset="${l.id}" data-reset-type="${type}" title="Click to reset — lets you send this again">Sent ${fmtDate(sentAt)}</button>`;
     return `<button type="button" class="btn btn--primary btn--sm" data-send="${l.id}" data-send-type="${type}">Send</button>`;
   }
 
@@ -134,6 +138,24 @@ function renderQuestionnaires(root) {
     qsa('[data-tab]', root).forEach(btn => btn.addEventListener('click', () => { questionnairesActiveTab = btn.dataset.tab; draw(); }));
     qsa('[data-open-responses]', root).forEach(el => el.addEventListener('click', () => openQuestionnaireResponses(Leads.get(el.dataset.openResponses))));
     qsa('[data-send]', root).forEach(btn => btn.addEventListener('click', () => sendQuestionnaire(btn.dataset.send, btn.dataset.sendType)));
+    qsa('[data-reset]', root).forEach(btn => btn.addEventListener('click', () => resetQuestionnaire(btn.dataset.reset, btn.dataset.resetType)));
+  }
+
+  function resetQuestionnaire(leadId, type) {
+    const typeLabel = type === 'quick' ? 'Pre-Construction' : 'Construction';
+    openConfirm({
+      title: 'Reset questionnaire',
+      message: `Mark the ${typeLabel} questionnaire as not sent for this lead? You'll be able to send it again.`,
+      confirmLabel: 'Reset', danger: false,
+    }, async () => {
+      try {
+        await Questionnaires.resetSent(leadId, type);
+        toast(`${typeLabel} questionnaire reset`);
+        draw();
+      } catch (err) {
+        toast(err.message || 'Could not reset this', 'warn');
+      }
+    });
   }
 
   function questionnaireLink(leadId, type) {
