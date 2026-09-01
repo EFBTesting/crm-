@@ -91,7 +91,7 @@ function renderContactDetail(root, { id }) {
       openConfirm({ title: 'Delete contact', message: `Delete ${fullName(c)}? Linked leads will be kept but unassigned.` }, async () => {
         await Contacts.remove(c.id);
         toast('Contact deleted');
-        Router.navigate('/contacts');
+        Router.back('/contacts');
       });
     });
 

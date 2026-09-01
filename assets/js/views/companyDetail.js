@@ -98,7 +98,7 @@ function renderCompanyDetail(root, { id }) {
       openConfirm({ title: 'Delete company', message: `Delete ${co.name}? Linked contacts and leads will be kept but unassigned.` }, async () => {
         await Companies.remove(co.id);
         toast('Company deleted');
-        Router.navigate('/companies');
+        Router.back('/companies');
       });
     });
   }

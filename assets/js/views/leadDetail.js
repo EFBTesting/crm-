@@ -125,7 +125,7 @@ function renderLeadDetail(root, { id }) {
       }, async () => {
         await Leads.remove(l.id);
         toast('Lead and contact deleted');
-        Router.navigate('/pipeline');
+        Router.back('/pipeline');
       });
     });
 
