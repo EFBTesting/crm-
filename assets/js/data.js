@@ -876,7 +876,12 @@ const Questionnaires = {
     return {
       status, quickSent, quickAnswered, detailedSent, detailedAnswered,
       notSentTab: !quickSent || !detailedSent,
-      waitingTab: quickSent && detailedSent && !(quickAnswered && detailedAnswered),
+      // Waiting on a response to ANY questionnaire that's been sent but not
+      // yet answered -- previously this required BOTH to have been sent
+      // first, so a lead with only Pre-Con sent (the normal case, since
+      // Construction usually goes out much later) never showed up here at
+      // all even while genuinely waiting on that Pre-Con response.
+      waitingTab: (quickSent && !quickAnswered) || (detailedSent && !detailedAnswered),
       fullyAnswered: quickAnswered && detailedAnswered,
     };
   },
