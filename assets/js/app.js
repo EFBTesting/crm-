@@ -16,6 +16,7 @@
 
   Router.register('/dashboard', () => mount(renderDashboard));
   Router.register('/contacts', () => mount(renderContacts));
+  Router.register('/mass-email', () => mount(renderMassEmail));
   Router.register('/contacts/:id', params => mount(renderContactDetail, params));
   Router.register('/companies', () => mount(renderCompanies));
   Router.register('/companies/:id', params => mount(renderCompanyDetail, params));

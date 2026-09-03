@@ -335,6 +335,26 @@ p { margin: 0; }
 }
 .precon-add-step input:focus { border-style: solid; border-color: var(--brand); }
 
+/* Mass Email */
+.mass-email-layout { display: grid; grid-template-columns: 1.2fr 1fr; gap: 16px; align-items: start; }
+@media (max-width: 900px) { .mass-email-layout { grid-template-columns: 1fr; } }
+.mass-email-compose, .mass-email-recipients {
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+  box-shadow: var(--shadow); padding: 16px; display: flex; flex-direction: column; gap: 12px;
+}
+.mass-email-compose textarea { min-height: 220px; }
+.mass-email-recipients__head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.mass-email-recipients__sub { font-size: 0.8rem; margin: 0; }
+.mass-email-list { display: flex; flex-direction: column; gap: 2px; max-height: 420px; overflow-y: auto; }
+.mass-email-row {
+  display: flex; align-items: center; gap: 10px; padding: 7px 6px; border-radius: 8px;
+  border-bottom: 1px solid var(--line); font-size: 0.86rem; cursor: pointer;
+}
+.mass-email-row:last-child { border-bottom: none; }
+.mass-email-row:hover { background: #f7f5f0; }
+.mass-email-row__name { flex-shrink: 0; }
+.mass-email-row__email { font-size: 0.78rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 /* ---------------------------- Contacted checklist ---------------------------- */
 
 .overdue-badge {
