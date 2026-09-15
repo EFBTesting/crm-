@@ -159,9 +159,15 @@ function init() {
     allFields(set).forEach(f => {
       answers[f.key] = f.multiple ? fd.getAll(f.key).join(', ') : (fd.get(f.key) || '');
     });
+    // Every set's Contact Details section already asks "First Name & Last
+    // Name" (key: fullName) as its first, required question — reused here
+    // as the respondent's identity instead of asking the same thing twice
+    // in a row. Whoever is filling this out answers it as themselves, so
+    // it doubles as "who is this" for free.
+    const respondentName = (answers.fullName || '').trim();
 
     const { error } = await supabaseClient.from('questionnaire_responses').insert({
-      lead_id: leadId, questionnaire_type: type, answers,
+      lead_id: leadId, questionnaire_type: type, respondent_name: respondentName, answers,
     });
 
     if (error) {

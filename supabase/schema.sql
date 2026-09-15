@@ -70,6 +70,7 @@ create table if not exists leads (
   revenue_percent numeric,                     -- % of budget expected as revenue
   project_type text,
   source text,
+  urgency text,                                -- how soon they want to start (free text, same "unconstrained dropdown" treatment as source/project_type)
   expected_close_date date,                    -- deprecated, no longer set from the UI
   notes text,
   lost_reason text,
@@ -122,13 +123,22 @@ create table if not exists questionnaire_status (
   unique (lead_id)
 );
 
--- The actual submitted answers — one row per submission. If a lead is
--- ever re-sent a link and submits again, the newest row is what counts
--- (both for display and for questionnaire_status.answered_at below).
+-- The actual submitted answers — one row per submission. The same link
+-- can be sent to more than one person for the same lead/job (e.g. a
+-- spouse, a parent, a business partner) — each submission is its own row,
+-- kept forever and distinguished by respondent_name, pulled from that
+-- submission's own answers.fullName (every set's Contact Details section
+-- already asks "First Name & Last Name" as its first question — reused
+-- here rather than asking the same thing twice on the form; see
+-- questionnaire.js). questionnaire_status.answered_at below still just
+-- tracks the newest submission time for that type — it only answers "has
+-- this job engaged with this questionnaire at all", not who specifically
+-- answered.
 create table if not exists questionnaire_responses (
   id uuid primary key default gen_random_uuid(),
   lead_id uuid not null references leads(id) on delete cascade,
   questionnaire_type text not null check (questionnaire_type in ('quick', 'construction')),
+  respondent_name text,                        -- copied from answers.fullName at submit time — nullable so old rows (before this field existed) don't break
   answers jsonb not null default '{}',
   submitted_at timestamptz not null default now(),
   created_at timestamptz not null default now(),
@@ -161,6 +171,8 @@ alter table leads add column if not exists precon_steps jsonb not null default '
 alter table leads add column if not exists precon_notes text;
 alter table leads add column if not exists contacted_steps jsonb not null default '[]';
 alter table leads add column if not exists precon_status_before_lost text;
+alter table leads add column if not exists urgency text;
+alter table questionnaire_responses add column if not exists respondent_name text;
 
 -- ---------------------------------------------------------------------
 -- Retroactive CHECK constraints. IMPORTANT: `create table if not exists`
@@ -321,6 +333,41 @@ create policy "anon insert only" on questionnaire_responses
   );
 
 -- ---------------------------------------------------------------------
+-- Public lead-capture form (lead-intake.html) — a second, narrower slice
+-- of anonymous write access, same reasoning as questionnaire_responses
+-- above: the anon key is visible in the page source, so these `with
+-- check` clauses are what actually keeps a raw POST (bypassing the page's
+-- own JS) from doing anything beyond "create one brand-new lead sitting
+-- at the front of the pipeline." Both inserts use a client-generated uuid
+-- for contacts.id (see leadIntake.js) so the page never needs to read a
+-- row back — anon has no SELECT policy on either table, on purpose.
+-- ---------------------------------------------------------------------
+drop policy if exists "anon insert only" on contacts;
+create policy "anon insert only" on contacts
+  for insert to anon
+  with check (
+    company_id is null
+    and lead_source = 'Website'
+  );
+
+drop policy if exists "anon insert only" on leads;
+create policy "anon insert only" on leads
+  for insert to anon
+  with check (
+    stage = 'new_lead'
+    and status = 'active'
+    and source = 'Website'
+    and company_id is null
+    and secondary_contact_id is null
+    and coalesce(value, 0) = 0
+    and revenue_percent is null
+    and won_at is null
+    and lost_at is null
+    and project_stage is null
+    and (assigned_to is null or assigned_to = '')
+  );
+
+-- ---------------------------------------------------------------------
 -- Realtime — lets every open browser tab see changes made by teammates
 -- (or a lead's own questionnaire submission) immediately, without a
 -- manual refresh.
@@ -348,3 +395,17 @@ begin
   exception when duplicate_object then null;
   end;
 end $$;
+
+-- ---------------------------------------------------------------------
+-- One-off data backfill, not a general migration pattern — safe to leave
+-- in / re-run: it only ever touches a row that's still missing
+-- respondent_name (real submissions from before that column existed had
+-- no way to capture who answered). Ashley & Mike Lachman's real
+-- Pre-Construction response (submitted 2026-09-14) predates this feature
+-- entirely, so it'd otherwise sit as "Unknown respondent" in the CRM
+-- forever — this fills in what we already know from the lead itself.
+update questionnaire_responses
+set respondent_name = 'Ashley & Mike Lachman'
+where lead_id = (select id from leads where title ilike '%lachman%' limit 1)
+  and questionnaire_type = 'quick'
+  and respondent_name is null;

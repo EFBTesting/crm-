@@ -89,6 +89,7 @@ function renderLeadDetail(root, { id }) {
             <div><dt>Target start</dt><dd>${l.projectedStartDate ? fmtDateOnly(l.projectedStartDate) : '—'}</dd></div>
             <div><dt>Target finish</dt><dd>${l.targetCompletionDate ? fmtDateOnly(l.targetCompletionDate) : '—'}</dd></div>
             <div><dt>Lead source</dt><dd>${esc(l.source) || '—'}</dd></div>
+            <div><dt>Timeline / Urgency</dt><dd>${esc(l.urgency) || '—'}</dd></div>
             <div><dt>Created</dt><dd>${fmtDate(l.createdAt)}</dd></div>
             <div><dt>Last updated</dt><dd>${timeAgo(l.updatedAt)}</dd></div>
           </dl>

@@ -50,6 +50,11 @@ const PROJECT_TYPES = [
 const COMPANY_TYPES = ['Property Management', 'Developer', 'Architect / Design Partner', 'General Contractor Partner', 'Commercial Client', 'Supplier / Vendor', 'Other'];
 const LOST_REASONS = ['Price too high', 'Chose another contractor', 'Timeline mismatch', 'Project postponed', 'Went unresponsive', 'Scope changed / no longer needed', 'Other'];
 const BEST_TIME_OPTIONS = ['Morning', 'Evening', 'Night', 'Whenever'];
+/** How soon a lead wants to start — shown on both the staff Lead form and
+ *  the public lead-intake page (lead-intake.html keeps its own copy of
+ *  this exact list since it doesn't load data.js — see leadIntake.js).
+ *  Unconstrained in the DB, same as PROJECT_TYPES/LEAD_SOURCES. */
+const URGENCY_OPTIONS = ['ASAP', '1-3 months', '3-6 months', '6-12 months', 'Just exploring / no rush'];
 
 /** Project Tracking stages — once a lead is won it becomes a "project" and
  *  moves through these instead (separate from the sales STAGES above). */
@@ -163,6 +168,27 @@ function contactedProgress(lead) {
 
   return { items, overdueCount: items.filter(i => i.overdue).length };
 }
+
+/** Aggregates leads that need a follow-up, for the Dashboard's "Needs
+ *  Attention" panel -- live-computed off the same overdue logic as the
+ *  overdue-badge on a lead's own detail page, so it can't go stale. */
+function computeAttentionItems() {
+  const items = [];
+
+  // Active (not-yet-won) leads with an overdue Contacted follow-up step.
+  Leads.active().forEach(l => {
+    const overdue = contactedProgress(l).overdueCount;
+    if (overdue) {
+      items.push({
+        leadId: l.id, leadTitle: l.title, category: 'Follow-up', tone: 'red',
+        detail: `${overdue} overdue follow-up${overdue > 1 ? 's' : ''}`,
+      });
+    }
+  });
+
+  return items;
+}
+
 function defaultPreconSteps() {
   const steps = [];
   PRECON_PHASES.forEach(phase => phase.steps.forEach(label => steps.push({ phase: phase.id, label, status: '' })));
@@ -287,7 +313,7 @@ function leadFromRow(r) {
     id: r.id, title: r.title || '', contactId: r.contact_id, secondaryContactId: r.secondary_contact_id,
     companyId: r.company_id, stage: r.stage, status: r.status, value: Number(r.value) || 0,
     revenuePercent: r.revenue_percent === null || r.revenue_percent === undefined ? '' : Number(r.revenue_percent),
-    projectType: r.project_type || '', source: r.source || '', notes: r.notes || '', lostReason: r.lost_reason || '',
+    projectType: r.project_type || '', source: r.source || '', urgency: r.urgency || '', notes: r.notes || '', lostReason: r.lost_reason || '',
     history: r.history || [], projectStage: r.project_stage || null,
     projectStatus: r.project_status || null, permitTownship: r.permit_township || '', permits: r.permits || [],
     projectedStartDate: r.projected_start_date || '', targetCompletionDate: r.target_completion_date || '',
@@ -303,7 +329,7 @@ function leadToRow(d) {
     title: (d.title || '').trim(), contact_id: d.contactId || null, secondary_contact_id: d.secondaryContactId || null,
     company_id: d.companyId || null, value: Number(d.value) || 0,
     revenue_percent: d.revenuePercent === '' || d.revenuePercent === undefined || d.revenuePercent === null ? null : Number(d.revenuePercent),
-    project_type: d.projectType || '', source: d.source || '', notes: (d.notes || '').trim(),
+    project_type: d.projectType || '', source: d.source || '', urgency: d.urgency || '', notes: (d.notes || '').trim(),
   };
   if (d.stage !== undefined) row.stage = d.stage;
   if (d.status !== undefined) row.status = d.status;

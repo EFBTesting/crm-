@@ -322,6 +322,12 @@ function openLeadForm(existing = null, defaults = {}, onSaved = null) {
   const primaryContact = Contacts.get(contact1ExistingId);
   const secondaryContact = Contacts.get(contact2ExistingId);
   const hasSecondContact = !!secondaryContact;
+  // Budget/revenue/target dates are usually still unknown at first contact
+  // — collapsed by default on a brand-new lead so intake only shows what's
+  // actually knowable off the first call. Always open for New Project
+  // (already-contracted work — these are known) and for Edit whenever any
+  // of them already have a value, so nothing entered earlier goes hidden.
+  const hasMoreDetails = asProject || !!(existing?.value || existing?.revenuePercent || existing?.projectedStartDate || existing?.targetCompletionDate);
 
   Modal.open({
     title: existing ? 'Edit Lead' : (asProject ? 'New Project' : 'New Lead'),
@@ -329,7 +335,7 @@ function openLeadForm(existing = null, defaults = {}, onSaved = null) {
     bodyHtml: `
       <form id="lead-form" class="form-grid">
         <label class="field field--full"><span>${asProject ? 'Project name *' : 'Lead title *'}</span>
-          <input name="title" required value="${esc(existing?.title)}" placeholder="e.g. Kitchen Remodel — Smith Residence">
+          <input name="title" required value="${esc(existing?.title)}" placeholder="Auto-fills from the contact's name — or type your own">
         </label>
         ${asProject ? `
         <label class="field"><span>Project stage</span>
@@ -340,25 +346,13 @@ function openLeadForm(existing = null, defaults = {}, onSaved = null) {
           <select name="stage">${optionList(STAGES, existing?.stage ?? defaults.stage ?? STAGES[0].id, { valueKey: 'id', labelKey: 'label', blank: null })}</select>
         </label>
         `}
-        <label class="field"><span>Target start</span>
-          <input type="text" class="js-datepicker" name="projectedStartDate" value="${esc(existing?.projectedStartDate || '')}" placeholder="Select a date...">
-        </label>
-        <label class="field"><span>Target finish</span>
-          <input type="text" class="js-datepicker" name="targetCompletionDate" value="${esc(existing?.targetCompletionDate || '')}" placeholder="Select a date...">
-        </label>
-        <label class="field"><span>Budget ($)</span>
-          <input type="number" min="0" step="100" name="value" id="lead-value-input" value="${existing?.value ?? ''}" placeholder="25000">
-        </label>
-        <label class="field"><span>Estimated Revenue (%)</span>
-          <div class="revenue-row">
-            <input type="number" min="0" max="100" step="0.1" name="revenuePercent" id="lead-revenue-input" value="${existing?.revenuePercent ?? ''}" placeholder="5">
-            <span class="revenue-readout" id="revenue-readout">${fmtMoney(revenueAmount(existing) || 0)}</span>
-          </div>
-        </label>
         <label class="field"><span>Project type</span>
           <select name="projectType">${optionList(PROJECT_TYPES, existing?.projectType, { blank: '— Unspecified —' })}</select>
         </label>
-        <label class="field field--full"><span>Lead source</span>
+        <label class="field"><span>Timeline / Urgency</span>
+          <select name="urgency">${optionList(URGENCY_OPTIONS, existing?.urgency, { blank: '— Unspecified —' })}</select>
+        </label>
+        <label class="field"><span>Lead source</span>
           <select name="source">${optionList(LEAD_SOURCES, existing?.source, { blank: '— Unspecified —' })}</select>
         </label>
         <label class="field field--full"><span>Notes</span>
@@ -377,6 +371,31 @@ function openLeadForm(existing = null, defaults = {}, onSaved = null) {
         <div class="field field--full subform" id="second-contact-block" ${hasSecondContact ? '' : 'hidden'}>
           <div class="subform__head"><span>Second contact</span> <button type="button" id="remove-second-contact-btn" class="link-btn-inline link-btn-inline--danger">✕ Remove</button></div>
           <div class="subform-grid">${contactFieldsHtml('contact2', secondaryContact)}</div>
+        </div>
+
+        <div class="field field--full">
+          <button type="button" id="toggle-more-details-btn" class="link-btn-inline" ${hasMoreDetails ? 'hidden' : ''}>+ Add budget, revenue % &amp; target dates</button>
+        </div>
+
+        <div class="field field--full subform" id="more-details-block" ${hasMoreDetails ? '' : 'hidden'}>
+          <div class="subform__head"><span>Budget &amp; Schedule</span></div>
+          <div class="subform-grid">
+            <label class="field"><span>Target start</span>
+              <input type="text" class="js-datepicker" name="projectedStartDate" value="${esc(existing?.projectedStartDate || '')}" placeholder="Select a date...">
+            </label>
+            <label class="field"><span>Target finish</span>
+              <input type="text" class="js-datepicker" name="targetCompletionDate" value="${esc(existing?.targetCompletionDate || '')}" placeholder="Select a date...">
+            </label>
+            <label class="field"><span>Budget ($)</span>
+              <input type="number" min="0" step="100" name="value" id="lead-value-input" value="${existing?.value ?? ''}" placeholder="25000">
+            </label>
+            <label class="field"><span>Estimated Revenue (%)</span>
+              <div class="revenue-row">
+                <input type="number" min="0" max="100" step="0.1" name="revenuePercent" id="lead-revenue-input" value="${existing?.revenuePercent ?? ''}" placeholder="5">
+                <span class="revenue-readout" id="revenue-readout">${fmtMoney(revenueAmount(existing) || 0)}</span>
+              </div>
+            </label>
+          </div>
         </div>
 
         <div class="form-actions">
@@ -398,6 +417,32 @@ function openLeadForm(existing = null, defaults = {}, onSaved = null) {
   };
   valueInput.addEventListener('input', updateRevenueReadout);
   revenueInput.addEventListener('input', updateRevenueReadout);
+
+  const moreDetailsBlock = qs('#more-details-block', form);
+  const toggleMoreDetailsBtn = qs('#toggle-more-details-btn', form);
+  toggleMoreDetailsBtn.addEventListener('click', () => {
+    moreDetailsBlock.hidden = false;
+    toggleMoreDetailsBtn.hidden = true;
+  });
+
+  // Auto-fill the title from the primary contact's name (+ project type)
+  // as they're typed, so intake doesn't stall on "what do I call this
+  // lead" — still editable any time, and typing into Title directly stops
+  // the auto-fill from overwriting it.
+  if (!existing) {
+    const titleInput = qs('input[name="title"]', form);
+    const contact1NameInput = qs('input[name="contact1Name"]', form);
+    const projectTypeSelect = qs('select[name="projectType"]', form);
+    let titleAutoFilled = !titleInput.value;
+    const autoFillTitle = () => {
+      if (!titleAutoFilled) return;
+      const name = contact1NameInput.value.trim();
+      titleInput.value = name ? `${name} — ${projectTypeSelect.value || 'New Lead'}` : '';
+    };
+    titleInput.addEventListener('input', () => { titleAutoFilled = false; });
+    contact1NameInput.addEventListener('input', autoFillTitle);
+    projectTypeSelect.addEventListener('change', autoFillTitle);
+  }
 
   const secondBlock = qs('#second-contact-block', form);
   const toggleSecondBtn = qs('#toggle-second-contact-btn', form);
@@ -464,7 +509,7 @@ function openLeadForm(existing = null, defaults = {}, onSaved = null) {
 
       const data = {
         title, value: fd.get('value'), revenuePercent: fd.get('revenuePercent'),
-        projectType: fd.get('projectType'), source, notes: fd.get('notes'),
+        projectType: fd.get('projectType'), source, urgency: fd.get('urgency'), notes: fd.get('notes'),
         contactId: contact1Id, secondaryContactId: contact2Id,
         projectedStartDate: fd.get('projectedStartDate') || null, targetCompletionDate: fd.get('targetCompletionDate') || null,
       };
@@ -626,13 +671,14 @@ function openLostReasonPrompt(lead, onDone) {
  *  Shows EVERY submitted response for this lead, not just the newest per
  *  type — the same link can go to more than one person for the same job
  *  (a spouse, a parent, a business partner), and each submission is kept
- *  as its own row, labeled by respondent_name (the "Your First Name &
- *  Last Name" question at the top of each questionnaire) so nothing gets
- *  silently overwritten. Note: respondent_name isn't populated by
- *  real submissions yet — that half lands once the database has the
- *  column (see supabase/schema.sql) — existing/new responses just show
- *  as "Unknown respondent" until then, but are still each their own row
- *  and each individually printable below.
+ *  as its own row, labeled by respondent_name (pulled from the "Your
+ *  First Name & Last Name" question at the top of each questionnaire —
+ *  see questionnaire.js) so nothing gets silently overwritten. Note:
+ *  respondent_name isn't populated by real submissions yet — that half
+ *  lands once the database has the column (see supabase/schema.sql) —
+ *  existing/new responses just show as "Unknown respondent" until then,
+ *  but are still each their own row and each individually printable
+ *  below.
  *
  *  Opens on a plain picker — one row per response — with no answers shown
  *  yet, even if there's only one row. Clicking a row reveals that

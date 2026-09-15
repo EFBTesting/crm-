@@ -434,6 +434,10 @@ p { margin: 0; }
 
 /* ---------------------------- Activity feed ---------------------------- */
 
+.attention-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; max-height: 320px; overflow-y: auto; }
+.attention-list li { display: flex; align-items: center; gap: 10px; padding: 7px 6px; border-radius: 8px; }
+.attention-list li:hover { background: #f7f5f0; }
+.attention-list__text { font-size: 0.86rem; }
 .activity-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; max-height: 420px; overflow-y: auto; }
 .activity-list li { display: flex; gap: 10px; align-items: flex-start; }
 .activity-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); margin-top: 6px; flex-shrink: 0; }
@@ -642,6 +646,16 @@ div.qf-q > textarea.qf-q__underline:focus { border-color: var(--brand); }
 @media (max-width: 600px) {
   .qf-sheet { padding: 32px 24px; }
 }
+
+/* ---------------------------- Public lead-capture form (lead-intake.html) ---------------------------- */
+
+.qf-sheet #li-form.form-grid { margin-top: 24px; }
+.qf-sheet .form-actions { grid-column: span 2; margin-top: 8px; justify-content: flex-end; }
+.qf-sheet #li-success h2 { font-size: 1.2rem; margin-bottom: 8px; }
+/* Honeypot — invisible to a real visitor (off-canvas, not display:none,
+   since some bots skip display:none fields but still fill this in) and
+   removed from tab order; see leadIntake.js for how a filled value is handled. */
+.li-hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
 
 /* ---------------------------- Client Questionnaire (staff-side tracker) ---------------------------- */
 

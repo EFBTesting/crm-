@@ -124,6 +124,7 @@ function bumpMonthBucket(months, iso) {
 }
 
 function renderDashboard(root) {
+  const attentionItems = computeAttentionItems();
   root.innerHTML = `
     <div class="view-head">
       <div>
@@ -135,9 +136,26 @@ function renderDashboard(root) {
         <button class="view-tabs__btn ${dashboardActiveTab === 'projects' ? 'is-active' : ''}" data-tab="projects">Projects</button>
       </div>
     </div>
+
+    <div class="panel attention-panel mb-md">
+      <div class="panel__head-row">
+        <h3>Needs Attention</h3>
+        ${attentionItems.length ? `<span class="pill pill--red">${attentionItems.length}</span>` : ''}
+      </div>
+      ${attentionItems.length ? `
+        <ul class="attention-list">
+          ${attentionItems.map(i => `
+            <li class="row-link" data-nav="/leads/${i.leadId}">
+              <span class="pill pill--${i.tone}">${esc(i.category)}</span>
+              <span class="attention-list__text"><strong>${esc(i.leadTitle)}</strong> — ${esc(i.detail)}</span>
+            </li>`).join('')}
+        </ul>` : `<p class="empty-inline">Nothing needs attention right now — everything's on track. 🎉</p>`}
+    </div>
+
     <div id="dashboard-body"></div>
   `;
 
+  qsa('[data-nav]', root).forEach(node => node.addEventListener('click', () => Router.navigate(node.dataset.nav)));
   qsa('[data-tab]', root).forEach(btn => btn.addEventListener('click', () => {
     dashboardActiveTab = btn.dataset.tab;
     renderDashboard(root);
