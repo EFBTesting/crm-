@@ -675,8 +675,11 @@ div.qf-q > textarea.qf-q__underline:focus { border-color: var(--brand); }
   display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
   margin-bottom: 10px; border-bottom: 1px solid var(--line); padding-bottom: 8px;
 }
-.q-response-list { display: flex; flex-direction: column; gap: 14px; margin: 0; }
-.q-response-list dt { font-size: 0.82rem; font-weight: 700; color: var(--ink-soft); margin-bottom: 3px; }
+.q-response-list { display: flex; flex-direction: column; gap: 12px; margin: 0; }
+/* Each question + answer gets its own shaded box so a long response list
+   reads as separate items instead of one running block of text. */
+.q-response-item { background: #e9e5da; border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; }
+.q-response-list dt { font-size: 0.82rem; font-weight: 800; color: var(--ink); margin-bottom: 4px; }
 .q-response-list dd { margin: 0; font-size: 0.9rem; color: var(--ink); white-space: pre-wrap; }
 
 /* ---------------------------- Flatpickr (date fields, brand-matched) ---------------------------- */

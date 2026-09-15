@@ -657,7 +657,7 @@ function openQuestionnaireResponses(lead) {
       </div>
       <dl class="q-response-list">
         ${fields.map(f => `
-          <div>
+          <div class="q-response-item">
             <dt>${esc(f.label)}</dt>
             <dd>${esc(s.response.answers[f.key]) || '—'}</dd>
           </div>`).join('')}
