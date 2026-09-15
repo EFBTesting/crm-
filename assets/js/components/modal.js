@@ -706,7 +706,7 @@ function openQuestionnaireResponses(lead) {
   }
 
   function detailHtml(resp) {
-    const fields = QUESTIONNAIRE_SETS[resp.questionnaireType].sections.flatMap(sec => sec.fields);
+    const set = QUESTIONNAIRE_SETS[resp.questionnaireType];
     return `<div class="q-response-section" data-pane="${resp.id}" hidden>
       <button type="button" class="q-response-back" data-back-to-picker>← Back to questionnaires</button>
       <div class="q-response-section__head">
@@ -714,13 +714,7 @@ function openQuestionnaireResponses(lead) {
         <span class="muted">Submitted ${fmtDateTime(resp.submittedAt)}</span>
       </div>
       <button type="button" class="btn btn--ghost btn--sm mb-sm" data-print-response="${resp.id}">🖨️ Print / Save as PDF</button>
-      <dl class="q-response-list">
-        ${fields.map(f => `
-          <div class="q-response-item">
-            <dt>${esc(f.label)}</dt>
-            <dd>${esc(resp.answers[f.key]) || '—'}</dd>
-          </div>`).join('')}
-      </dl>
+      ${set.sections.map(sec => questionnaireResponseSectionHtml(sec, resp)).join('<hr class="qf-divider">')}
     </div>`;
   }
 
@@ -755,6 +749,27 @@ function openQuestionnaireResponses(lead) {
   });
 }
 
+/** One question set section (heading + optional instructional note +
+ *  its questions), rendered identically wherever a submitted response is
+ *  shown — the CRM's Questionnaire Responses view and the printed PDF
+ *  both call this, so the two can't drift apart. Mirrors the section
+ *  structure the public form itself uses (questionnaire.js's
+ *  qSectionHtml) — same headings, same qf-divider between sections —
+ *  just with each question's answer in the boxed q-response-item style
+ *  instead of a blank line to fill in. */
+function questionnaireResponseSectionHtml(section, resp) {
+  return `
+    <h3 class="qf-section__heading">${esc(section.heading)}</h3>
+    ${section.note ? `<p class="qf-section__note">${esc(section.note)}</p>` : ''}
+    <dl class="q-response-list">
+      ${section.fields.map(f => `
+        <div class="q-response-item">
+          <dt>${esc(f.label)}</dt>
+          <dd>${esc(resp.answers[f.key]) || '—'}</dd>
+        </div>`).join('')}
+    </dl>`;
+}
+
 /** Renders one response into a dedicated, unconstrained-height print
  *  layout (#print-root, styled in styles.css under @media print) and
  *  triggers the browser's print dialog — "Save as PDF" there is what
@@ -763,7 +778,7 @@ function openQuestionnaireResponses(lead) {
  *  any answers below the fold instead of flowing across pages properly. */
 function printQuestionnaireResponse(lead, resp) {
   const typeLabel = resp.questionnaireType === 'quick' ? 'Pre-Construction' : 'Construction';
-  const fields = QUESTIONNAIRE_SETS[resp.questionnaireType].sections.flatMap(sec => sec.fields);
+  const set = QUESTIONNAIRE_SETS[resp.questionnaireType];
   let printRoot = qs('#print-root');
   if (!printRoot) {
     printRoot = el('<div id="print-root"></div>');
@@ -774,13 +789,7 @@ function printQuestionnaireResponse(lead, resp) {
       <img src="assets/img/logo-green.png" alt="Erwin Forrest Builders" class="print-logo">
       <h1>${esc(typeLabel)} Questionnaire</h1>
       <p class="print-meta"><strong>${esc(lead.title)}</strong> — ${esc(resp.respondentName || 'Unknown respondent')}<br>Submitted ${fmtDateTime(resp.submittedAt)}</p>
-      <dl class="q-response-list">
-        ${fields.map(f => `
-          <div class="q-response-item">
-            <dt>${esc(f.label)}</dt>
-            <dd>${esc(resp.answers[f.key]) || '—'}</dd>
-          </div>`).join('')}
-      </dl>
+      ${set.sections.map(sec => questionnaireResponseSectionHtml(sec, resp)).join('<hr class="qf-divider">')}
     </div>`;
   window.print();
 }

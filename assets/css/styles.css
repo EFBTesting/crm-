@@ -718,6 +718,7 @@ div.qf-q > textarea.qf-q__underline:focus { border-color: var(--brand); }
   .print-logo { height: 88px; margin-bottom: 10px; }
   .print-meta { color: #444; margin: 6px 0 20px; font-size: 0.9rem; line-height: 1.5; }
   .print-sheet .q-response-item { break-inside: avoid; }
+  .print-sheet .qf-section__heading { break-after: avoid; }
 }
 
 /* ---------------------------- Flatpickr (date fields, brand-matched) ---------------------------- */
