@@ -623,71 +623,120 @@ function openLostReasonPrompt(lead, onDone) {
  *  QUESTIONNAIRE_SETS (assets/js/questionnaire-questions.js) so this
  *  always matches whatever the public form actually asked.
  *
- *  Opens on a plain picker — one row per questionnaire that's actually
- *  been answered — with no answers shown yet, even if there's only one
- *  row. Clicking a row is what reveals that questionnaire's full answer
- *  list; "← Back to questionnaires" returns to the picker. */
+ *  Shows EVERY submitted response for this lead, not just the newest per
+ *  type — the same link can go to more than one person for the same job
+ *  (a spouse, a parent, a business partner), and each submission is kept
+ *  as its own row, labeled by respondent_name (the "Your First Name &
+ *  Last Name" question at the top of each questionnaire) so nothing gets
+ *  silently overwritten. Note: respondent_name isn't populated by
+ *  real submissions yet — that half lands once the database has the
+ *  column (see supabase/schema.sql) — existing/new responses just show
+ *  as "Unknown respondent" until then, but are still each their own row
+ *  and each individually printable below.
+ *
+ *  Opens on a plain picker — one row per response — with no answers shown
+ *  yet, even if there's only one row. Clicking a row reveals that
+ *  person's full answer list; "← Back to questionnaires" returns to the
+ *  picker. */
 function openQuestionnaireResponses(lead) {
   if (!lead) return;
 
-  const sections = [
-    { type: 'quick', label: 'Pre-Construction' },
-    { type: 'construction', label: 'Construction' },
-  ].map(s => ({ ...s, response: Questionnaires.latestResponse(lead.id, s.type) }))
-    .filter(s => s.response);
-  if (!sections.length) return;
+  const typeLabels = { quick: 'Pre-Construction', construction: 'Construction' };
+  const responses = Questionnaires.responsesFor(lead.id); // newest first, across both types
+  if (!responses.length) return;
+
+  function respondentLabel(resp) {
+    return resp.respondentName || 'Unknown respondent'; // old rows submitted before this field existed
+  }
 
   function pickerHtml() {
     return `<div data-view="picker">
-      ${sections.map(s => `
-        <button type="button" class="q-response-pick" data-view-response="${s.type}">
-          <span>${esc(s.label)} Questionnaire</span>
-          <span class="muted">Submitted ${fmtDateTime(s.response.submittedAt)}</span>
+      ${responses.map(resp => `
+        <button type="button" class="q-response-pick" data-view-response="${resp.id}">
+          <span>${esc(typeLabels[resp.questionnaireType] || resp.questionnaireType)} Questionnaire — ${esc(respondentLabel(resp))}</span>
+          <span class="muted">Submitted ${fmtDateTime(resp.submittedAt)}</span>
         </button>`).join('')}
     </div>`;
   }
 
-  function detailHtml(s) {
-    const fields = QUESTIONNAIRE_SETS[s.type].sections.flatMap(sec => sec.fields);
-    return `<div class="q-response-section" data-pane="${s.type}" hidden>
+  function detailHtml(resp) {
+    const fields = QUESTIONNAIRE_SETS[resp.questionnaireType].sections.flatMap(sec => sec.fields);
+    return `<div class="q-response-section" data-pane="${resp.id}" hidden>
       <button type="button" class="q-response-back" data-back-to-picker>← Back to questionnaires</button>
       <div class="q-response-section__head">
-        <h3>${esc(s.label)} Questionnaire</h3>
-        <span class="muted">Submitted ${fmtDateTime(s.response.submittedAt)}</span>
+        <h3>${esc(typeLabels[resp.questionnaireType] || resp.questionnaireType)} Questionnaire — ${esc(respondentLabel(resp))}</h3>
+        <span class="muted">Submitted ${fmtDateTime(resp.submittedAt)}</span>
       </div>
+      <button type="button" class="btn btn--ghost btn--sm mb-sm" data-print-response="${resp.id}">🖨️ Print / Save as PDF</button>
       <dl class="q-response-list">
         ${fields.map(f => `
           <div class="q-response-item">
             <dt>${esc(f.label)}</dt>
-            <dd>${esc(s.response.answers[f.key]) || '—'}</dd>
+            <dd>${esc(resp.answers[f.key]) || '—'}</dd>
           </div>`).join('')}
       </dl>
     </div>`;
   }
 
-  const r = Modal.open({
+  const modalRoot = Modal.open({
     title: `${lead.title} — Questionnaire Responses`,
     wide: true,
     bodyHtml: `
       ${pickerHtml()}
-      ${sections.map(detailHtml).join('')}
+      ${responses.map(detailHtml).join('')}
       <div class="form-actions">
         <button type="button" class="btn btn--ghost" data-close="1">Close</button>
       </div>`,
   });
 
-  r.querySelectorAll('[data-view-response]').forEach(btn => {
+  modalRoot.querySelectorAll('[data-view-response]').forEach(btn => {
     btn.addEventListener('click', () => {
-      r.querySelector('[data-view="picker"]').hidden = true;
-      r.querySelectorAll('[data-pane]').forEach(p => { p.hidden = p.dataset.pane !== btn.dataset.viewResponse; });
+      modalRoot.querySelector('[data-view="picker"]').hidden = true;
+      modalRoot.querySelectorAll('[data-pane]').forEach(p => { p.hidden = p.dataset.pane !== btn.dataset.viewResponse; });
     });
   });
-  r.querySelectorAll('[data-back-to-picker]').forEach(btn => {
+  modalRoot.querySelectorAll('[data-back-to-picker]').forEach(btn => {
     btn.addEventListener('click', () => {
-      r.querySelectorAll('[data-pane]').forEach(p => { p.hidden = true; });
-      r.querySelector('[data-view="picker"]').hidden = false;
+      modalRoot.querySelectorAll('[data-pane]').forEach(p => { p.hidden = true; });
+      modalRoot.querySelector('[data-view="picker"]').hidden = false;
     });
   });
+  modalRoot.querySelectorAll('[data-print-response]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const resp = responses.find(r => r.id === btn.dataset.printResponse);
+      if (resp) printQuestionnaireResponse(lead, resp);
+    });
+  });
+}
+
+/** Renders one response into a dedicated, unconstrained-height print
+ *  layout (#print-root, styled in styles.css under @media print) and
+ *  triggers the browser's print dialog — "Save as PDF" there is what
+ *  actually produces the file. Deliberately NOT printed straight out of
+ *  the open modal: the modal's body scrolls/clips, which would cut off
+ *  any answers below the fold instead of flowing across pages properly. */
+function printQuestionnaireResponse(lead, resp) {
+  const typeLabel = resp.questionnaireType === 'quick' ? 'Pre-Construction' : 'Construction';
+  const fields = QUESTIONNAIRE_SETS[resp.questionnaireType].sections.flatMap(sec => sec.fields);
+  let printRoot = qs('#print-root');
+  if (!printRoot) {
+    printRoot = el('<div id="print-root"></div>');
+    document.body.appendChild(printRoot);
+  }
+  printRoot.innerHTML = `
+    <div class="print-sheet">
+      <img src="assets/img/logo-green.png" alt="Erwin Forrest Builders" class="print-logo">
+      <h1>${esc(typeLabel)} Questionnaire</h1>
+      <p class="print-meta"><strong>${esc(lead.title)}</strong> — ${esc(resp.respondentName || 'Unknown respondent')}<br>Submitted ${fmtDateTime(resp.submittedAt)}</p>
+      <dl class="q-response-list">
+        ${fields.map(f => `
+          <div class="q-response-item">
+            <dt>${esc(f.label)}</dt>
+            <dd>${esc(resp.answers[f.key]) || '—'}</dd>
+          </div>`).join('')}
+      </dl>
+    </div>`;
+  window.print();
 }
 
 /* --------------------------- Confirm dialog --------------------------- */

@@ -385,6 +385,7 @@ function questionnaireStatusFromRow(r) {
 function questionnaireResponseFromRow(r) {
   return {
     id: r.id, leadId: r.lead_id, questionnaireType: r.questionnaire_type,
+    respondentName: r.respondent_name || '',
     answers: r.answers || {}, submittedAt: r.submitted_at,
     createdAt: r.created_at, updatedAt: r.updated_at,
   };
@@ -857,11 +858,6 @@ const Questionnaires = {
     return cache.questionnaireResponses
       .filter(r => r.leadId === leadId)
       .sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
-  },
-  /** Most recent response of one type, if any — a lead could in theory
-   *  be re-sent a link and submit twice; the newest one is what counts. */
-  latestResponse(leadId, type) {
-    return this.responsesFor(leadId).find(r => r.questionnaireType === type) || null;
   },
   /** Everything the Client Questionnaire page needs to know about one
    *  lead's send/answer state, computed together so the view doesn't
