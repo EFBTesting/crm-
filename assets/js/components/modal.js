@@ -793,11 +793,13 @@ function printQuestionnaireResponse(lead, resp) {
     </div>`;
 
   // Chrome/Edge suggest the page's <title> as the "Save as PDF" filename
-  // — swap it to include the respondent's name for the moment the print
-  // dialog is open, then restore the normal tab title right after.
-  const respondentForFilename = (resp.respondentName || 'Unknown respondent').replace(/[\\/:*?"<>|]/g, '');
+  // — swap it to include the project and respondent's name for the
+  // moment the print dialog is open, then restore the normal tab title
+  // right after. Both included (not just the name) so printing several
+  // jobs' responses doesn't produce indistinguishable same-named files.
+  const stripForFilename = s => (s || '').replace(/[\\/:*?"<>|]/g, '');
   const originalTitle = document.title;
-  document.title = `${originalTitle} — ${respondentForFilename}`;
+  document.title = `${originalTitle} — ${stripForFilename(lead.title)} — ${stripForFilename(resp.respondentName) || 'Unknown respondent'}`;
   window.print();
   document.title = originalTitle;
 }
