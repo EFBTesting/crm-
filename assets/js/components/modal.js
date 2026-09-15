@@ -791,7 +791,15 @@ function printQuestionnaireResponse(lead, resp) {
       <p class="print-meta"><strong>${esc(lead.title)}</strong> — ${esc(resp.respondentName || 'Unknown respondent')}<br>Submitted ${fmtDateTime(resp.submittedAt)}</p>
       ${set.sections.map(sec => questionnaireResponseSectionHtml(sec, resp)).join('<hr class="qf-divider">')}
     </div>`;
+
+  // Chrome/Edge suggest the page's <title> as the "Save as PDF" filename
+  // — swap it to include the respondent's name for the moment the print
+  // dialog is open, then restore the normal tab title right after.
+  const respondentForFilename = (resp.respondentName || 'Unknown respondent').replace(/[\\/:*?"<>|]/g, '');
+  const originalTitle = document.title;
+  document.title = `${originalTitle} — ${respondentForFilename}`;
   window.print();
+  document.title = originalTitle;
 }
 
 /* --------------------------- Confirm dialog --------------------------- */
