@@ -715,7 +715,7 @@ div.qf-q > textarea.qf-q__underline:focus { border-color: var(--brand); }
   #print-root, #print-root * { visibility: visible; }
   #print-root { display: block; position: absolute; top: 0; left: 0; width: 100%; }
   .print-sheet { max-width: 700px; margin: 0 auto; padding: 24px; }
-  .print-logo { height: 56px; margin-bottom: 10px; }
+  .print-logo { height: 88px; margin-bottom: 10px; }
   .print-meta { color: #444; margin: 6px 0 20px; font-size: 0.9rem; line-height: 1.5; }
   .print-sheet .q-response-item { break-inside: avoid; }
 }
