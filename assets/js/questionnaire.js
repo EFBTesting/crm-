@@ -117,6 +117,59 @@ function showError(message) {
   errorEl.hidden = false;
 }
 
+/** Saves in-progress answers to this browser's localStorage as the client
+ *  types, so a closed tab or crashed browser doesn't cost them a from-
+ *  scratch redo of a 10-15 minute form. Scoped to this exact lead+type link
+ *  (not shared across different questionnaires) and cleared once submitted.
+ *  Same-device/same-browser only — there's no server-side draft, since that
+ *  would need opening up anonymous write access beyond a one-time insert. */
+function draftStorageKey(leadId, type) {
+  return `efb-questionnaire-draft:${leadId}:${type}`;
+}
+function saveDraft(leadId, type, formEl) {
+  try {
+    const fd = new FormData(formEl);
+    const draft = {};
+    for (const [key, value] of fd.entries()) {
+      if (draft[key] === undefined) draft[key] = value;
+      else if (Array.isArray(draft[key])) draft[key].push(value);
+      else draft[key] = [draft[key], value];
+    }
+    localStorage.setItem(draftStorageKey(leadId, type), JSON.stringify(draft));
+  } catch (e) { /* storage unavailable (private browsing, blocked, full) — just skip saving */ }
+}
+function loadDraft(leadId, type) {
+  try {
+    const raw = localStorage.getItem(draftStorageKey(leadId, type));
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) { return null; }
+}
+function clearDraft(leadId, type) {
+  try { localStorage.removeItem(draftStorageKey(leadId, type)); } catch (e) { /* nothing to clean up */ }
+}
+/** Fills the form's fields from a saved draft — text/textarea/select by
+ *  value, checkboxes/radios by matching value against whatever was saved
+ *  (a plain string for one, an array for a multi-select group). Returns
+ *  whether anything was actually applied, so the caller knows whether to
+ *  show the "we restored your answers" notice. */
+function applyDraft(formEl, draft) {
+  if (!draft) return false;
+  let applied = false;
+  Object.keys(draft).forEach(key => {
+    const saved = draft[key];
+    const savedValues = Array.isArray(saved) ? saved : [saved];
+    formEl.querySelectorAll(`[name="${CSS.escape(key)}"]`).forEach(el => {
+      if (el.type === 'checkbox' || el.type === 'radio') {
+        el.checked = savedValues.includes(el.value);
+      } else {
+        el.value = savedValues[0] || '';
+      }
+      if ((savedValues[0] || '').length) applied = true;
+    });
+  });
+  return applied;
+}
+
 function init() {
   const params = new URLSearchParams(window.location.search);
   const leadId = (params.get('lead') || '').trim();
@@ -147,6 +200,28 @@ function init() {
   }).join('<hr class="qf-divider">');
   document.getElementById('q-sections').innerHTML = sectionsHtml;
   formEl.hidden = false;
+
+  if (applyDraft(formEl, loadDraft(leadId, type))) {
+    document.getElementById('q-draft-notice').hidden = false;
+  }
+
+  const saveStatusEl = document.getElementById('q-save-status');
+  let saveStatusTimer = null;
+  let draftSaveTimer = null;
+  formEl.addEventListener('input', () => {
+    clearTimeout(draftSaveTimer);
+    draftSaveTimer = setTimeout(() => {
+      saveDraft(leadId, type, formEl);
+      saveStatusEl.hidden = false;
+      clearTimeout(saveStatusTimer);
+      saveStatusTimer = setTimeout(() => { saveStatusEl.hidden = true; }, 2000);
+    }, 600);
+  });
+  // Checkbox/radio choices fire 'change' rather than a useful 'input' —
+  // save those right away instead of waiting on the debounce above.
+  formEl.addEventListener('change', e => {
+    if (e.target.type === 'checkbox' || e.target.type === 'radio' || e.target.tagName === 'SELECT') saveDraft(leadId, type, formEl);
+  });
 
   formEl.addEventListener('submit', async e => {
     e.preventDefault();
@@ -189,6 +264,7 @@ function init() {
       return;
     }
 
+    clearDraft(leadId, type);
     formEl.hidden = true;
     document.getElementById('q-success').hidden = false;
   });

@@ -640,7 +640,7 @@ div.qf-q > textarea.qf-q__underline:focus { border-color: var(--brand); }
 }
 .qf-q__choices input:checked { background: var(--brand); border-color: var(--brand); }
 
-.qf-submit-row { margin-top: 32px; display: flex; justify-content: flex-end; }
+.qf-submit-row { margin-top: 32px; display: flex; justify-content: flex-end; align-items: center; gap: 12px; }
 .qf-submit-row .btn { padding: 11px 28px; }
 
 @media (max-width: 600px) {
