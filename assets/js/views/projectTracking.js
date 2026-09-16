@@ -231,16 +231,8 @@ function renderProjectTracking(root) {
     bindDatePickers(root, async (dateStr, input) => {
       const id = input.dataset.dateLead;
       const field = input.dataset.dateField;
-      const lead = Leads.get(id);
-      if (lead && dateStr) {
-        const otherField = field === 'projectedStartDate' ? 'targetCompletionDate' : 'projectedStartDate';
-        const other = lead[otherField];
-        if (other && (field === 'projectedStartDate' ? dateStr > other : dateStr < other)) {
-          toast("Target Start can't be after Target Finish.", 'warn');
-          draw();
-          return;
-        }
-      }
+      const conflict = targetDateConflict(Leads.get(id), field, dateStr);
+      if (conflict) { toast(conflict, 'warn'); draw(); return; }
       try { await Leads.updatePreconMeta(id, { [field]: dateStr || null }); draw(); }
       catch (err) { toast(err.message || 'Could not update the date', 'warn'); }
     });

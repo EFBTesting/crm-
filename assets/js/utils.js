@@ -181,6 +181,20 @@ function bindDatePickers(root, onSave) {
   });
   datePickerInstances.set(root, instances);
 }
+/** Checks whether saving `dateStr` into a lead's `field` (either
+ *  'projectedStartDate' or 'targetCompletionDate') would put Target Start
+ *  after Target Finish — used by both Project Calendar's Gantt cells and
+ *  Project Tracking's inline date cells, which edit the same two fields.
+ *  Returns a warning message if so, null otherwise. Dates are plain
+ *  'YYYY-MM-DD' strings, so a direct comparison is enough. */
+function targetDateConflict(lead, field, dateStr) {
+  if (!lead || !dateStr) return null;
+  const otherField = field === 'projectedStartDate' ? 'targetCompletionDate' : 'projectedStartDate';
+  const other = lead[otherField];
+  if (!other) return null;
+  const reversed = field === 'projectedStartDate' ? dateStr > other : dateStr < other;
+  return reversed ? "Target Start can't be after Target Finish." : null;
+}
 function bindAutoCapitalize(input) {
   if (!input) return;
   input.addEventListener('input', () => {
