@@ -67,7 +67,7 @@ create table if not exists leads (
   stage text not null default 'new_lead' check (stage in ('new_lead', 'site_visit', 'estimate_sent', 'negotiation', 'design_contract_signed')),
   status text not null default 'active' check (status in ('active', 'on_hold', 'won', 'lost')),
   value numeric not null default 0,            -- "Budget" in the UI
-  revenue_percent numeric,                     -- % of budget expected as revenue
+  revenue_percent numeric check (revenue_percent between 0 and 100), -- % of budget expected as revenue
   project_type text,
   source text,
   urgency text,                                -- how soon they want to start (free text, same "unconstrained dropdown" treatment as source/project_type)
@@ -202,6 +202,9 @@ alter table leads add constraint leads_precon_status_check
 alter table leads drop constraint if exists leads_precon_status_before_lost_check;
 alter table leads add constraint leads_precon_status_before_lost_check
   check (precon_status_before_lost in ('active', 'on_hold', 'complete'));
+alter table leads drop constraint if exists leads_revenue_percent_check;
+alter table leads add constraint leads_revenue_percent_check
+  check (revenue_percent between 0 and 100);
 
 -- Same story for questionnaire_responses.questionnaire_type: today's
 -- 'detailed' -> 'construction' rename earlier this session updated the
@@ -395,17 +398,3 @@ begin
   exception when duplicate_object then null;
   end;
 end $$;
-
--- ---------------------------------------------------------------------
--- One-off data backfill, not a general migration pattern — safe to leave
--- in / re-run: it only ever touches a row that's still missing
--- respondent_name (real submissions from before that column existed had
--- no way to capture who answered). Ashley & Mike Lachman's real
--- Pre-Construction response (submitted 2026-09-14) predates this feature
--- entirely, so it'd otherwise sit as "Unknown respondent" in the CRM
--- forever — this fills in what we already know from the lead itself.
-update questionnaire_responses
-set respondent_name = 'Ashley & Mike Lachman'
-where lead_id = (select id from leads where title ilike '%lachman%' limit 1)
-  and questionnaire_type = 'quick'
-  and respondent_name is null;

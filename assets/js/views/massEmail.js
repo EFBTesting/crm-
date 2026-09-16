@@ -108,11 +108,36 @@ function renderMassEmail(root) {
     if (!selected.length) { toast('Select at least one recipient first.', 'warn'); return; }
     if (!massEmailSubject.trim()) { toast('Add a subject before sending.', 'warn'); return; }
 
-    const bcc = selected.map(c => c.email).join(',');
-    const mailto = `mailto:?bcc=${encodeURIComponent(bcc)}&subject=${encodeURIComponent(massEmailSubject)}&body=${encodeURIComponent(massEmailBody)}`;
+    // Dedupe by the email address itself (not contact id) — two contacts
+    // sharing one address (e.g. spouses) would otherwise both land in BCC
+    // and likely deliver twice. Also drops anything that doesn't look like
+    // a real email address (a typo during manual entry).
+    const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const seen = new Set();
+    const bccEmails = [];
+    let invalidCount = 0;
+    selected.forEach(c => {
+      const email = (c.email || '').trim();
+      if (!emailRe.test(email)) { invalidCount += 1; return; }
+      const key = email.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      bccEmails.push(email);
+    });
+    if (!bccEmails.length) { toast('None of the selected recipients have a valid-looking email address.', 'warn'); return; }
+    if (invalidCount) toast(`${invalidCount} selected contact${invalidCount === 1 ? '' : 's'} skipped — email address looks invalid.`, 'warn');
+
+    if (!window.confirm(`Send this to ${bccEmails.length} recipient${bccEmails.length === 1 ? '' : 's'}? This opens your email app with everyone BCC'd on one message.`)) return;
+
+    // Each address is percent-encoded individually and rejoined with a
+    // plain comma — encoding the whole joined string instead turns every
+    // separating comma into %2C, which some mail clients don't split back
+    // into distinct recipients.
+    const bcc = bccEmails.map(encodeURIComponent).join(',');
+    const mailto = `mailto:?bcc=${bcc}&subject=${encodeURIComponent(massEmailSubject)}&body=${encodeURIComponent(massEmailBody)}`;
 
     if (mailto.length > SAFE_MAILTO_LENGTH) {
-      toast(`Heads up — with ${selected.length} recipients this is a long link and some email apps may cut it off. If it doesn't open cleanly, try sending to a smaller group at a time.`, 'warn');
+      toast(`Heads up — with ${bccEmails.length} recipients this is a long link and some email apps may cut it off. If it doesn't open cleanly, try sending to a smaller group at a time.`, 'warn');
     }
     window.location.href = mailto;
   }

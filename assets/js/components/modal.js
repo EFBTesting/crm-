@@ -22,7 +22,12 @@ const Modal = (() => {
   }
 
   function open({ title, bodyHtml, wide = false }) {
-    cleanupFns = []; // defensive — a prior modal should have already cleared these via close()
+    // Run (not just drop) whatever's still queued — a prior modal should
+    // already have cleared these via close(), but if one ever opens while
+    // another is still open, this way its flatpickr instances/listeners
+    // still get cleaned up instead of leaking silently.
+    cleanupFns.forEach(fn => { try { fn(); } catch (e) { console.error(e); } });
+    cleanupFns = [];
     const r = root();
     r.innerHTML = `
       <div class="modal-overlay" data-close="1">

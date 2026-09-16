@@ -38,6 +38,14 @@ function init() {
     return;
   }
 
+  // Reused across retries on the same page load — if the contact insert
+  // below succeeds but the lead insert then fails, resubmitting would
+  // otherwise generate a brand-new contact id each time and leave the
+  // earlier one as an orphaned row anon has no way to see or delete.
+  // Keeping the same id lets a retry recognize "that contact already made
+  // it in" instead of creating another one.
+  let contactId = null;
+
   form.addEventListener('submit', async e => {
     e.preventDefault();
     document.getElementById('li-error').hidden = true;
@@ -67,7 +75,7 @@ function init() {
     submitBtn.textContent = 'Submitting…';
 
     const projectType = fd.get('projectType') || '';
-    const contactId = crypto.randomUUID();
+    if (!contactId) contactId = crypto.randomUUID();
 
     try {
       const { error: contactErr } = await supabaseClient.from('contacts').insert({
@@ -75,7 +83,10 @@ function init() {
         phone, email, address: (fd.get('address') || '').trim(),
         lead_source: 'Website', best_time_to_contact: fd.get('bestTime') || '',
       });
-      if (contactErr) throw contactErr;
+      // 23505 = unique_violation: this contact id already made it in on a
+      // prior attempt (see contactId above) — the lead insert is what
+      // failed, so treat the contact as already there and continue on.
+      if (contactErr && contactErr.code !== '23505') throw contactErr;
 
       const { error: leadErr } = await supabaseClient.from('leads').insert({
         contact_id: contactId, title: liGenerateTitle(firstName, lastName, projectType),

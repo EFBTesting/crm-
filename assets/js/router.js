@@ -50,10 +50,15 @@ const Router = (() => {
     navigate('/dashboard');
   }
 
+  // Detail routes that don't have their own nav item — keep the parent
+  // section highlighted instead of clearing the sidebar entirely.
+  const NAV_SECTION_ALIASES = { '/leads': '/pipeline' };
+
   function setActiveNav(path) {
     const section = '/' + path.split('/')[1];
+    const activeSection = NAV_SECTION_ALIASES[section] || section;
     qsa('.nav-link').forEach(a => {
-      a.classList.toggle('is-active', a.getAttribute('data-section') === section);
+      a.classList.toggle('is-active', a.getAttribute('data-section') === activeSection);
     });
   }
 

@@ -135,8 +135,16 @@ function bindDatalistReopen(input) {
  *  friendlier format via flatpickr's altInput. Pass `onSave(dateStr, input)`
  *  for fields that should save immediately on change (inline table edits);
  *  omit it for a field inside a form that saves on submit instead. */
+// Tracks the flatpickr instances currently bound under each root element, so
+// a re-render of that same root (Lead Detail/Project Tracking/Project
+// Calendar redraw on every edit and on realtime updates) can destroy the
+// previous instances instead of leaking them and their document.body popups
+// forever.
+const datePickerInstances = new WeakMap();
 function bindDatePickers(root, onSave) {
   if (typeof flatpickr === 'undefined') return;
+  (datePickerInstances.get(root) || []).forEach(fp => { try { fp.destroy(); } catch (e) {} });
+  const instances = [];
   qsa('.js-datepicker', root).forEach(input => {
     const originalClasses = input.className;
     const fp = flatpickr(input, {
@@ -158,11 +166,20 @@ function bindDatePickers(root, onSave) {
     // input becomes hidden) — match it to whatever this field was already
     // styled with (table-cell input, gantt cell input, etc).
     if (fp.altInput) fp.altInput.className = originalClasses;
+    instances.push(fp);
     // flatpickr appends its calendar popup to document.body, outside this
     // modal's own DOM — closing the modal (which just wipes its innerHTML)
     // would otherwise leave that popup and its listeners behind forever.
-    if (typeof Modal !== 'undefined' && Modal.onClose) Modal.onClose(() => fp.destroy());
+    // Only hook into the modal's own close-cleanup when this picker actually
+    // lives inside the modal — page-level pickers (Lead Detail, Project
+    // Tracking, Project Calendar) are cleaned up above on their own re-render
+    // instead, so closing an unrelated modal doesn't rip out date fields
+    // elsewhere on the page.
+    if (typeof Modal !== 'undefined' && Modal.onClose && root.closest && root.closest('#modal-root')) {
+      Modal.onClose(() => fp.destroy());
+    }
   });
+  datePickerInstances.set(root, instances);
 }
 function bindAutoCapitalize(input) {
   if (!input) return;

@@ -120,12 +120,14 @@ function renderLeadDetail(root, { id }) {
 
     qs('#edit-lead-btn', root).addEventListener('click', () => openLeadForm(l, {}, () => draw()));
     qs('#delete-lead-btn', root).addEventListener('click', () => {
+      const linkedContactCount = new Set([l.contactId, l.secondaryContactId].filter(Boolean)).size;
+      const contactNoun = linkedContactCount > 1 ? 'contacts' : 'contact';
       openConfirm({
         title: 'Delete lead',
-        message: `Delete "${l.title}"? Their linked contact will also be deleted (unless tied to another lead). If you might reopen this later, mark it Lost from the Pipeline list instead — this cannot be undone.`,
+        message: `Delete "${l.title}"? ${linkedContactCount ? `Their linked ${contactNoun} will also be deleted (unless tied to another lead). ` : ''}If you might reopen this later, mark it Lost from the Pipeline list instead — this cannot be undone.`,
       }, async () => {
         await Leads.remove(l.id);
-        toast('Lead and contact deleted');
+        toast(linkedContactCount ? `Lead and ${contactNoun} deleted` : 'Lead deleted');
         Router.back('/pipeline');
       });
     });

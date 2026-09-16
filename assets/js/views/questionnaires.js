@@ -137,7 +137,7 @@ function renderQuestionnaires(root) {
 
     qsa('[data-tab]', root).forEach(btn => btn.addEventListener('click', () => { questionnairesActiveTab = btn.dataset.tab; draw(); }));
     qsa('[data-open-responses]', root).forEach(el => el.addEventListener('click', () => openQuestionnaireResponses(Leads.get(el.dataset.openResponses))));
-    qsa('[data-send]', root).forEach(btn => btn.addEventListener('click', () => sendQuestionnaire(btn.dataset.send, btn.dataset.sendType)));
+    qsa('[data-send]', root).forEach(btn => btn.addEventListener('click', () => sendQuestionnaire(btn, btn.dataset.send, btn.dataset.sendType)));
     qsa('[data-reset]', root).forEach(btn => btn.addEventListener('click', () => resetQuestionnaire(btn.dataset.reset, btn.dataset.resetType)));
   }
 
@@ -163,7 +163,7 @@ function renderQuestionnaires(root) {
     return `${window.location.origin}${dir}questionnaire.html?lead=${leadId}&type=${type}`;
   }
 
-  async function sendQuestionnaire(leadId, type) {
+  async function sendQuestionnaire(btn, leadId, type) {
     const l = Leads.get(leadId);
     if (!l) return;
     const contact = Contacts.get(l.contactId);
@@ -171,6 +171,8 @@ function renderQuestionnaires(root) {
       toast('This lead has no email on file — add one on their Contact first.', 'warn');
       return;
     }
+    if (btn.disabled) return; // guards against a fast double-click sending/marking twice
+    btn.disabled = true;
     const typeLabel = type === 'quick' ? 'Pre-Construction' : 'Construction';
     const link = questionnaireLink(leadId, type);
     const subject = encodeURIComponent(`${typeLabel} Questionnaire — Erwin Forrest Builders`);
@@ -186,6 +188,7 @@ function renderQuestionnaires(root) {
       window.location.href = `mailto:${encodeURIComponent(contact.email)}?subject=${subject}&body=${body}`;
       draw();
     } catch (err) {
+      btn.disabled = false;
       toast(err.message || 'Could not mark this as sent', 'warn');
     }
   }

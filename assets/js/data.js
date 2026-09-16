@@ -26,6 +26,7 @@ const LEAD_STATUS_OPTIONS = [
   { id: 'active', label: 'Active' }, { id: 'on_hold', label: 'On Hold' }, { id: 'lost', label: 'Lost' },
 ];
 function leadStatusLabel(id) {
+  if (id === 'won') return 'Won'; // not a LEAD_STATUS_OPTIONS choice (winning is a Stage event), but still a real status value leads carry
   const s = LEAD_STATUS_OPTIONS.find(s => s.id === id);
   return s ? s.label : 'Active';
 }
@@ -325,12 +326,17 @@ function leadFromRow(r) {
   };
 }
 function leadToRow(d) {
-  const row = {
-    title: (d.title || '').trim(), contact_id: d.contactId || null, secondary_contact_id: d.secondaryContactId || null,
-    company_id: d.companyId || null, value: Number(d.value) || 0,
-    revenue_percent: d.revenuePercent === '' || d.revenuePercent === undefined || d.revenuePercent === null ? null : Number(d.revenuePercent),
-    project_type: d.projectType || '', source: d.source || '', urgency: d.urgency || '', notes: (d.notes || '').trim(),
-  };
+  const row = {};
+  if (d.title !== undefined) row.title = (d.title || '').trim();
+  if (d.contactId !== undefined) row.contact_id = d.contactId || null;
+  if (d.secondaryContactId !== undefined) row.secondary_contact_id = d.secondaryContactId || null;
+  if (d.companyId !== undefined) row.company_id = d.companyId || null;
+  if (d.value !== undefined) row.value = Number(d.value) || 0;
+  if (d.revenuePercent !== undefined) row.revenue_percent = d.revenuePercent === '' || d.revenuePercent === null ? null : Number(d.revenuePercent);
+  if (d.projectType !== undefined) row.project_type = d.projectType || '';
+  if (d.source !== undefined) row.source = d.source || '';
+  if (d.urgency !== undefined) row.urgency = d.urgency || '';
+  if (d.notes !== undefined) row.notes = (d.notes || '').trim();
   if (d.stage !== undefined) row.stage = d.stage;
   if (d.status !== undefined) row.status = d.status;
   if (d.lostReason !== undefined) row.lost_reason = d.lostReason;
@@ -459,7 +465,14 @@ function subscribeRealtime() {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, () => refreshTableThen('leads'))
     .on('postgres_changes', { event: '*', schema: 'public', table: 'questionnaire_status' }, () => refreshTableThen('questionnaire_status'))
     .on('postgres_changes', { event: '*', schema: 'public', table: 'questionnaire_responses' }, () => refreshTableThen('questionnaire_responses'))
-    .subscribe();
+    .subscribe(status => {
+      // Otherwise a dropped realtime connection (network policy, bad
+      // project ref, etc.) fails silently — this tab just quietly stops
+      // getting other people's edits with no indication anything's wrong.
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        console.warn(`Realtime sync (${status}) — this tab won't see live updates from other users until it's reloaded.`);
+      }
+    });
 }
 
 async function refreshTableThen(table) {
@@ -631,6 +644,11 @@ const Leads = {
   },
   async create(data) {
     const stage = data.stage || STAGES[0].id;
+    // Picking the last stage right at creation is the same win condition as
+    // reaching it via moveStage/the kanban — route through createProject so
+    // it gets wonAt/a Pre-Con checklist/project defaults instead of quietly
+    // becoming an "active" lead already parked in the final stage.
+    if (stage === STAGES[STAGES.length - 1].id) return this.createProject(data);
     const history = [{ at: new Date().toISOString(), event: 'created', detail: `Lead created in stage "${stageLabel(stage)}"` }];
     // New leads default to Keith as Assigned To so they show up populated
     // on the Project Calendar right away — changeable any time.
@@ -663,6 +681,18 @@ const Leads = {
     return lead;
   },
   async update(id, data) {
+    const l = this.get(id);
+    const finalStage = STAGES[STAGES.length - 1].id;
+    // Manually picking the last stage on the Edit Lead form is the same win
+    // condition as dragging a lead there on the kanban — route it through
+    // markWon (sets wonAt, starts the Pre-Con checklist, etc.) instead of
+    // just saving "stage" and leaving it parked there with status still
+    // "active" and never showing up on Project Tracking.
+    if (l && data.stage !== undefined && data.stage === finalStage && l.stage !== finalStage) {
+      const { stage, ...rest } = data;
+      await this.markWon(id);
+      return this._patch(id, rest);
+    }
     return this._patch(id, data);
   },
   /** Reaching the last stage (Design Contract Signed) IS the win condition
@@ -697,7 +727,16 @@ const Leads = {
     if (!l) return null;
     const from = l.projectStage || PROJECT_STAGES[0].id;
     const history = [...l.history, { at: new Date().toISOString(), event: 'project_stage_change', detail: `Project moved from "${projectStageLabel(from)}" to "${projectStageLabel(stageId)}"` }];
-    return this._patch(id, { projectStage: stageId, history });
+    const patch = { projectStage: stageId, history };
+    // Keep Record Status in sync with the production stage the same way
+    // markProjectComplete does — otherwise a project moved straight to
+    // "Completed" via this stage tracker/dropdown keeps preconStatus
+    // "active" and double-counts on the dashboard as both Completed and
+    // In Production. Only flips the two statuses this pairing owns
+    // (active <-> complete), leaving a manually-set On Hold/Lost alone.
+    if (stageId === 'completed' && l.preconStatus === 'active') patch.preconStatus = 'complete';
+    else if (from === 'completed' && stageId !== 'completed' && l.preconStatus === 'complete') patch.preconStatus = 'active';
+    return this._patch(id, patch);
   },
   /** Updates a project's health status, permit list, and/or permit township
    *  together — status is set from the Project Tracking table now, permits
@@ -859,12 +898,15 @@ const Leads = {
       }
     }
   },
-  /** Internal: merge partial fields onto the existing lead and save. */
+  /** Internal: saves only the given fields — never a full-row snapshot from
+   *  the local cache, so two near-simultaneous edits to the same lead (e.g.
+   *  ticking two Pre-Con checklist boxes back to back) can't have the
+   *  second write silently revert the first by resending stale cached
+   *  values for whatever fields it wasn't touching. */
   async _patch(id, partial) {
     const existing = this.get(id);
     if (!existing) return null;
-    const merged = { ...existing, ...partial };
-    const { data: row, error } = await mustClient().from('leads').update(leadToRow(merged)).eq('id', id).select().single();
+    const { data: row, error } = await mustClient().from('leads').update(leadToRow(partial)).eq('id', id).select().single();
     if (error) throw error;
     const lead = leadFromRow(row);
     const i = cache.leads.findIndex(l => l.id === id);

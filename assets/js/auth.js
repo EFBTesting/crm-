@@ -12,14 +12,17 @@ const Auth = {
     return data.session;
   },
   async signIn(email, password) {
+    if (!supabaseClient) throw new Error("This page isn't connected yet — please contact us directly.");
     const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
     if (error) throw error;
     return data.session;
   },
   async signOut() {
+    if (!supabaseClient) return;
     await supabaseClient.auth.signOut();
   },
   onChange(fn) {
+    if (!supabaseClient) return;
     supabaseClient.auth.onAuthStateChange((_event, session) => fn(session));
   },
 };

@@ -119,8 +119,8 @@ function showError(message) {
 
 function init() {
   const params = new URLSearchParams(window.location.search);
-  const leadId = params.get('lead');
-  const type = params.get('type');
+  const leadId = (params.get('lead') || '').trim();
+  const type = (params.get('type') || '').trim();
   const set = QUESTIONNAIRE_SETS[type];
 
   document.getElementById('q-loading').hidden = true;
@@ -150,6 +150,7 @@ function init() {
 
   formEl.addEventListener('submit', async e => {
     e.preventDefault();
+    document.getElementById('q-error').hidden = true;
     const submitBtn = formEl.querySelector('button[type="submit"]');
     submitBtn.disabled = true;
     submitBtn.textContent = 'Submitting...';
@@ -157,8 +158,19 @@ function init() {
     const fd = new FormData(formEl);
     const answers = {};
     allFields(set).forEach(f => {
-      answers[f.key] = f.multiple ? fd.getAll(f.key).join(', ') : (fd.get(f.key) || '');
+      const raw = f.multiple ? fd.getAll(f.key).join(', ') : (fd.get(f.key) || '');
+      // Trimmed so a required text/tel field can't be satisfied with
+      // whitespace-only input — HTML5 `required` only rejects a truly
+      // empty string for those input types.
+      answers[f.key] = typeof raw === 'string' ? raw.trim() : raw;
     });
+    const missingRequired = allFields(set).some(f => f.required && !answers[f.key]);
+    if (missingRequired) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Submit';
+      showError('Please fill in all required fields.');
+      return;
+    }
     // Every set's Contact Details section already asks "First Name & Last
     // Name" (key: fullName) as its first, required question — reused here
     // as the respondent's identity instead of asking the same thing twice

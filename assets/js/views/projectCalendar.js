@@ -264,6 +264,20 @@ function renderProjectCalendar(root) {
     bindDatePickers(root, async (dateStr, input) => {
       const id = input.dataset.ganttLead;
       const field = input.dataset.ganttDate;
+      const lead = Leads.get(id);
+      if (lead && dateStr) {
+        const otherField = field === 'projectedStartDate' ? 'targetCompletionDate' : 'projectedStartDate';
+        const other = lead[otherField];
+        // Dates are plain 'YYYY-MM-DD' strings, so a direct comparison is
+        // enough to catch a reversed pair (start after finish) before it
+        // renders a backwards/empty Gantt bar with no other indication
+        // anything's wrong.
+        if (other && (field === 'projectedStartDate' ? dateStr > other : dateStr < other)) {
+          toast("Target Start can't be after Target Finish.", 'warn');
+          draw();
+          return;
+        }
+      }
       try { await Leads.updatePreconMeta(id, { [field]: dateStr || null }); draw(); }
       catch (err) { toast(err.message || 'Could not update the date', 'warn'); }
     });

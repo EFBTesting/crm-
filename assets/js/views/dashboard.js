@@ -22,11 +22,10 @@ function computeSalesAnalytics() {
   const avgDealSize = won.length ? wonValue / won.length : 0;
   const winRate = closed ? Math.round((won.length / closed) * 100) : null;
 
-  const byStage = STAGES.map(s => ({
-    stage: s,
-    count: active.filter(l => l.stage === s.id).length,
-    value: active.filter(l => l.stage === s.id).reduce((sum, l) => sum + (Number(l.value) || 0), 0),
-  }));
+  const byStage = STAGES.map(s => {
+    const inStage = active.filter(l => l.stage === s.id);
+    return { stage: s, count: inStage.length, value: inStage.reduce((sum, l) => sum + (Number(l.value) || 0), 0) };
+  });
 
   const bySource = {};
   leads.forEach(l => {
